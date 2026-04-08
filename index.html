@@ -72,38 +72,42 @@
         }
 
         /* Panels Tab */
-        .panels-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 2rem;
+        .panels-table-wrapper {
+            overflow-x: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             margin-bottom: 2rem;
         }
 
-        .panel-card {
-            background: white;
-            border-radius: 8px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        .panels-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
         }
 
-        .panel-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            border-bottom: 2px solid #42a5f5;
-            padding-bottom: 0.5rem;
+        .panels-table thead {
+            background-color: #1a1a2e;
+            color: white;
         }
 
-        .panel-card-title {
-            font-size: 1.3rem;
+        .panels-table th {
+            padding: 0.6rem 0.8rem;
+            text-align: center;
             font-weight: bold;
-            color: #1a1a2e;
+            border: 1px solid #ddd;
+            white-space: nowrap;
         }
 
-        .panel-card-actions {
-            display: flex;
-            gap: 0.5rem;
+        .panels-table td {
+            padding: 0.4rem 0.6rem;
+            border: 1px solid #ddd;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .panels-table tbody tr:hover {
+            background-color: #f5f5f5;
         }
 
         .btn-small {
@@ -129,44 +133,8 @@
             background-color: #b71c1c;
         }
 
-        .panel-card-info {
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
-        }
-
-        .panel-card-info p {
-            margin: 0.3rem 0;
-            color: #666;
-        }
-
-        .panel-card-info strong {
-            color: #1a1a2e;
-        }
-
-        .category-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.5rem;
-            margin: 1rem 0;
-            font-size: 0.85rem;
-        }
-
-        .category-item {
-            background-color: #f9f9f9;
-            padding: 0.5rem;
-            border-radius: 4px;
-            border-left: 3px solid #42a5f5;
-        }
-
-        .category-label {
-            color: #666;
-            font-size: 0.8rem;
-        }
-
-        .category-value {
-            font-weight: bold;
-            color: #1a1a2e;
-            font-size: 0.95rem;
+        .panels-table .badge {
+            font-size: 0.75rem;
         }
 
         .total-row {
@@ -223,8 +191,7 @@
 
         .balance-segment {
             height: 100%;
-            transition: width 0.3s;
-        }
+            transition: width 0.3s;      }
 
         .balance-l1 {
             background-color: #42a5f5;
@@ -404,10 +371,9 @@
         }
 
         .circuits-table {
-            width: max-content;
-            min-width: 100%;
+            width: 100%;
             border-collapse: collapse;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
 
         .circuits-table thead {
@@ -419,15 +385,16 @@
         }
 
         .circuits-table th {
-            padding: 0.8rem;
-            text-align: left;
+            padding: 0.3rem 0.4rem;
+            text-align: center;
             font-weight: bold;
             border: 1px solid #ddd;
             white-space: nowrap;
+            font-size: 0.75rem;
         }
 
         .circuits-table td {
-            padding: 0.6rem;
+            padding: 0.2rem 0.3rem;
             border: 1px solid #ddd;
         }
 
@@ -438,39 +405,37 @@
         .circuits-table input,
         .circuits-table select {
             width: 100%;
-            padding: 0.3rem;
+            padding: 0.15rem 0.2rem;
             border: 1px solid #ddd;
             border-radius: 2px;
             font-family: 'Segoe UI', 'Meiryo', sans-serif;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
             box-sizing: border-box;
         }
 
         /* 各列の最小幅を指定 */
         .circuits-table th:nth-child(1),
-        .circuits-table td:nth-child(1) { min-width: 30px; width: 30px; }
+        .circuits-table td:nth-child(1) { width: 25px; }   /* # */
         .circuits-table th:nth-child(2),
-        .circuits-table td:nth-child(2) { min-width: 80px; }
+        .circuits-table td:nth-child(2) { width: 65px; }   /* 盤名称 */
         .circuits-table th:nth-child(3),
-        .circuits-table td:nth-child(3) { min-width: 60px; }
+        .circuits-table td:nth-child(3) { width: 40px; }   /* 種別 */
         .circuits-table th:nth-child(4),
-        .circuits-table td:nth-child(4) { min-width: 55px; }
+        .circuits-table td:nth-child(4) { width: 40px; }   /* 記号 */
         .circuits-table th:nth-child(5),
-        .circuits-table td:nth-child(5) { min-width: 65px; }
+        .circuits-table td:nth-child(5) { width: 55px; }   /* 回路No */
         .circuits-table th:nth-child(6),
-        .circuits-table td:nth-child(6) { min-width: 55px; }
+        .circuits-table td:nth-child(6) { width: 45px; }   /* 親No */
         .circuits-table th:nth-child(7),
-        .circuits-table td:nth-child(7) { min-width: 55px; }
+        .circuits-table td:nth-child(7) { width: 40px; }   /* 相 */
         .circuits-table th:nth-child(8),
-        .circuits-table td:nth-child(8) { min-width: 100px; }
+        .circuits-table td:nth-child(8) { width: 85px; }   /* 遮断器 */
         .circuits-table th:nth-child(9),
-        .circuits-table td:nth-child(9) { min-width: 55px; }
+        .circuits-table td:nth-child(9) { width: 40px; }   /* AF */
         .circuits-table th:nth-child(10),
-        .circuits-table td:nth-child(10) { min-width: 55px; }
+        .circuits-table td:nth-child(10) { width: 40px; }  /* AT */
         .circuits-table th:nth-child(11),
-        .circuits-table td:nth-child(11) { min-width: 55px; }
-        .circuits-table th:nth-child(20),
-        .circuits-table td:nth-child(20) { min-width: 120px; }
+        .circuits-table td:nth-child(11) { width: 40px; }  /* 電圧 */
 
         .circuits-table input:focus,
         .circuits-table select:focus {
@@ -588,7 +553,30 @@
         <!-- Panels Tab -->
         <div id="panels" class="tab-content active">
             <button class="btn-add-panel" id="btnAddPanel">+ 盤を追加</button>
-            <div class="panels-grid" id="panelsGrid"></div>
+            <div class="panels-table-wrapper">
+                <table class="panels-table" id="panelsTable">
+                    <thead>
+                        <tr>
+                            <th>盤名称</th>
+                            <th>種別</th>
+                            <th>主遮断器</th>
+                            <th>AF</th>
+                            <th>AT</th>
+                            <th>照明</th>
+                            <th>ｺﾝｾﾝﾄ</th>
+                            <th>FC</th>
+                            <th>OA</th>
+                            <th>幹線</th>
+                            <th>合計</th>
+                            <th>電流</th>
+                            <th>AT判定</th>
+                            <th>平衡率</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="panelsBody"></tbody>
+                </table>
+            </div>
         </div>
 
         <!-- Circuits Tab -->
@@ -617,11 +605,11 @@
                             <th>AF</th>
                             <th>AT</th>
                             <th>電圧</th>
-                            <th>照明[kVA]</th>
-                            <th>ｺﾝｾﾝﾄ[kVA]</th>
-                            <th>FC[kVA]</th>
-                            <th>OA[kVA]</th>
-                            <th>幹線[kVA]</th>
+                            <th>照明[�"</th>
+                            <th>ｺﾝｾﾝﾄ</th>
+                            <th>FC</th>
+                            <th>OA</th>
+                            <th>幹線</th>
                             <th>合計</th>
                             <th>電流</th>
                             <th>AT判定</th>
@@ -875,14 +863,14 @@
         }
 
         function renderPanels() {
-            const grid = document.getElementById('panelsGrid');
-            grid.innerHTML = '';
+            const tbody = document.getElementById('panelsBody');
+            tbody.innerHTML = '';
 
             allPanels.forEach(panel => {
                 const circuits = allCircuits.filter(c => c.panel_name === panel.name);
                 const summaries = calculatePanelSummaries(panel.name, circuits);
-                const card = createPanelCard(panel, summaries);
-                grid.appendChild(card);
+                const row = createPanelRow(panel, summaries);
+                tbody.appendChild(row);
             });
         }
 
@@ -935,78 +923,37 @@
             };
         }
 
-        function createPanelCard(panel, summaries) {
-            const card = document.createElement('div');
-            card.className = 'panel-card';
+        function createPanelRow(panel, summaries) {
+            const row = document.createElement('tr');
 
-            let balanceHtml = '';
+            let balanceText = '-';
             if (summaries.balance !== null) {
-                const maxPhase = Math.max(summaries.l1Sum, summaries.l2Sum);
-                const l1Width = maxPhase > 0 ? (summaries.l1Sum / maxPhase * 100) : 0;
-                const l2Width = maxPhase > 0 ? (summaries.l2Sum / maxPhase * 100) : 0;
                 const balanceStatus = summaries.balance <= 40 ? 'OK' : '×';
-                balanceHtml = `
-                    <div class="balance-bar">
-                        <div class="balance-segment balance-l1" style="width: ${l1Width}%"></div>
-                        <div class="balance-segment balance-l2" style="width: ${l2Width}%"></div>
-                    </div>
-                    <div class="balance-text">L1: ${summaries.l1Sum.toFixed(2)} kVA | L2: ${summaries.l2Sum.toFixed(2)} kVA | 平衡率: ${summaries.balance.toFixed(1)}% <span class="badge ${summaries.balance <= 40 ? 'badge-ok' : 'badge-ng'}">${balanceStatus}</span></div>
-                `;
+                balanceText = `${summaries.balance.toFixed(1)}% <span class="badge ${summaries.balance <= 40 ? 'badge-ok' : 'badge-ng'}">${balanceStatus}</span>`;
             }
 
-            card.innerHTML = `
-                <div class="panel-card-header">
-                    <div class="panel-card-title">${panel.name}</div>
-                    <div class="panel-card-actions">
-                        <button class="btn-small" onclick="editPanel(${panel.id})">編集</button>
-                        <button class="btn-small btn-delete" onclick="deletePanel(${panel.id})">削除</button>
-                    </div>
-                </div>
-                <div class="panel-card-info">
-                    <p><strong>種別:</strong> ${panel.elec_type}</p>
-                    <p><strong>主遮断器:</strong> ${panel.main_breaker}</p>
-                    <p><strong>AF/AT:</strong> ${panel.af}A / ${panel.at}A</p>
-                </div>
-                <div class="category-grid">
-                    <div class="category-item">
-                        <div class="category-label">照明</div>
-                        <div class="category-value">${summaries.lighting.toFixed(2)} kVA</div>
-                    </div>
-                    <div class="category-item">
-                        <div class="category-label">コンセント</div>
-                        <div class="category-value">${summaries.outlet.toFixed(2)} kVA</div>
-                    </div>
-                    <div class="category-item">
-                        <div class="category-label">FC</div>
-                        <div class="category-value">${summaries.fc.toFixed(2)} kVA</div>
-                    </div>
-                    <div class="category-item">
-                        <div class="category-label">OA</div>
-                        <div class="category-value">${summaries.oa.toFixed(2)} kVA</div>
-                    </div>
-                    <div class="category-item">
-                        <div class="category-label">幹線</div>
-                        <div class="category-value">${summaries.feeder.toFixed(2)} kVA</div>
-                    </div>
-                </div>
-                <div class="total-row">
-                    <div class="total-item">
-                        <div class="total-item-label">合計</div>
-                        <div class="total-item-value">${summaries.total.toFixed(2)} kVA</div>
-                    </div>
-                    <div class="total-item">
-                        <div class="total-item-label">電流</div>
-                        <div class="total-item-value">${summaries.current} A</div>
-                    </div>
-                    <div class="total-item">
-                        <div class="total-item-label">AT判定</div>
-                        <div class="total-item-value"><span class="badge ${summaries.atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${summaries.atStatus}</span></div>
-                    </div>
-                </div>
-                ${balanceHtml}
+            row.innerHTML = `
+                <td style="font-weight:bold;">${panel.name}</td>
+                <td>${panel.elec_type}</td>
+                <td>${panel.main_breaker}</td>
+                <td>${panel.af}</td>
+                <td>${panel.at}</td>
+                <td>${summaries.lighting.toFixed(2)}</td>
+                <td>${summaries.outlet.toFixed(2)}</td>
+                <td>${summaries.fc.toFixed(2)}</td>
+                <td>${summaries.oa.toFixed(2)}</td>
+                <td>${summaries.feeder.toFixed(2)}</td>
+                <td style="font-weight:bold;">${summaries.total.toFixed(2)}</td>
+                <td>${summaries.current} A</td>
+                <td><span class="badge ${summaries.atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${summaries.atStatus}</span></td>
+                <td>${balanceText}</td>
+                <td>
+                    <button class="btn-small" onclick="editPanel(${panel.id})">編集</button>
+                    <button class="btn-small btn-delete" onclick="deletePanel(${panel.id})">削除</button>
+                </td>
             `;
 
-            return card;
+            return row;
         }
 
         function openPanelModal() {
@@ -1084,7 +1031,7 @@
 
                 // Delete panel
                 const { error: panelError } = await db
-                    .from('panels')
+              .from('panels')
                     .delete()
                     .eq('id', panelId);
 
@@ -1188,6 +1135,8 @@
                         <option value="ELCB2P2E" ${circuit.breaker === 'ELCB2P2E' ? 'selected' : ''}>ELCB2P2E</option>
                         <option value="MCCB3P" ${circuit.breaker === 'MCCB3P' ? 'selected' : ''}>MCCB3P</option>
                         <option value="ELCB3P" ${circuit.breaker === 'ELCB3P' ? 'selected' : ''}>ELCB3P</option>
+                        <option value="RR2P2E" ${circuit.breaker === 'RR2P2E' ? 'selected' : ''}>RR2P2E</option>
+                        <option value="RR2P11E" ${circuit.breaker === 'RR2P11E' ? 'selected' : ''}>RR2P11E</option>
                     </select>
                 </td>
                 <td>
@@ -1215,15 +1164,19 @@
             `;
 
             // Add event listeners for inline editing
-            row.querySelectorAll('.circuit-input, .circuit-select, .panel-select').forEach(input => {
-                input.addEventListener('change', handleCircuitChange);
+            row.querySelectorAll('.circuit-input').forEach(input => {
                 input.addEventListener('blur', handleCircuitChange);
+            });
+            row.querySelectorAll('.circuit-select, .panel-select').forEach(input => {
+                input.addEventListener('change', handleCircuitChange);
             });
 
             return row;
         }
 
+        let isRendering = false;
         async function handleCircuitChange(e) {
+            if (isRendering) return;
             const input = e.target;
             const circuitId = parseInt(input.dataset.id);
             const field = input.dataset.field;
@@ -1242,8 +1195,11 @@
                 if (error) throw error;
                 await loadCircuits();
                 await loadPanels();
+                isRendering = true;
                 await renderCircuits();
+                isRendering = false;
             } catch (error) {
+                isRendering = false;
                 console.error('Error updating circuit:', error);
                 alert('エラーが発生しました');
             }
@@ -1318,7 +1274,8 @@
             const mCircuits = circuits.filter(c => c.type === 'M' && c.remocon && c.remocon > 0);
 
             // RC番号: R0-1,R0-2,R0-3,R0-4, R1-1,R1-2,R1-3,R1-4, ...
-            let rcIndex = 0;
+            // 全M回路のリモコン数を通しで4個ずつグループ化
+            let rcIndex = 0; // 通し番号（0始まり）
             for (let i = 0; i < mCircuits.length; i++) {
                 const mCircuit = mCircuits[i];
                 for (let j = 0; j < mCircuit.remocon; j++) {
@@ -1331,9 +1288,9 @@
                         circuit_no: `R${groupNo}-${subNo}`,
                         parent_no: mCircuit.circuit_no,
                         phase: mCircuit.phase,
-                        breaker: mCircuit.breaker,
-                        af: mCircuit.af,
-                        at: mCircuit.at,
+                        breaker: 'RR2P2E',
+                        af: 20,
+                        at: 20,
                         voltage: mCircuit.voltage,
                         lighting: 0,
                         outlet: 0,
@@ -1442,5 +1399,6 @@
             document.body.removeChild(link);
         }
     </script>
-</body>
+ </body>
+ 
 </html>
