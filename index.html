@@ -626,6 +626,7 @@
                             <th>電流</th>
                             <th>AT判定</th>
                             <th>負荷名称</th>
+                            <th>RC数</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -1209,6 +1210,7 @@
                 <td><strong>${current.toFixed(2)}</strong></td>
                 <td><strong><span class="badge ${atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${atStatus}</span></strong></td>
                 <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="load_name" value="${circuit.load_name || ''}" /></td>
+                <td><input type="number" min="0" class="circuit-input" data-id="${circuit.id}" data-field="remocon" value="${circuit.remocon || 0}" style="width:50px;" /></td>
                 <td><button class="btn-delete-circuit" onclick="deleteCircuit(${circuit.id})">削除</button></td>
             `;
 
@@ -1315,14 +1317,18 @@
             const toInsert = [];
             const mCircuits = circuits.filter(c => c.type === 'M' && c.remocon && c.remocon > 0);
 
+            // RC番号: R0-1,R0-2,R0-3,R0-4, R1-1,R1-2,R1-3,R1-4, ...
+            let rcIndex = 0;
             for (let i = 0; i < mCircuits.length; i++) {
                 const mCircuit = mCircuits[i];
                 for (let j = 0; j < mCircuit.remocon; j++) {
+                    const groupNo = Math.floor(rcIndex / 4);
+                    const subNo = (rcIndex % 4) + 1;
                     toInsert.push({
                         panel_name: mCircuit.panel_name,
                         type: 'RC',
                         symbol: mCircuit.symbol,
-                        circuit_no: `${mCircuit.circuit_no}-${j + 1}`,
+                        circuit_no: `R${groupNo}-${subNo}`,
                         parent_no: mCircuit.circuit_no,
                         phase: mCircuit.phase,
                         breaker: mCircuit.breaker,
@@ -1338,6 +1344,7 @@
                         remocon: 0,
                         sort_order: (mCircuit.sort_order || 0) + 1 + j
                     });
+                    rcIndex++;
                 }
             }
 
