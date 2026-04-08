@@ -18,6 +18,96 @@
             color: #333;
         }
 
+        /* Login Screen */
+        .login-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .login-container.hidden {
+            display: none;
+        }
+
+        .login-box {
+            background: white;
+            border-radius: 8px;
+            padding: 3rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-title {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #1a1a2e;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-subtitle {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .login-input {
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-family: 'Segoe UI', 'Meiryo', sans-serif;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: #42a5f5;
+            box-shadow: 0 0 4px rgba(66, 165, 245, 0.3);
+        }
+
+        .login-button {
+            background-color: #42a5f5;
+            color: white;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .login-button:hover {
+            background-color: #1e88e5;
+        }
+
+        .login-error {
+            color: #d32f2f;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .login-error.show {
+            display: block;
+        }
+
+        /* Main App */
         .nav-bar {
             background-color: #1a1a2e;
             color: white;
@@ -774,238 +864,471 @@
             background-color: #bbdefb;
             color: #1565c0;
         }
+
+        .motor-judgment-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .motor-judgment-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #1a1a2e;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #42a5f5;
+            padding-bottom: 0.5rem;
+        }
+
+        .motor-input-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .motor-input-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .motor-input-item label {
+            font-weight: bold;
+            margin-bottom: 0.3rem;
+            color: #1a1a2e;
+            font-size: 0.9rem;
+        }
+
+        .motor-input-item input {
+            padding: 0.6rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .motor-input-item input:focus {
+            outline: none;
+            border-color: #42a5f5;
+            box-shadow: 0 0 4px rgba(66, 165, 245, 0.3);
+        }
+
+        .motor-result {
+            background-color: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 4px;
+            padding: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .motor-result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid #bbdefb;
+        }
+
+        .motor-result-row:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
-    <div class="nav-bar">
-        <div class="nav-title">配盤・回路計算システム</div>
-        <div class="nav-tabs">
-            <button class="nav-tab active" data-tab="panels">盤一覧</button>
-            <button class="nav-tab" data-tab="circuits">回路DB</button>
-            <button class="nav-tab" data-tab="feeders">幹線計算書</button>
-            <button class="nav-tab" data-tab="transformer">トランス容量</button>
-            <button class="nav-tab" data-tab="diagram">系統図</button>
-            <button class="nav-tab" data-tab="master">マスターデータ</button>
+    <!-- Login Screen -->
+    <div id="loginContainer" class="login-container">
+        <div class="login-box">
+            <div class="login-title">エル・エル・イー電気</div>
+            <div class="login-subtitle">配盤・回路計算システム</div>
+            <form id="loginForm" class="login-form" onsubmit="handleLogin(event)">
+                <input type="password" id="passwordInput" class="login-input" placeholder="パスワード" required>
+                <button type="submit" class="login-button">ログイン</button>
+                <div id="loginError" class="login-error">パスワードが正しくありません</div>
+            </form>
         </div>
     </div>
 
-    <div class="container">
-        <!-- Panels Tab -->
-        <div id="panels" class="tab-content active">
-            <button class="btn-add-panel" id="btnAddPanel">+ 盤を追加</button>
-            <div class="panels-table-wrapper">
-                <table class="panels-table" id="panelsTable">
-                    <thead>
-                        <tr>
-                            <th>盤名称</th>
-                            <th>種別</th>
-                            <th>主遮断器</th>
-                            <th>AF</th>
-                            <th>AT</th>
-                            <th>照明</th>
-                            <th>ｺﾝｾﾝﾄ</th>
-                            <th>FC</th>
-                            <th>OA</th>
-                            <th>幹線</th>
-                            <th>合計</th>
-                            <th>電流</th>
-                            <th>AT判定</th>
-                            <th>平衡率</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="panelsBody"></tbody>
-                </table>
+    <div id="mainApp" style="display: none;">
+        <div class="nav-bar">
+            <div class="nav-title">配盤・回路計算システム</div>
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="panels">盤一覧</button>
+                <button class="nav-tab" data-tab="circuits">回路DB</button>
+                <button class="nav-tab" data-tab="feeders">幹線計算書</button>
+                <button class="nav-tab" data-tab="transformer">トランス容量</button>
+                <button class="nav-tab" data-tab="diagram">系統図</button>
+                <button class="nav-tab" data-tab="master">マスターデータ</button>
             </div>
         </div>
 
-        <!-- Circuits Tab -->
-        <div id="circuits" class="tab-content">
-            <div class="circuits-controls">
-                <select id="circuitsPanelFilter" class="circuits-filter">
-                    <option value="">全ての盤</option>
-                </select>
-                <button class="btn-action" id="btnAddCircuit">+ 回路追加</button>
-                <button class="btn-action" id="btnRemconExpand">リモコン展開</button>
-                <button class="btn-action btn-danger" id="btnRemconDelete">RC全削除</button>
-                <button class="btn-action" id="btnCsvExport">CSV出力</button>
+        <div class="container">
+            <!-- Panels Tab -->
+            <div id="panels" class="tab-content active">
+                <button class="btn-add-panel" id="btnAddPanel">+ 盤を追加</button>
+                <div class="panels-table-wrapper">
+                    <table class="panels-table" id="panelsTable">
+                        <thead>
+                            <tr>
+                                <th>盤名称</th>
+                                <th>種別</th>
+                                <th>主遮断器</th>
+                                <th>AF</th>
+                                <th>AT</th>
+                                <th>照明</th>
+                                <th>ｺﾝｾﾝﾄ</th>
+                                <th>FC</th>
+                                <th>OA</th>
+                                <th>幹線</th>
+                                <th>合計</th>
+                                <th>電流</th>
+                                <th>AT判定</th>
+                                <th>平衡率</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="panelsBody"></tbody>
+                    </table>
+                </div>
             </div>
-            <div class="circuits-table-wrapper">
-                <table class="circuits-table" id="circuitsTable">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>盤名称</th>
-                            <th>種別</th>
-                            <th>記号</th>
-                            <th>回路No</th>
-                            <th>親No</th>
-                            <th>相</th>
-                            <th>遮断器</th>
-                            <th>AF</th>
-                            <th>AT</th>
-                            <th>電圧</th>
-                            <th>照明</th>
-                            <th>ｺﾝｾﾝﾄ</th>
-                            <th>FC</th>
-                            <th>OA</th>
-                            <th>幹線</th>
-                            <th>合計</th>
-                            <th>電流</th>
-                            <th>AT判定</th>
-                            <th>負荷名称</th>
-                            <th>RC数</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="circuitsTableBody"></tbody>
-                </table>
-            </div>
-        </div>
 
-        <!-- Feeders Tab -->
-        <div id="feeders" class="tab-content">
-            <div class="feeders-controls">
-                <button class="btn-action" id="btnAddFeeder">+ 幹線追加</button>
-                <button class="btn-action" id="btnFeedersExport">CSV出力</button>
+            <!-- Circuits Tab -->
+            <div id="circuits" class="tab-content">
+                <div class="circuits-controls">
+                    <select id="circuitsPanelFilter" class="circuits-filter">
+                        <option value="">全ての盤</option>
+                    </select>
+                    <button class="btn-action" id="btnAddCircuit">+ 回路追加</button>
+                    <button class="btn-action" id="btnRemconExpand">リモコン展開</button>
+                    <button class="btn-action btn-danger" id="btnRemconDelete">RC全削除</button>
+                    <button class="btn-action" id="btnCsvExport">CSV出力</button>
+                </div>
+                <div class="circuits-table-wrapper">
+                    <table class="circuits-table" id="circuitsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>盤名称</th>
+                                <th>種別</th>
+                                <th>記号</th>
+                                <th>回路No</th>
+                                <th>親No</th>
+                                <th>相</th>
+                                <th>遮断器</th>
+                                <th>AF</th>
+                                <th>AT</th>
+                                <th>電圧</th>
+                                <th>照明</th>
+                                <th>ｺﾝｾﾝﾄ</th>
+                                <th>FC</th>
+                                <th>OA</th>
+                                <th>幹線</th>
+                                <th>合計</th>
+                                <th>電流</th>
+                                <th>AT判定</th>
+                                <th>負荷名称</th>
+                                <th>RC数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="circuitsTableBody"></tbody>
+                    </table>
+                </div>
             </div>
-            <div class="feeders-table-wrapper">
-                <table class="feeders-table" id="feedersTable">
-                    <thead>
-                        <tr>
-                            <th>No.</th>
-                            <th>負荷名称</th>
-                            <th>負荷容量[kVA]</th>
-                            <th>需要率[%]</th>
-                            <th>需要容量[kVA]</th>
-                            <th>相</th>
-                            <th>電圧[V]</th>
-                            <th>電流[A]</th>
-                            <th>ケーブル種別</th>
-                            <th>ケーブルサイズ[mm²]</th>
-                            <th>こう長[m]</th>
-                            <th>電圧降下[V]</th>
-                            <th>VD率[%]</th>
-                            <th>VD判定</th>
-                            <th>ブレーカー種別</th>
-                            <th>AF</th>
-                            <th>AT</th>
-                            <th>ブレーカー判定</th>
-                            <th>行先</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="feedersTableBody"></tbody>
-                </table>
-            </div>
-            <div class="calculation-basis">
-                <h3>計算根拠</h3>
-                <p><strong>電圧降下計算式:</strong> e = K × L × I / (1000 × A)</p>
-                <p>K = 35.6（単相）/ 30.8（三相）, L = 長さ(m), I = 電流(A), A = ケーブル断面積(mm²)</p>
-                <p><strong>ケーブル選定:</strong>内線規程に準拠した選定（CV/CVT許容電流より選定）</p>
-                <p><strong>遮断器選定:</strong>遮断器AT値 ≥ 計算電流 かつ ケーブル許容電流 ≥ AT値</p>
-                <p><strong>需要率:</strong>内線規程 3705-1表により負荷容量から自動選定</p>
-            </div>
-        </div>
 
-        <!-- Transformer Tab -->
-        <div id="transformer" class="tab-content">
-            <div class="transformer-summary">
-                <div class="summary-section">
-                    <div class="summary-title">幹線別需要容量</div>
-                    <div id="transformerTableContainer">
+            <!-- Feeders Tab -->
+            <div id="feeders" class="tab-content">
+                <div class="feeders-controls">
+                    <button class="btn-action" id="btnAddFeeder">+ 幹線追加</button>
+                    <button class="btn-action" id="btnFeedersExport">CSV出力</button>
+                </div>
+                <div class="feeders-table-wrapper">
+                    <table class="feeders-table" id="feedersTable">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>負荷名称</th>
+                                <th>負荷容量[kVA]</th>
+                                <th>需要率[%]</th>
+                                <th>需要容量[kVA]</th>
+                                <th>相</th>
+                                <th>電圧[V]</th>
+                                <th>電流[A]</th>
+                                <th>ケーブル種別</th>
+                                <th>ケーブルサイズ[mm²]</th>
+                                <th>こう長[m]</th>
+                                <th>力率</th>
+                                <th>電圧降下[V]</th>
+                                <th>VD率[%]</th>
+                                <th>VD判定</th>
+                                <th>ブレーカー種別</th>
+                                <th>AF</th>
+                                <th>AT</th>
+                                <th>ブレーカー判定</th>
+                                <th>行先</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="feedersTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="calculation-basis">
+                    <h3>計算根拠</h3>
+                    <p><strong>電圧降下計算式（インピーダンス法）:</strong></p>
+                    <p><strong>三相:</strong> e = √3 × I × L × (r·cosθ + x·sinθ) / 1000</p>
+                    <p><strong>単相:</strong> e = 2 × I × L × (r·cosθ + x·sinθ) / 1000</p>
+                    <p>r = 電線抵抗(Ω/km), x = 電線リアクタンス(Ω/km), θ = 力率角</p>
+                    <p><strong>ケーブル選定:</strong>内線規程に準拠した選定（CV/CVT許容電流より選定）</p>
+                    <p><strong>遮断器選定:</strong>遮断器AT値 ≥ 計算電流 かつ ケーブル許容電流 ≥ AT値</p>
+                    <p><strong>需要率:</strong>内線規程 3705-1表により負荷容量から自動選定</p>
+                </div>
+            </div>
+
+            <!-- Transformer Tab -->
+            <div id="transformer" class="tab-content">
+                <div class="transformer-summary">
+                    <h2 style="color:#1a1a2e;margin-bottom:1.5rem;">トランス容量計算書（受変電設備容量算定）</h2>
+
+                    <!-- ① 電灯補正負荷容量 T_l -->
+                    <div class="summary-section">
+                        <div class="summary-title">① 電灯補正負荷容量 T<sub>l</sub> [kVA]</div>
+                        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin-bottom:1rem;">
+                            <thead>
+                                <tr style="background-color:#f5f5f5;">
+                                    <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">負荷種別</th>
+                                    <th style="border:1px solid #ddd;padding:0.5rem;text-align:right;">DB集計値[kVA]</th>
+                                    <th style="border:1px solid #ddd;padding:0.5rem;text-align:right;">補正係数(自動)</th>
+                                    <th style="border:1px solid #ddd;padding:0.5rem;text-align:right;">適用値[kVA]<br><small>(手動上書可)</small></th>
+                                    <th style="border:1px solid #ddd;padding:0.5rem;text-align:right;">適用係数</th>
+                                    <th style="border:1px solid #ddd;padding:0.5rem;text-align:right;">補正後[kVA]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">照明 ΣL</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="lightingDbValue">0.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="f1Value">1.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.3rem;"><input type="number" step="0.01" id="lightingLoad" class="summary-input" value="0" min="0" style="width:100%;"></td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="f1Value">1.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;background:#e3f2fd;" id="t1LightingValue">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">ｺﾝｾﾝﾄ ΣC</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="outletDbValue">0.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="f2Value">1.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.3rem;"><input type="number" step="0.01" id="outletLoad" class="summary-input" value="0" min="0" style="width:100%;"></td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="f2Value">1.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;background:#e3f2fd;" id="t1OutletValue">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">ﾌｧﾝｺｲﾙ ΣFC</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="fcDbValue">0.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="f3Value">1.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.3rem;"><input type="number" step="0.01" id="fcLoad" class="summary-input" value="0" min="0" style="width:100%;"></td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="f3Value">1.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;background:#e3f2fd;" id="t1FcValue">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">OA ΣOA</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="oaDbValue">0.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="f4Value">1.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.3rem;"><input type="number" step="0.01" id="oaLoad" class="summary-input" value="0" min="0" style="width:100%;"></td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="f4Value">1.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;background:#e3f2fd;" id="t1OaValue">0.00</td>
+                                </tr>
+                                <tr style="background-color:#e3f2fd;font-weight:bold;">
+                                    <td colspan="5" style="border:1px solid #ddd;padding:0.5rem;">T<sub>l</sub>（電灯補正負荷合計）</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="t1Value">0.00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ② 動力補正負荷容量 T_m -->
+                    <div class="summary-section">
+                        <div class="summary-title">② 動力補正負荷容量 T<sub>m</sub> [kVA]</div>
+                        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin-bottom:1rem;">
+                            <thead>
+                                <tr style="background-color:#f5f5f5;">
+                                    <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">負荷種別</th>
+                                    <th style="border:1px solid #ddd;padding:0.5rem;text-align:right;">負荷容量[kVA]</th>
+                                    <th style="border:1px solid #ddd;padding:0.5rem;text-align:right;">補正係数</th>
+                                    <th style="border:1px solid #ddd;padding:0.5rem;text-align:right;">補正後[kVA]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">冷凍機等 ΣPa</td>
+                                    <td style="border:1px solid #ddd;padding:0.3rem;"><input type="number" step="0.01" id="motorPa" class="summary-input" value="0" min="0" style="width:100%;"></td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="f5Value">1.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;background:#e3f2fd;" id="tmPaValue">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">空調換気 ΣPb</td>
+                                    <td style="border:1px solid #ddd;padding:0.3rem;"><input type="number" step="0.01" id="motorPb" class="summary-input" value="0" min="0" style="width:100%;"></td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="f6Value">1.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;background:#e3f2fd;" id="tmPbValue">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">衛生等 ΣPc</td>
+                                    <td style="border:1px solid #ddd;padding:0.3rem;"><input type="number" step="0.01" id="motorPc" class="summary-input" value="0" min="0" style="width:100%;"></td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="f7Value">1.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;background:#e3f2fd;" id="tmPcValue">0.00</td>
+                                </tr>
+                                <tr style="background-color:#e3f2fd;font-weight:bold;">
+                                    <td colspan="3" style="border:1px solid #ddd;padding:0.5rem;">T<sub>m</sub>（動力補正負荷合計）</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="tmValue">0.00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ③ 高圧電動機 -->
+                    <div class="summary-section">
+                        <div class="summary-title">③ 高圧電動機 P<sub>m</sub> [kVA]</div>
+                        <div class="summary-item">
+                            <div class="summary-label">高圧電動機</div>
+                            <input type="number" step="0.01" id="highVoltageMotor" class="summary-input" value="0" min="0">
+                        </div>
+                    </div>
+
+                    <!-- ④ 受変電設備容量 -->
+                    <div class="summary-section">
+                        <div class="summary-title">④ 受変電設備容量 E<sub>s</sub> = T<sub>l</sub> + T<sub>m</sub> + P<sub>m</sub></div>
+                        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin-bottom:1rem;">
+                            <tbody>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">T<sub>l</sub></td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;background:#e3f2fd;" id="totalT1Value">0.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">[kVA]</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">T<sub>m</sub></td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;background:#e3f2fd;" id="totalTmValue">0.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">[kVA]</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">P<sub>m</sub></td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;background:#e3f2fd;" id="totalPmValue">0.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">[kVA]</td>
+                                </tr>
+                                <tr style="background-color:#1a1a2e;color:white;font-weight:bold;">
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">E<sub>s</sub>（受変電設備容量）</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;" id="totalEsValue">0.00</td>
+                                    <td style="border:1px solid #ddd;padding:0.5rem;">[kVA]</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ⑤ トランス選定 -->
+                    <div class="summary-section">
+                        <div class="summary-title">⑤ トランス選定</div>
+                        <div class="summary-item">
+                            <div class="summary-label">推奨トランス容量</div>
+                            <div class="summary-value" id="recommendedValue" style="font-size:1.2rem;">-</div>
+                        </div>
+                        <input type="hidden" id="overallDemandFactor" value="100">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diagram Tab -->
+            <div id="diagram" class="tab-content">
+                <div class="diagram-container">
+                    <div class="tree-diagram" id="diagramTree">
                         <!-- Rendered by JavaScript -->
                     </div>
                 </div>
-                <div class="summary-section">
-                    <div class="summary-title">容量計算</div>
-                    <div class="summary-item">
-                        <div class="summary-label">総需要容量 [kVA]</div>
-                        <div class="summary-value" id="totalDemandValue">0.00</div>
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-label">総合需要率 [%]</div>
-                        <input type="number" id="overallDemandFactor" class="summary-input" value="70" min="0" max="100" step="0.1">
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-label">契約電力 [kVA]</div>
-                        <div class="summary-value" id="contractValue">0.00</div>
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-label">推奨トランス容量 [kVA]</div>
-                        <div class="summary-value" id="recommendedValue">-</div>
-                    </div>
-                </div>
             </div>
-        </div>
 
-        <!-- Diagram Tab -->
-        <div id="diagram" class="tab-content">
-            <div class="diagram-container">
-                <div class="tree-diagram" id="diagramTree">
-                    <!-- Rendered by JavaScript -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Master Tab -->
-        <div id="master" class="tab-content">
-            <div class="master-tables">
-                <div class="master-table">
-                    <div class="master-table-title">CV/CVT 電力ケーブル</div>
-                    <div class="master-table-content">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>サイズ (mm²)</th>
-                                    <th>CV 許容電流 (A)</th>
-                                    <th>CVT 許容電流 (A)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr><td>2.0</td><td>21</td><td>26</td></tr>
-                                <tr><td>3.5</td><td>31</td><td>38</td></tr>
-                                <tr><td>5.5</td><td>40</td><td>50</td></tr>
-                                <tr><td>8</td><td>52</td><td>65</td></tr>
-                                <tr><td>14</td><td>73</td><td>92</td></tr>
-                                <tr><td>22</td><td>101</td><td>127</td></tr>
-                                <tr><td>38</td><td>139</td><td>175</td></tr>
-                                <tr><td>60</td><td>180</td><td>227</td></tr>
-                                <tr><td>100</td><td>244</td><td>308</td></tr>
-                                <tr><td>150</td><td>310</td><td>391</td></tr>
-                                <tr><td>200</td><td>367</td><td>464</td></tr>
-                                <tr><td>250</td><td>418</td><td>528</td></tr>
-                                <tr><td>300</td><td>468</td><td>591</td></tr>
-                            </tbody>
-                        </table>
+            <!-- Master Tab -->
+            <div id="master" class="tab-content">
+                <div class="master-tables">
+                    <div class="master-table">
+                        <div class="master-table-title">CV/CVT 電力ケーブル（r, x値含む）</div>
+                        <div class="master-table-content">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>サイズ (mm²)</th>
+                                        <th>CV (A)</th>
+                                        <th>CVT (A)</th>
+                                        <th>r (Ω/km)</th>
+                                        <th>x (Ω/km)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cableTableBody">
+                                    <!-- Rendered by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
 
-                <div class="master-table">
-                    <div class="master-table-title">内線規程 3705-1表</div>
-                    <div class="master-table-content">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>照明</th>
-                                    <th>コンセント</th>
-                                    <th>小計</th>
-                                    <th>需要率 (%)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr><td>~1.5</td><td>~2</td><td>~3.0</td><td>100</td></tr>
-                                <tr><td>~2</td><td>~2.5</td><td>~4.0</td><td>100</td></tr>
-                                <tr><td>~3</td><td>~4</td><td>~6.0</td><td>100</td></tr>
-                                <tr><td>~5</td><td>~6</td><td>~10.0</td><td>90</td></tr>
-                                <tr><td>~7</td><td>~8</td><td>~14.0</td><td>80</td></tr>
-                                <tr><td>~10</td><td>~12</td><td>~20.0</td><td>70</td></tr>
-                                <tr><td>~15</td><td>~18</td><td>~30.0</td><td>60</td></tr>
-                                <tr><td>~20</td><td>~25</td><td>~40.0</td><td>60</td></tr>
-                                <tr><td>~30</td><td>~35</td><td>~60.0</td><td>50</td></tr>
-                                <tr><td>~50</td><td>~60</td><td>~100.0</td><td>50</td></tr>
-                            </tbody>
-                        </table>
+                    <div class="master-table">
+                        <div class="master-table-title">内線規程 3705-1表（単一電動機 200V 3φ）</div>
+                        <div class="master-table-content">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>kW</th>
+                                        <th>定格電流(A)</th>
+                                        <th>ケーブル(mm²)</th>
+                                        <th>最大長(m)</th>
+                                        <th>遮断器AT</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="motor3705_1Body">
+                                    <!-- Rendered by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="master-table">
+                        <div class="master-table-title">内線規程 3705-3表（複数電動機 200V 3φ）</div>
+                        <div class="master-table-content">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>最大電動機(kW)</th>
+                                        <th>合計容量(kW)</th>
+                                        <th>幹線ケーブル(mm²)</th>
+                                        <th>幹線遮断器(AT)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="motor3705_3Body">
+                                    <!-- Rendered by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="master-table">
+                        <div class="master-table-title">内線規程 3705-1表（一般用）</div>
+                        <div class="master-table-content">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>照明</th>
+                                        <th>コンセント</th>
+                                        <th>小計</th>
+                                        <th>需要率 (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>~1.5</td><td>~2</td><td>~3.0</td><td>100</td></tr>
+                                    <tr><td>~2</td><td>~2.5</td><td>~4.0</td><td>100</td></tr>
+                                    <tr><td>~3</td><td>~4</td><td>~6.0</td><td>100</td></tr>
+                                    <tr><td>~5</td><td>~6</td><td>~10.0</td><td>90</td></tr>
+                                    <tr><td>~7</td><td>~8</td><td>~14.0</td><td>80</td></tr>
+                                    <tr><td>~10</td><td>~12</td><td>~20.0</td><td>70</td></tr>
+                                    <tr><td>~15</td><td>~18</td><td>~30.0</td><td>60</td></tr>
+                                    <tr><td>~20</td><td>~25</td><td>~40.0</td><td>60</td></tr>
+                                    <tr><td>~30</td><td>~35</td><td>~60.0</td><td>50</td></tr>
+                                    <tr><td>~50</td><td>~60</td><td>~100.0</td><td>50</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1108,19 +1431,75 @@
         const AT_VALUES = [5, 10, 15, 20, 30, 40, 50, 60, 75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 500, 600];
 
         const CABLE_DATA = [
-            { size: 2.0, cv: 21, cvt: 26 },
-            { size: 3.5, cv: 31, cvt: 38 },
-            { size: 5.5, cv: 40, cvt: 50 },
-            { size: 8, cv: 52, cvt: 65 },
-            { size: 14, cv: 73, cvt: 92 },
-            { size: 22, cv: 101, cvt: 127 },
-            { size: 38, cv: 139, cvt: 175 },
-            { size: 60, cv: 180, cvt: 227 },
-            { size: 100, cv: 244, cvt: 308 },
-            { size: 150, cv: 310, cvt: 391 },
-            { size: 200, cv: 367, cvt: 464 },
-            { size: 250, cv: 418, cvt: 528 },
-            { size: 300, cv: 468, cvt: 591 }
+            { size: 2.0, cv: 23, cvt: 27, r: 9.45, x: 0.101 },
+            { size: 3.5, cv: 31, cvt: 37, r: 5.40, x: 0.095 },
+            { size: 5.5, cv: 43, cvt: 49, r: 3.43, x: 0.088 },
+            { size: 8, cv: 54, cvt: 61, r: 2.36, x: 0.083 },
+            { size: 14, cv: 73, cvt: 88, r: 1.35, x: 0.077 },
+            { size: 22, cv: 96, cvt: 115, r: 0.856, x: 0.074 },
+            { size: 38, cv: 131, cvt: 160, r: 0.495, x: 0.070 },
+            { size: 60, cv: 172, cvt: 210, r: 0.314, x: 0.067 },
+            { size: 100, cv: 232, cvt: 290, r: 0.189, x: 0.064 },
+            { size: 150, cv: 284, cvt: 355, r: 0.126, x: 0.063 },
+            { size: 200, cv: 338, cvt: 420, r: 0.0948, x: 0.062 },
+            { size: 250, cv: 390, cvt: 485, r: 0.0757, x: 0.062 },
+            { size: 325, cv: 453, cvt: 560, r: 0.0583, x: 0.061 }
+        ];
+
+        const MOTOR_TABLE_3705_1 = [
+            { kw: 0.2, current: 1.8, cable: 2.0, breaker: 15 },
+            { kw: 0.4, current: 3.2, cable: 2.0, breaker: 15 },
+            { kw: 0.75, current: 4.1, cable: 2.0, breaker: 15 },
+            { kw: 1.5, current: 8.6, cable: 2.0, breaker: 20 },
+            { kw: 2.2, current: 11.1, cable: 2.0, breaker: 30 },
+            { kw: 3.7, current: 16.8, cable: 3.5, breaker: 30 },
+            { kw: 5.5, current: 24.6, cable: 5.5, breaker: 50 },
+            { kw: 7.5, current: 34.0, cable: 5.5, breaker: 50 },
+            { kw: 11, current: 48.0, cable: 14, breaker: 75 },
+            { kw: 15, current: 64.0, cable: 14, breaker: 100 },
+            { kw: 18.5, current: 79.0, cable: 22, breaker: 100 },
+            { kw: 22, current: 92.0, cable: 22, breaker: 125 },
+            { kw: 30, current: 124.0, cable: 38, breaker: 175 },
+            { kw: 37, current: 152.0, cable: 60, breaker: 200 }
+        ];
+
+        // 分岐MCCB AT → 最小CVサイズ対応表
+        const BREAKER_CABLE_TABLE = [
+            { at: 15, cable: 2.0, ampacity: 23 },
+            { at: 20, cable: 2.0, ampacity: 23 },
+            { at: 30, cable: 3.5, ampacity: 31 },
+            { at: 40, cable: 5.5, ampacity: 43 },
+            { at: 50, cable: 8, ampacity: 54 },
+            { at: 60, cable: 14, ampacity: 73 },
+            { at: 75, cable: 14, ampacity: 73 },
+            { at: 100, cable: 22, ampacity: 96 },
+            { at: 125, cable: 38, ampacity: 131 },
+            { at: 150, cable: 38, ampacity: 131 },
+            { at: 175, cable: 60, ampacity: 172 },
+            { at: 200, cable: 60, ampacity: 172 },
+            { at: 225, cable: 100, ampacity: 232 }
+        ];
+
+        const MOTOR_TABLE_3705_3 = [
+            { maxMotorKw: 0.75, minTotal: 0, maxTotal: 2.2, cable: 2.0, breaker: 20 },
+            { maxMotorKw: 0.75, minTotal: 2.2, maxTotal: 3.7, cable: 2.0, breaker: 30 },
+            { maxMotorKw: 1.5, minTotal: 0, maxTotal: 3.7, cable: 2.0, breaker: 30 },
+            { maxMotorKw: 1.5, minTotal: 3.7, maxTotal: 5.5, cable: 2.0, breaker: 30 },
+            { maxMotorKw: 2.2, minTotal: 0, maxTotal: 5.5, cable: 2.0, breaker: 30 },
+            { maxMotorKw: 2.2, minTotal: 5.5, maxTotal: 11, cable: 3.5, breaker: 50 },
+            { maxMotorKw: 3.7, minTotal: 0, maxTotal: 11, cable: 3.5, breaker: 50 },
+            { maxMotorKw: 3.7, minTotal: 11, maxTotal: 18.5, cable: 5.5, breaker: 75 },
+            { maxMotorKw: 5.5, minTotal: 0, maxTotal: 18.5, cable: 5.5, breaker: 75 },
+            { maxMotorKw: 5.5, minTotal: 18.5, maxTotal: 30, cable: 14, breaker: 100 },
+            { maxMotorKw: 7.5, minTotal: 0, maxTotal: 30, cable: 14, breaker: 100 },
+            { maxMotorKw: 7.5, minTotal: 30, maxTotal: 45, cable: 22, breaker: 150 },
+            { maxMotorKw: 11, minTotal: 0, maxTotal: 45, cable: 22, breaker: 150 },
+            { maxMotorKw: 11, minTotal: 45, maxTotal: 75, cable: 38, breaker: 200 },
+            { maxMotorKw: 15, minTotal: 0, maxTotal: 75, cable: 38, breaker: 200 },
+            { maxMotorKw: 15, minTotal: 75, maxTotal: 100, cable: 60, breaker: 250 },
+            { maxMotorKw: 22, minTotal: 0, maxTotal: 100, cable: 60, breaker: 300 },
+            { maxMotorKw: 30, minTotal: 0, maxTotal: 150, cable: 100, breaker: 400 },
+            { maxMotorKw: 37, minTotal: 0, maxTotal: 200, cable: 150, breaker: 500 }
         ];
 
         const DEMAND_FACTOR_TABLE = [
@@ -1138,14 +1517,43 @@
 
         const TRANSFORMER_SIZES = [10, 20, 30, 50, 75, 100, 150, 200, 300, 500, 750, 1000];
 
+        const HARDCODED_PASSWORD = 'lle2024';
+
         let allPanels = [];
         let allCircuits = [];
         let allFeeders = [];
         let editingPanelId = null;
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            setupEventListeners();
-            await loadAllData();
+        // Authentication
+        function handleLogin(event) {
+            event.preventDefault();
+            const password = document.getElementById('passwordInput').value;
+            const errorEl = document.getElementById('loginError');
+
+            if (password === HARDCODED_PASSWORD) {
+                sessionStorage.setItem('authenticated', 'true');
+                document.getElementById('loginContainer').classList.add('hidden');
+                document.getElementById('mainApp').style.display = 'block';
+                setupEventListeners();
+                loadAllData();
+            } else {
+                errorEl.classList.add('show');
+                document.getElementById('passwordInput').value = '';
+            }
+        }
+
+        function checkAuthentication() {
+            if (!sessionStorage.getItem('authenticated')) {
+                document.getElementById('loginContainer').classList.remove('hidden');
+                document.getElementById('mainApp').style.display = 'none';
+            } else {
+                document.getElementById('loginContainer').classList.add('hidden');
+                document.getElementById('mainApp').style.display = 'block';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuthentication();
         });
 
         function setupEventListeners() {
@@ -1168,6 +1576,15 @@
             document.getElementById('btnAddFeeder').addEventListener('click', addFeederRow);
             document.getElementById('btnFeedersExport').addEventListener('click', exportFeedersCsv);
             document.getElementById('overallDemandFactor').addEventListener('change', updateTransformerCalculation);
+
+            document.getElementById('lightingLoad').addEventListener('input', (e) => { e.target.dataset.manual = 'true'; updateTransformerCalculation(); });
+            document.getElementById('outletLoad').addEventListener('input', (e) => { e.target.dataset.manual = 'true'; updateTransformerCalculation(); });
+            document.getElementById('fcLoad').addEventListener('input', (e) => { e.target.dataset.manual = 'true'; updateTransformerCalculation(); });
+            document.getElementById('oaLoad').addEventListener('input', (e) => { e.target.dataset.manual = 'true'; updateTransformerCalculation(); });
+            document.getElementById('motorPa').addEventListener('input', updateTransformerCalculation);
+            document.getElementById('motorPb').addEventListener('input', updateTransformerCalculation);
+            document.getElementById('motorPc').addEventListener('input', updateTransformerCalculation);
+            document.getElementById('highVoltageMotor').addEventListener('input', updateTransformerCalculation);
         }
 
         function switchTab(tabName) {
@@ -1189,6 +1606,8 @@
                 renderTransformerCalculation();
             } else if (tabName === 'diagram') {
                 renderSystemDiagram();
+            } else if (tabName === 'master') {
+                renderMasterTables();
             }
         }
 
@@ -1442,6 +1861,7 @@
 
             filtered.forEach((circuit, index) => {
                 const row = createCircuitRow(circuit, index + 1);
+                if (circuit.type === 'RC') row.classList.add('row-rc');
                 tbody.appendChild(row);
             });
         }
@@ -1449,7 +1869,6 @@
         function createCircuitRow(circuit, rowNumber) {
             const row = document.createElement('tr');
             row.id = `circuit-${circuit.id}`;
-            row.className = circuit.type === 'RC' ? 'row-rc' : '';
 
             const total = (circuit.lighting || 0) + (circuit.outlet || 0) + (circuit.fc || 0) + (circuit.oa || 0) + (circuit.feeder || 0);
             const voltage = circuit.voltage || 100;
@@ -1460,35 +1879,24 @@
             row.innerHTML = `
                 <td>${rowNumber}</td>
                 <td>
-                    <select class="panel-select" data-id="${circuit.id}" data-field="panel_name">
-                        <option value="">-</option>
+                    <select class="circuit-select panel-select" data-id="${circuit.id}" data-field="panel_name">
                         ${allPanels.map(p => `<option value="${p.name}" ${circuit.panel_name === p.name ? 'selected' : ''}>${p.name}</option>`).join('')}
                     </select>
                 </td>
                 <td>
                     <select class="circuit-select" data-id="${circuit.id}" data-field="type">
                         <option value="M" ${circuit.type === 'M' ? 'selected' : ''}>M</option>
-                        <option value="RC" ${circuit.type === 'RC' ? 'selected' : ''}>RC</option>
+                        <option value="S" ${circuit.type === 'S' ? 'selected' : ''}>S</option>
+                        <option value="L" ${circuit.type === 'L' ? 'selected' : ''}>L</option>
                     </select>
                 </td>
-                <td>
-                    <select class="circuit-select" data-id="${circuit.id}" data-field="symbol">
-                        <option value="◎" ${circuit.symbol === '◎' ? 'selected' : ''}>◎</option>
-                        <option value="○" ${circuit.symbol === '○' ? 'selected' : ''}>○</option>
-                        <option value="◇" ${circuit.symbol === '◇' ? 'selected' : ''}>◇</option>
-                        <option value="□" ${circuit.symbol === '□' ? 'selected' : ''}>□</option>
-                        <option value="■" ${circuit.symbol === '■' ? 'selected' : ''}>■</option>
-                        <option value="△" ${circuit.symbol === '△' ? 'selected' : ''}>△</option>
-                    </select>
-                </td>
+                <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="symbol" value="${circuit.symbol || '◎'}" style="width:30px;" /></td>
                 <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="circuit_no" value="${circuit.circuit_no || ''}" /></td>
                 <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="parent_no" value="${circuit.parent_no || ''}" /></td>
                 <td>
                     <select class="circuit-select" data-id="${circuit.id}" data-field="phase">
-                        <option value="">-</option>
                         <option value="L1" ${circuit.phase === 'L1' ? 'selected' : ''}>L1</option>
                         <option value="L2" ${circuit.phase === 'L2' ? 'selected' : ''}>L2</option>
-                        <option value="L1-L2" ${circuit.phase === 'L1-L2' ? 'selected' : ''}>L1-L2</option>
                         <option value="R" ${circuit.phase === 'R' ? 'selected' : ''}>R</option>
                         <option value="S" ${circuit.phase === 'S' ? 'selected' : ''}>S</option>
                         <option value="T" ${circuit.phase === 'T' ? 'selected' : ''}>T</option>
@@ -1802,9 +2210,21 @@
             return CABLE_DATA[CABLE_DATA.length - 1].size;
         }
 
-        function calculateVoltageDrop(current, length, cableSize, phase) {
-            const K = phase === '1φ2W' ? 35.6 : 30.8;
-            return (K * length * current) / (1000 * cableSize);
+        function calculateVoltageDrop(current, length, cableSize, phase, powerFactor) {
+            const cable = CABLE_DATA.find(c => c.size === cableSize);
+            if (!cable) return 0;
+
+            const cosTheta = powerFactor || 0.85;
+            const sinTheta = Math.sqrt(1 - cosTheta * cosTheta);
+            const r = cable.r;
+            const x = cable.x;
+            const L = length;
+
+            if (phase === '3φ3W') {
+                return Math.sqrt(3) * current * L * (r * cosTheta + x * sinTheta) / 1000;
+            } else {
+                return 2 * current * L * (r * cosTheta + x * sinTheta) / 1000;
+            }
         }
 
         function selectBreaker(current, breakerType) {
@@ -1835,6 +2255,7 @@
             const demandCapacity = (capacity * demandFactor) / 100;
             const voltage = feeder.voltage || 100;
             const phase = feeder.phase_type || '1φ2W';
+            const powerFactor = feeder.power_factor || 0.85;
 
             let current = 0;
             if (phase === '3φ3W') {
@@ -1847,7 +2268,7 @@
             const cableSize = feeder.cable_size || selectCableSize(current, cableType);
             const length = feeder.cable_length || 0;
 
-            const voltageDrop = calculateVoltageDrop(current, length, cableSize, phase);
+            const voltageDrop = calculateVoltageDrop(current, length, cableSize, phase, powerFactor);
             const vdPercent = (voltageDrop / voltage) * 100;
             const vdStatus = vdPercent <= 3 ? 'OK' : '×';
 
@@ -1904,6 +2325,9 @@
                     <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="cable_length" value="${length}" min="0" />
                 </td>
                 <td>
+                    <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="power_factor" value="${powerFactor}" min="0.5" max="1" step="0.01" />
+                </td>
+                <td>
                     <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="voltage_drop" value="${voltageDrop.toFixed(2)}" readonly />
                 </td>
                 <td>
@@ -1955,8 +2379,10 @@
 
             if (field === 'voltage' || field === 'demand_factor' || field === 'cable_length') {
                 value = parseInt(value) || 0;
+            } else if (field === 'power_factor') {
+                value = parseFloat(value) || 0.85;
             } else if (field === 'demand_capacity' || field === 'current' || field === 'cable_size' || field === 'voltage_drop' || field === 'vd_percent') {
-                return; // Skip readonly fields
+                return;
             }
 
             try {
@@ -1985,6 +2411,7 @@
                 cable_type: 'CV',
                 cable_size: 2.0,
                 cable_length: 0,
+                power_factor: 0.85,
                 breaker_type: 'MCCB2P2E',
                 breaker_af: 30,
                 breaker_at: 20,
@@ -2026,7 +2453,7 @@
         }
 
         function exportFeedersCsv() {
-            const headers = ['No.', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブルサイズ[mm²]', 'こう長[m]', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'ブレーカー判定', '行先'];
+            const headers = ['No.', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブルサイズ[mm²]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'ブレーカー判定', '行先'];
             const rows = [headers.join(',')];
 
             allFeeders.forEach((feeder, index) => {
@@ -2035,6 +2462,7 @@
                 const demandCapacity = (capacity * demandFactor) / 100;
                 const voltage = feeder.voltage || 100;
                 const phase = feeder.phase_type || '1φ2W';
+                const powerFactor = feeder.power_factor || 0.85;
 
                 let current = 0;
                 if (phase === '3φ3W') {
@@ -2046,7 +2474,7 @@
                 const cableType = feeder.cable_type || 'CV';
                 const cableSize = feeder.cable_size || selectCableSize(current, cableType);
                 const length = feeder.cable_length || 0;
-                const vd = calculateVoltageDrop(current, length, cableSize, phase);
+                const vd = calculateVoltageDrop(current, length, cableSize, phase, powerFactor);
                 const vdPercent = (vd / voltage) * 100;
                 const vdStatus = vdPercent <= 3 ? 'OK' : '×';
 
@@ -2070,6 +2498,7 @@
                     cableType,
                     cableSize.toFixed(1),
                     length,
+                    powerFactor.toFixed(2),
                     vd.toFixed(2),
                     vdPercent.toFixed(2),
                     vdStatus,
@@ -2095,46 +2524,140 @@
         }
 
         // TRANSFORMER FUNCTIONS
+        // 補正係数テーブル（図2-1 電灯負荷、図2-2 動力負荷）- Excelマスターデータ準拠
+        const CORRECTION_TABLE_LIGHTING = [
+            { kva: 0, f1: 1.00, f2: 1.00, f3: 1.00 },
+            { kva: 10, f1: 1.00, f2: 1.00, f3: 1.00 },
+            { kva: 20, f1: 0.94, f2: 0.86, f3: 0.86 },
+            { kva: 40, f1: 0.86, f2: 0.81, f3: 0.81 },
+            { kva: 80, f1: 0.81, f2: 0.78, f3: 0.78 },
+            { kva: 120, f1: 0.78, f2: 0.76, f3: 0.76 },
+            { kva: 160, f1: 0.76, f2: 0.75, f3: 0.75 },
+            { kva: 200, f1: 0.75, f2: 0.68, f3: 0.68 }
+        ];
+        const CORRECTION_TABLE_MOTOR = [
+            { kva: 0, f5: 1.00, f6: 1.00, f7: 1.00 },
+            { kva: 10, f5: 0.98, f6: 0.83, f7: 0.21 },
+            { kva: 40, f5: 0.96, f6: 0.79, f7: 0.21 },
+            { kva: 80, f5: 0.96, f6: 0.79, f7: 0.21 },
+            { kva: 120, f5: 0.95, f6: 0.76, f7: 0.21 },
+            { kva: 160, f5: 0.94, f6: 0.75, f7: 0.21 },
+            { kva: 200, f5: 0.94, f6: 0.75, f7: 0.21 }
+        ];
+
+        function interpolate(table, load, field) {
+            if (load <= table[0].kva) return table[0][field];
+            for (let i = 1; i < table.length; i++) {
+                if (load <= table[i].kva) {
+                    const prev = table[i - 1];
+                    const curr = table[i];
+                    const ratio = (load - prev.kva) / (curr.kva - prev.kva);
+                    return prev[field] + ratio * (curr[field] - prev[field]);
+                }
+            }
+            return table[table.length - 1][field];
+        }
+
+        function getCorrectionF1(totalLighting) { return interpolate(CORRECTION_TABLE_LIGHTING, totalLighting, 'f1'); }
+        function getCorrectionF2(totalOutlet) { return interpolate(CORRECTION_TABLE_LIGHTING, totalOutlet, 'f2'); }
+        function getCorrectionF3(totalFC) { return interpolate(CORRECTION_TABLE_LIGHTING, totalFC, 'f3'); }
+        function getCorrectionF4(totalOA) { return 1.0; }
+        function getCorrectionF5(totalPa) { return interpolate(CORRECTION_TABLE_MOTOR, totalPa, 'f5'); }
+        function getCorrectionF6(totalPb) { return interpolate(CORRECTION_TABLE_MOTOR, totalPb, 'f6'); }
+        function getCorrectionF7(totalPc) { return interpolate(CORRECTION_TABLE_MOTOR, totalPc, 'f7'); }
+
         function renderTransformerCalculation() {
-            const tableContainer = document.getElementById('transformerTableContainer');
-            let html = '<table style="width:100%;border-collapse:collapse;font-size:0.9rem;">';
-            html += '<thead><tr style="background-color:#f5f5f5;"><th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">負荷名称</th><th style="border:1px solid #ddd;padding:0.5rem;text-align:right;">需要容量[kVA]</th></tr></thead>';
-            html += '<tbody>';
-
-            let total = 0;
-            allFeeders.forEach(feeder => {
-                const capacity = getLoadCapacity(feeder);
-                const demandFactor = feeder.demand_factor || getDemandFactor(capacity);
-                const demandCapacity = (capacity * demandFactor) / 100;
-                total += demandCapacity;
-
-                html += `<tr style="border:1px solid #ddd;">
-                    <td style="border:1px solid #ddd;padding:0.5rem;">${feeder.load_name || '-'}</td>
-                    <td style="border:1px solid #ddd;padding:0.5rem;text-align:right;">${demandCapacity.toFixed(2)}</td>
-                </tr>`;
+            // 回路DBから電灯負荷を自動集計
+            let sumLighting = 0, sumOutlet = 0, sumFC = 0, sumOA = 0;
+            allCircuits.forEach(c => {
+                sumLighting += (c.lighting || 0);
+                sumOutlet += (c.outlet || 0);
+                sumFC += (c.fc || 0);
+                sumOA += (c.oa || 0);
             });
 
-            html += '</tbody></table>';
-            tableContainer.innerHTML = html;
+            // DB集計値を表示（手動上書き可能なフィールドにセット）
+            const lightingEl = document.getElementById('lightingLoad');
+            const outletEl = document.getElementById('outletLoad');
+            const fcEl = document.getElementById('fcLoad');
+            const oaEl = document.getElementById('oaLoad');
 
-            document.getElementById('totalDemandValue').textContent = total.toFixed(2);
+            // DB集計値を表示
+            document.getElementById('lightingDbValue').textContent = sumLighting.toFixed(2);
+            document.getElementById('outletDbValue').textContent = sumOutlet.toFixed(2);
+            document.getElementById('fcDbValue').textContent = sumFC.toFixed(2);
+            document.getElementById('oaDbValue').textContent = sumOA.toFixed(2);
+
+            // 手動上書きがなければDB値を使用
+            if (!lightingEl.dataset.manual) lightingEl.value = sumLighting.toFixed(2);
+            if (!outletEl.dataset.manual) outletEl.value = sumOutlet.toFixed(2);
+            if (!fcEl.dataset.manual) fcEl.value = sumFC.toFixed(2);
+            if (!oaEl.dataset.manual) oaEl.value = sumOA.toFixed(2);
+
             updateTransformerCalculation();
         }
 
         function updateTransformerCalculation() {
-            let total = 0;
-            allFeeders.forEach(feeder => {
-                const capacity = getLoadCapacity(feeder);
-                const demandFactor = feeder.demand_factor || getDemandFactor(capacity);
-                const demandCapacity = (capacity * demandFactor) / 100;
-                total += demandCapacity;
-            });
+            const lightingLoad = parseFloat(document.getElementById('lightingLoad').value) || 0;
+            const outletLoad = parseFloat(document.getElementById('outletLoad').value) || 0;
+            const fcLoad = parseFloat(document.getElementById('fcLoad').value) || 0;
+            const oaLoad = parseFloat(document.getElementById('oaLoad').value) || 0;
 
-            const overallFactor = parseFloat(document.getElementById('overallDemandFactor').value) || 70;
-            const contract = (total * overallFactor) / 100;
-            document.getElementById('contractValue').textContent = contract.toFixed(2);
+            const motorPa = parseFloat(document.getElementById('motorPa').value) || 0;
+            const motorPb = parseFloat(document.getElementById('motorPb').value) || 0;
+            const motorPc = parseFloat(document.getElementById('motorPc').value) || 0;
+            const highVoltageMotor = parseFloat(document.getElementById('highVoltageMotor')?.value) || 0;
 
-            const recommended = TRANSFORMER_SIZES.find(size => size >= contract) || TRANSFORMER_SIZES[TRANSFORMER_SIZES.length - 1];
+            // Calculate T1 (lighting load) with correction coefficients
+            const f1 = getCorrectionF1(lightingLoad);
+            const f2 = getCorrectionF2(outletLoad);
+            const f3 = getCorrectionF3(fcLoad);
+            const f4 = getCorrectionF4(oaLoad);
+
+            const t1_lighting = f1 * lightingLoad;
+            const t1_outlet = f2 * outletLoad;
+            const t1_fc = f3 * fcLoad;
+            const t1_oa = f4 * oaLoad;
+            const t1 = t1_lighting + t1_outlet + t1_fc + t1_oa;
+
+            // Calculate Tm (motor load)
+            const f5 = getCorrectionF5(motorPa);
+            const f6 = getCorrectionF6(motorPb);
+            const f7 = getCorrectionF7(motorPc);
+
+            const tm_pa = f5 * motorPa;
+            const tm_pb = f6 * motorPb;
+            const tm_pc = f7 * motorPc;
+            const tm = tm_pa + tm_pb + tm_pc;
+
+            // Update display - 電灯負荷
+            document.getElementById('f1Value').textContent = f1.toFixed(2);
+            document.getElementById('f2Value').textContent = f2.toFixed(2);
+            document.getElementById('f3Value').textContent = f3.toFixed(2);
+            document.getElementById('f4Value').textContent = f4.toFixed(2);
+            document.getElementById('t1LightingValue').textContent = t1_lighting.toFixed(2);
+            document.getElementById('t1OutletValue').textContent = t1_outlet.toFixed(2);
+            document.getElementById('t1FcValue').textContent = t1_fc.toFixed(2);
+            document.getElementById('t1OaValue').textContent = t1_oa.toFixed(2);
+            document.getElementById('t1Value').textContent = t1.toFixed(2);
+
+            // Update display - 動力負荷
+            document.getElementById('f5Value').textContent = f5.toFixed(2);
+            document.getElementById('f6Value').textContent = f6.toFixed(2);
+            document.getElementById('f7Value').textContent = f7.toFixed(2);
+            document.getElementById('tmPaValue').textContent = tm_pa.toFixed(2);
+            document.getElementById('tmPbValue').textContent = tm_pb.toFixed(2);
+            document.getElementById('tmPcValue').textContent = tm_pc.toFixed(2);
+            document.getElementById('tmValue').textContent = tm.toFixed(2);
+
+            // E_s = T_l + T_m + P_m
+            const es = t1 + tm + highVoltageMotor;
+            document.getElementById('totalT1Value').textContent = t1.toFixed(2);
+            document.getElementById('totalTmValue').textContent = tm.toFixed(2);
+            document.getElementById('totalPmValue').textContent = highVoltageMotor.toFixed(2);
+            document.getElementById('totalEsValue').textContent = es.toFixed(2);
+
+            const recommended = TRANSFORMER_SIZES.find(size => size >= es) || TRANSFORMER_SIZES[TRANSFORMER_SIZES.length - 1];
             document.getElementById('recommendedValue').textContent = recommended + ' kVA';
         }
 
@@ -2175,6 +2698,63 @@
 
         function toggleDiagramNode(element) {
             element.classList.toggle('selected');
+        }
+
+        // MASTER TABLE FUNCTIONS
+        function renderMasterTables() {
+            renderCableTable();
+            renderMotor3705_1Table();
+            renderMotor3705_3Table();
+        }
+
+        function renderCableTable() {
+            const tbody = document.getElementById('cableTableBody');
+            tbody.innerHTML = '';
+
+            CABLE_DATA.forEach(cable => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${cable.size}</td>
+                    <td>${cable.cv}</td>
+                    <td>${cable.cvt}</td>
+                    <td>${cable.r}</td>
+                    <td>${cable.x}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderMotor3705_1Table() {
+            const tbody = document.getElementById('motor3705_1Body');
+            tbody.innerHTML = '';
+
+            MOTOR_TABLE_3705_1.forEach(motor => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${motor.kw}</td>
+                    <td>${motor.current}</td>
+                    <td>${motor.cable}</td>
+                    <td>${motor.maxLength}</td>
+                    <td>${motor.breaker}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderMotor3705_3Table() {
+            const tbody = document.getElementById('motor3705_3Body');
+            tbody.innerHTML = '';
+
+            MOTOR_TABLE_3705_3.forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${entry.maxMotorKw}</td>
+                    <td>${entry.minTotal} ~ ${entry.maxTotal}</td>
+                    <td>${entry.cable}</td>
+                    <td>${entry.breaker}</td>
+                `;
+                tbody.appendChild(row);
+            });
         }
     </script>
 </body>
