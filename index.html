@@ -404,7 +404,8 @@
         }
 
         .circuits-table {
-            width: 100%;
+            width: max-content;
+            min-width: 100%;
             border-collapse: collapse;
             font-size: 0.85rem;
         }
@@ -442,7 +443,34 @@
             border-radius: 2px;
             font-family: 'Segoe UI', 'Meiryo', sans-serif;
             font-size: 0.85rem;
+            box-sizing: border-box;
         }
+
+        /* 各列の最小幅を指定 */
+        .circuits-table th:nth-child(1),
+        .circuits-table td:nth-child(1) { min-width: 30px; width: 30px; }
+        .circuits-table th:nth-child(2),
+        .circuits-table td:nth-child(2) { min-width: 80px; }
+        .circuits-table th:nth-child(3),
+        .circuits-table td:nth-child(3) { min-width: 60px; }
+        .circuits-table th:nth-child(4),
+        .circuits-table td:nth-child(4) { min-width: 55px; }
+        .circuits-table th:nth-child(5),
+        .circuits-table td:nth-child(5) { min-width: 65px; }
+        .circuits-table th:nth-child(6),
+        .circuits-table td:nth-child(6) { min-width: 55px; }
+        .circuits-table th:nth-child(7),
+        .circuits-table td:nth-child(7) { min-width: 55px; }
+        .circuits-table th:nth-child(8),
+        .circuits-table td:nth-child(8) { min-width: 100px; }
+        .circuits-table th:nth-child(9),
+        .circuits-table td:nth-child(9) { min-width: 55px; }
+        .circuits-table th:nth-child(10),
+        .circuits-table td:nth-child(10) { min-width: 55px; }
+        .circuits-table th:nth-child(11),
+        .circuits-table td:nth-child(11) { min-width: 55px; }
+        .circuits-table th:nth-child(20),
+        .circuits-table td:nth-child(20) { min-width: 120px; }
 
         .circuits-table input:focus,
         .circuits-table select:focus {
