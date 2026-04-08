@@ -548,18 +548,18 @@
 </head>
 <body>
     <div class="nav-bar">
-        <div class="nav-title">éç¤ã»åè·¯è¨ç®ã·ã¹ãã </div>
+        <div class="nav-title">配盤・回路計算システム</div>
         <div class="nav-tabs">
-            <button class="nav-tab active" data-tab="panels">ç¤ä¸è¦§</button>
-            <button class="nav-tab" data-tab="circuits">åè·¯DB</button>
-            <button class="nav-tab" data-tab="master">ãã¹ã¿ã¼ãã¼ã¿</button>
+            <button class="nav-tab active" data-tab="panels">盤一覧</button>
+            <button class="nav-tab" data-tab="circuits">回路DB</button>
+            <button class="nav-tab" data-tab="master">マスターデータ</button>
         </div>
     </div>
 
     <div class="container">
         <!-- Panels Tab -->
         <div id="panels" class="tab-content active">
-            <button class="btn-add-panel" id="btnAddPanel">+ ç¤ãè¿½å </button>
+            <button class="btn-add-panel" id="btnAddPanel">+ 盤を追加</button>
             <div class="panels-grid" id="panelsGrid"></div>
         </div>
 
@@ -567,38 +567,38 @@
         <div id="circuits" class="tab-content">
             <div class="circuits-controls">
                 <select id="circuitsPanelFilter" class="circuits-filter">
-                    <option value="">å¨ã¦ã®ç¤</option>
+                    <option value="">全ての盤</option>
                 </select>
-                <button class="btn-action" id="btnAddCircuit">+ åè·¯è¿½å </button>
-                <button class="btn-action" id="btnRemconExpand">ãªã¢ã³ã³å±é</button>
-                <button class="btn-action btn-danger" id="btnRemconDelete">RCå¨åé¤</button>
-                <button class="btn-action" id="btnCsvExport">CSVåºå</button>
+                <button class="btn-action" id="btnAddCircuit">+ 回路追加</button>
+                <button class="btn-action" id="btnRemconExpand">リモコン展開</button>
+                <button class="btn-action btn-danger" id="btnRemconDelete">RC全削除</button>
+                <button class="btn-action" id="btnCsvExport">CSV出力</button>
             </div>
             <div class="circuits-table-wrapper">
                 <table class="circuits-table" id="circuitsTable">
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>ç¤åç§°</th>
-                            <th>ç¨®å¥</th>
-                            <th>è¨å·</th>
-                            <th>åè·¯No</th>
-                            <th>è¦ªNo</th>
-                            <th>ç¸</th>
-                            <th>é®æ­å¨</th>
+                            <th>盤名称</th>
+                            <th>種別</th>
+                            <th>記号</th>
+                            <th>回路No</th>
+                            <th>親No</th>
+                            <th>相</th>
+                            <th>遮断器</th>
                             <th>AF</th>
                             <th>AT</th>
-                            <th>é»å§</th>
-                            <th>ç§æ[kVA]</th>
-                            <th>ï½ºï¾ï½¾ï¾ï¾[kVA]</th>
+                            <th>電圧</th>
+                            <th>照明[kVA]</th>
+                            <th>ｺﾝｾﾝﾄ[kVA]</th>
                             <th>FC[kVA]</th>
                             <th>OA[kVA]</th>
-                            <th>å¹¹ç·[kVA]</th>
-                            <th>åè¨</th>
-                            <th>é»æµ</th>
-                            <th>ATå¤å®</th>
-                            <th>è² è·åç§°</th>
-                            <th>æä½</th>
+                            <th>幹線[kVA]</th>
+                            <th>合計</th>
+                            <th>電流</th>
+                            <th>AT判定</th>
+                            <th>負荷名称</th>
+                            <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="circuitsTableBody"></tbody>
@@ -610,14 +610,14 @@
         <div id="master" class="tab-content">
             <div class="master-tables">
                 <div class="master-table">
-                    <div class="master-table-title">CV/CVT é»åã±ã¼ãã«</div>
+                    <div class="master-table-title">CV/CVT 電力ケーブル</div>
                     <div class="master-table-content">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>ãµã¤ãº (mmÂ²)</th>
-                                    <th>CV è¨±å®¹é»æµ (A)</th>
-                                    <th>CVT è¨±å®¹é»æµ (A)</th>
+                                    <th>サイズ (mm²)</th>
+                                    <th>CV 許容電流 (A)</th>
+                                    <th>CVT 許容電流 (A)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -640,15 +640,15 @@
                 </div>
 
                 <div class="master-table">
-                    <div class="master-table-title">åç·è¦ç¨ 3705-1è¡¨</div>
+                    <div class="master-table-title">内線規程 3705-1表</div>
                     <div class="master-table-content">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>ç§æ</th>
-                                    <th>ã³ã³ã»ã³ã</th>
-                                    <th>å°è¨</th>
-                                    <th>éè¦ç (%)</th>
+                                    <th>照明</th>
+                                    <th>コンセント</th>
+                                    <th>小計</th>
+                                    <th>需要率 (%)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -673,24 +673,24 @@
     <!-- Panel Modal -->
     <div id="panelModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header" id="panelModalTitle">ç¤ãè¿½å </div>
+            <div class="modal-header" id="panelModalTitle">盤を追加</div>
             <form id="panelForm">
                 <div class="form-group">
-                    <label for="panelName">ç¤åç§° *</label>
+                    <label for="panelName">盤名称 *</label>
                     <input type="text" id="panelName" required>
                 </div>
                 <div class="form-group">
-                    <label for="panelElecType">ç¨®å¥ *</label>
+                    <label for="panelElecType">種別 *</label>
                     <select id="panelElecType" required>
-                        <option value="">é¸æãã¦ãã ãã</option>
-                        <option value="1Ï3W">1Ï3W</option>
-                        <option value="3Ï4W">3Ï4W</option>
+                        <option value="">選択してください</option>
+                        <option value="1φ3W">1φ3W</option>
+                        <option value="3φ4W">3φ4W</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="panelMainBreaker">ä¸»é®æ­å¨ *</label>
+                    <label for="panelMainBreaker">主遮断器 *</label>
                     <select id="panelMainBreaker" required>
-                        <option value="">é¸æãã¦ãã ãã</option>
+                        <option value="">選択してください</option>
                         <option value="MCCB2P2E">MCCB2P2E</option>
                         <option value="MCCB2P1E">MCCB2P1E</option>
                         <option value="ELCB2P2E">ELCB2P2E</option>
@@ -701,7 +701,7 @@
                 <div class="form-group">
                     <label for="panelAF">AF *</label>
                     <select id="panelAF" required>
-                        <option value="">é¸æãã¦ãã ãã</option>
+                        <option value="">選択してください</option>
                         <option value="30">30</option>
                         <option value="50">50</option>
                         <option value="60">60</option>
@@ -723,7 +723,7 @@
                 <div class="form-group">
                     <label for="panelAT">AT *</label>
                     <select id="panelAT" required>
-                        <option value="">é¸æãã¦ãã ãã</option>
+                        <option value="">選択してください</option>
                         <option value="5">5</option>
                         <option value="10">10</option>
                         <option value="15">15</option>
@@ -748,8 +748,8 @@
                     </select>
                 </div>
                 <div class="modal-buttons">
-                    <button type="button" class="btn-secondary" onclick="closePanelModal()">ã­ã£ã³ã»ã«</button>
-                    <button type="submit" class="btn-primary">ä¿å­</button>
+                    <button type="button" class="btn-secondary" onclick="closePanelModal()">キャンセル</button>
+                    <button type="submit" class="btn-primary">保存</button>
                 </div>
             </form>
         </div>
@@ -869,7 +869,7 @@
 
             const voltage = mainCircuits.length > 0 ? mainCircuits[0].voltage || 100 : 100;
             const panel = allPanels.find(p => p.name === panelName);
-            const isThreePhase = panel && panel.elec_type === '3Ï4W';
+            const isThreePhase = panel && panel.elec_type === '3φ4W';
 
             let current = 0;
             if (isThreePhase) {
@@ -879,7 +879,7 @@
             }
 
             const panelAT = panel ? (panel.at || 0) : 0;
-            const atStatus = panelAT >= current ? 'OK' : 'Ã';
+            const atStatus = panelAT >= current ? 'OK' : '×';
 
             let balance = null;
             if (!isThreePhase && mainCircuits.length > 0) {
@@ -915,13 +915,13 @@
                 const maxPhase = Math.max(summaries.l1Sum, summaries.l2Sum);
                 const l1Width = maxPhase > 0 ? (summaries.l1Sum / maxPhase * 100) : 0;
                 const l2Width = maxPhase > 0 ? (summaries.l2Sum / maxPhase * 100) : 0;
-                const balanceStatus = summaries.balance <= 40 ? 'OK' : 'Ã';
+                const balanceStatus = summaries.balance <= 40 ? 'OK' : '×';
                 balanceHtml = `
                     <div class="balance-bar">
                         <div class="balance-segment balance-l1" style="width: ${l1Width}%"></div>
                         <div class="balance-segment balance-l2" style="width: ${l2Width}%"></div>
                     </div>
-                    <div class="balance-text">L1: ${summaries.l1Sum.toFixed(2)} kVA | L2: ${summaries.l2Sum.toFixed(2)} kVA | å¹³è¡¡ç: ${summaries.balance.toFixed(1)}% <span class="badge ${summaries.balance <= 40 ? 'badge-ok' : 'badge-ng'}">${balanceStatus}</span></div>
+                    <div class="balance-text">L1: ${summaries.l1Sum.toFixed(2)} kVA | L2: ${summaries.l2Sum.toFixed(2)} kVA | 平衡率: ${summaries.balance.toFixed(1)}% <span class="badge ${summaries.balance <= 40 ? 'badge-ok' : 'badge-ng'}">${balanceStatus}</span></div>
                 `;
             }
 
@@ -929,22 +929,22 @@
                 <div class="panel-card-header">
                     <div class="panel-card-title">${panel.name}</div>
                     <div class="panel-card-actions">
-                        <button class="btn-small" onclick="editPanel(${panel.id})">ç·¨é</button>
-                        <button class="btn-small btn-delete" onclick="deletePanel(${panel.id})">åé¤</button>
+                        <button class="btn-small" onclick="editPanel(${panel.id})">編集</button>
+                        <button class="btn-small btn-delete" onclick="deletePanel(${panel.id})">削除</button>
                     </div>
                 </div>
                 <div class="panel-card-info">
-                    <p><strong>ç¨®å¥:</strong> ${panel.elec_type}</p>
-                    <p><strong>ä¸»é®æ­å¨:</strong> ${panel.main_breaker}</p>
+                    <p><strong>種別:</strong> ${panel.elec_type}</p>
+                    <p><strong>主遮断器:</strong> ${panel.main_breaker}</p>
                     <p><strong>AF/AT:</strong> ${panel.af}A / ${panel.at}A</p>
                 </div>
                 <div class="category-grid">
                     <div class="category-item">
-                        <div class="category-label">ç§æ</div>
+                        <div class="category-label">照明</div>
                         <div class="category-value">${summaries.lighting.toFixed(2)} kVA</div>
                     </div>
                     <div class="category-item">
-                        <div class="category-label">ã³ã³ã»ã³ã</div>
+                        <div class="category-label">コンセント</div>
                         <div class="category-value">${summaries.outlet.toFixed(2)} kVA</div>
                     </div>
                     <div class="category-item">
@@ -956,21 +956,21 @@
                         <div class="category-value">${summaries.oa.toFixed(2)} kVA</div>
                     </div>
                     <div class="category-item">
-                        <div class="category-label">å¹¹ç·</div>
+                        <div class="category-label">幹線</div>
                         <div class="category-value">${summaries.feeder.toFixed(2)} kVA</div>
                     </div>
                 </div>
                 <div class="total-row">
                     <div class="total-item">
-                        <div class="total-item-label">åè¨</div>
+                        <div class="total-item-label">合計</div>
                         <div class="total-item-value">${summaries.total.toFixed(2)} kVA</div>
                     </div>
                     <div class="total-item">
-                        <div class="total-item-label">é»æµ</div>
+                        <div class="total-item-label">電流</div>
                         <div class="total-item-value">${summaries.current} A</div>
                     </div>
                     <div class="total-item">
-                        <div class="total-item-label">ATå¤å®</div>
+                        <div class="total-item-label">AT判定</div>
                         <div class="total-item-value"><span class="badge ${summaries.atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${summaries.atStatus}</span></div>
                     </div>
                 </div>
@@ -982,7 +982,7 @@
 
         function openPanelModal() {
             editingPanelId = null;
-            document.getElementById('panelModalTitle').textContent = 'ç¤ãè¿½å ';
+            document.getElementById('panelModalTitle').textContent = '盤を追加';
             document.getElementById('panelForm').reset();
             document.getElementById('panelModal').classList.add('active');
         }
@@ -996,7 +996,7 @@
             if (!panel) return;
 
             editingPanelId = panelId;
-            document.getElementById('panelModalTitle').textContent = 'ç¤ãç·¨é';
+            document.getElementById('panelModalTitle').textContent = '盤を編集';
             document.getElementById('panelName').value = panel.name;
             document.getElementById('panelElecType').value = panel.elec_type;
             document.getElementById('panelMainBreaker').value = panel.main_breaker;
@@ -1034,12 +1034,12 @@
                 await loadAllData();
             } catch (error) {
                 console.error('Error saving panel:', error);
-                alert('ã¨ã©ã¼ãçºçãã¾ãã: ' + error.message);
+                alert('エラーが発生しました: ' + error.message);
             }
         }
 
         async function deletePanel(panelId) {
-            if (!confirm('ãã®ç¤ãåé¤ãã¾ããï¼')) return;
+            if (!confirm('この盤を削除しますか？')) return;
 
             try {
                 const panel = allPanels.find(p => p.id === panelId);
@@ -1064,14 +1064,14 @@
                 await loadAllData();
             } catch (error) {
                 console.error('Error deleting panel:', error);
-                alert('ã¨ã©ã¼ãçºçãã¾ãã: ' + error.message);
+                alert('エラーが発生しました: ' + error.message);
             }
         }
 
         function updatePanelFilterOptions() {
             const filter = document.getElementById('circuitsPanelFilter');
             const currentValue = filter.value;
-            const options = ['<option value="">å¨ã¦ã®ç¤</option>'];
+            const options = ['<option value="">全ての盤</option>'];
 
             allPanels.forEach(panel => {
                 options.push(`<option value="${panel.name}">${panel.name}</option>`);
@@ -1109,7 +1109,7 @@
             const voltage = circuit.voltage || 100;
             const isThreePhase = circuit.phase && ['R', 'S', 'T', 'R-S', 'S-T', 'R-T', 'RST'].includes(circuit.phase);
             const current = isThreePhase ? total * 1000 / (Math.sqrt(3) * voltage) : total * 1000 / voltage;
-            const atStatus = (circuit.at || 0) >= current ? 'OK' : 'Ã';
+            const atStatus = (circuit.at || 0) >= current ? 'OK' : '×';
 
             row.innerHTML = `
                 <td>${rowNumber}</td>
@@ -1127,12 +1127,12 @@
                 </td>
                 <td>
                     <select class="circuit-select" data-id="${circuit.id}" data-field="symbol">
-                        <option value="â" ${circuit.symbol === 'â' ? 'selected' : ''}>â</option>
-                        <option value="â" ${circuit.symbol === 'â' ? 'selected' : ''}>â</option>
-                        <option value="â" ${circuit.symbol === 'â' ? 'selected' : ''}>â</option>
-                        <option value="â¡" ${circuit.symbol === 'â¡' ? 'selected' : ''}>â¡</option>
-                        <option value="â " ${circuit.symbol === 'â ' ? 'selected' : ''}>â </option>
-                        <option value="â³" ${circuit.symbol === 'â³' ? 'selected' : ''}>â³</option>
+                        <option value="◎" ${circuit.symbol === '◎' ? 'selected' : ''}>◎</option>
+                        <option value="○" ${circuit.symbol === '○' ? 'selected' : ''}>○</option>
+                        <option value="◇" ${circuit.symbol === '◇' ? 'selected' : ''}>◇</option>
+                        <option value="□" ${circuit.symbol === '□' ? 'selected' : ''}>□</option>
+                        <option value="■" ${circuit.symbol === '■' ? 'selected' : ''}>■</option>
+                        <option value="△" ${circuit.symbol === '△' ? 'selected' : ''}>△</option>
                     </select>
                 </td>
                 <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="circuit_no" value="${circuit.circuit_no || ''}" /></td>
@@ -1181,7 +1181,7 @@
                 <td><strong>${current.toFixed(2)}</strong></td>
                 <td><strong><span class="badge ${atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${atStatus}</span></strong></td>
                 <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="load_name" value="${circuit.load_name || ''}" /></td>
-                <td><button class="btn-delete-circuit" onclick="deleteCircuit(${circuit.id})">åé¤</button></td>
+                <td><button class="btn-delete-circuit" onclick="deleteCircuit(${circuit.id})">削除</button></td>
             `;
 
             // Add event listeners for inline editing
@@ -1215,7 +1215,7 @@
                 await renderCircuits();
             } catch (error) {
                 console.error('Error updating circuit:', error);
-                alert('ã¨ã©ã¼ãçºçãã¾ãã');
+                alert('エラーが発生しました');
             }
         }
 
@@ -1226,7 +1226,7 @@
             const newCircuit = {
                 panel_name: panelName,
                 type: 'M',
-                symbol: 'â',
+                symbol: '◎',
                 circuit_no: '',
                 parent_no: '',
                 phase: 'L1',
@@ -1254,12 +1254,12 @@
                 await renderCircuits();
             } catch (error) {
                 console.error('Error adding circuit:', error);
-                alert('ã¨ã©ã¼ãçºçãã¾ãã');
+                alert('エラーが発生しました');
             }
         }
 
         async function deleteCircuit(circuitId) {
-            if (!confirm('ãã®åè·¯ãåé¤ãã¾ããï¼')) return;
+            if (!confirm('この回路を削除しますか？')) return;
 
             try {
                 const { error } = await db
@@ -1273,7 +1273,7 @@
                 await loadPanels();
             } catch (error) {
                 console.error('Error deleting circuit:', error);
-                alert('ã¨ã©ã¼ãçºçãã¾ãã');
+                alert('エラーが発生しました');
             }
         }
 
@@ -1314,7 +1314,7 @@
             }
 
             if (toInsert.length === 0) {
-                alert('ãªã¢ã³ã³å±éã§ããåè·¯ãããã¾ãã');
+                alert('リモコン展開できる回路がありません');
                 return;
             }
 
@@ -1326,15 +1326,15 @@
                 if (error) throw error;
                 await loadCircuits();
                 await renderCircuits();
-                alert(`${toInsert.length}åã®RCåè·¯ãè¿½å ãã¾ãã`);
+                alert(`${toInsert.length}個のRC回路を追加しました`);
             } catch (error) {
                 console.error('Error expanding remcon:', error);
-                alert('ã¨ã©ã¼ãçºçãã¾ãã');
+                alert('エラーが発生しました');
             }
         }
 
         async function deleteAllRemcon() {
-            if (!confirm('ãã¹ã¦ã®RCåè·¯ãåé¤ãã¾ããï¼')) return;
+            if (!confirm('すべてのRC回路を削除しますか？')) return;
 
             try {
                 const { error } = await db
@@ -1346,10 +1346,10 @@
                 await loadCircuits();
                 await renderCircuits();
                 await loadPanels();
-                alert('RCåè·¯ãåé¤ãã¾ãã');
+                alert('RC回路を削除しました');
             } catch (error) {
                 console.error('Error deleting remcon:', error);
-                alert('ã¨ã©ã¼ãçºçãã¾ãã');
+                alert('エラーが発生しました');
             }
         }
 
@@ -1360,7 +1360,7 @@
                 circuits = allCircuits.filter(c => c.panel_name === filterValue);
             }
 
-            const headers = ['#', 'ç¤åç§°', 'ç¨®å¥', 'è¨å·', 'åè·¯No', 'è¦ªNo', 'ç¸', 'é®æ­å¨', 'AF', 'AT', 'é»å§', 'ç§æ[kVA]', 'ï½ºï¾ï½¾ï¾ï¾[kVA]', 'FC[kVA]', 'OA[kVA]', 'å¹¹ç·[kVA]', 'åè¨', 'é»æµ', 'ATå¤å®', 'è² è·åç§°'];
+            const headers = ['#', '盤名称', '種別', '記号', '回路No', '親No', '相', '遮断器', 'AF', 'AT', '電圧', '照明[kVA]', 'ｺﾝｾﾝﾄ[kVA]', 'FC[kVA]', 'OA[kVA]', '幹線[kVA]', '合計', '電流', 'AT判定', '負荷名称'];
             const rows = [headers.join(',')];
 
             circuits.forEach((circuit, index) => {
@@ -1368,7 +1368,7 @@
                 const voltage = circuit.voltage || 100;
                 const isThreePhase = circuit.phase && ['R', 'S', 'T', 'R-S', 'S-T', 'R-T', 'RST'].includes(circuit.phase);
                 const current = isThreePhase ? total * 1000 / (Math.sqrt(3) * voltage) : total * 1000 / voltage;
-                const atStatus = (circuit.at || 0) >= current ? 'OK' : 'Ã';
+                const atStatus = (circuit.at || 0) >= current ? 'OK' : '×';
 
                 const row = [
                     index + 1,
