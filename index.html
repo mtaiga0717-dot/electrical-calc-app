@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electrical Panel & Circuit Calculation</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Meiryo', sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .nav-bar {
+            background-color: #1a1a2e;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-tab {
+            color: white;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0.5rem 0;
+            border-bottom: 3px solid transparent;
+            transition: border-color 0.3s;
+        }
+
+        .nav-tab.active {
+            border-bottom-color: #42a5f5;
+        }
+
+        .nav-tab:hover {
+            border-bottom-color: #42a5f5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Panels Tab */
+        .panels-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .panel-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .panel-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #42a5f5;
+            padding-bottom: 0.5rem;
+        }
+
+        .panel-card-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #1a1a2e;
+        }
+
+        .panel-card-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-small {
+            background-color: #42a5f5;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background-color 0.3s;
+        }
+
+        .btn-small:hover {
+            background-color: #1e88e5;
+        }
+
+        .btn-delete {
+            background-color: #d32f2f;
+        }
+
+        .btn-delete:hover {
+            background-color: #b71c1c;
+        }
+
+        .panel-card-info {
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .panel-card-info p {
+            margin: 0.3rem 0;
+            color: #666;
+        }
+
+        .panel-card-info strong {
+            color: #1a1a2e;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin: 1rem 0;
+            font-size: 0.85rem;
+        }
+
+        .category-item {
+            background-color: #f9f9f9;
+            padding: 0.5rem;
+            border-radius: 4px;
+            border-left: 3px solid #42a5f5;
+        }
+
+        .category-label {
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        .category-value {
+            font-weight: bold;
+            color: #1a1a2e;
+            font-size: 0.95rem;
+        }
+
+        .total-row {
+            background-color: #e3f2fd;
+            padding: 0.8rem;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+
+        .total-item {
+            font-size: 0.9rem;
+        }
+
+        .total-item-label {
+            color: #666;
+        }
+
+        .total-item-value {
+            font-weight: bold;
+            color: #1a1a2e;
+            font-size: 1rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .badge-ok {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .badge-ng {
+            background-color: #d32f2f;
+            color: white;
+        }
+
+        .balance-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+            display: flex;
+        }
+
+        .balance-segment {
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        .balance-l1 {
+            background-color: #42a5f5;
+        }
+
+        .balance-l2 {
+            background-color: #ff9800;
+        }
+
+        .balance-text {
+            font-size: 0.8rem;
+            margin-top: 0.2rem;
+            color: #666;
+            text-align: center;
+        }
+
+        .btn-add-panel {
+            background-color: #42a5f5;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-bottom: 2rem;
+            transition: background-color 0.3s;
+        }
+
+        .btn-add-panel:hover {
+            background-color: #1e88e5;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+            color: #1a1a2e;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: bold;
+            color: #1a1a2e;
+            font-size: 0.9rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Segoe UI', 'Meiryo', sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #42a5f5;
+            box-shadow: 0 0 4px rgba(66, 165, 245, 0.3);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+
+        .btn-primary {
+            background-color: #42a5f5;
+            color: white;
+            padding: 0.6rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary:hover {
+            background-color: #1e88e5;
+        }
+
+        .btn-secondary {
+            background-color: #ccc;
+            color: #333;
+            padding: 0.6rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background-color: #bbb;
+        }
+
+        /* Circuits Tab */
+        .circuits-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .circuits-filter {
+            padding: 0.6rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Segoe UI', 'Meiryo', sans-serif;
+        }
+
+        .btn-action {
+            background-color: #42a5f5;
+            color: white;
+            padding: 0.6rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+        }
+
+        .btn-action:hover {
+            background-color: #1e88e5;
+        }
+
+        .btn-danger {
+            background-color: #d32f2f;
+        }
+
+        .btn-danger:hover {
+            background-color: #b71c1c;
+        }
+
+        .circuits-table-wrapper {
+            overflow-x: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .circuits-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .circuits-table thead {
+            background-color: #1a1a2e;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .circuits-table th {
+            padding: 0.8rem;
+            text-align: left;
+            font-weight: bold;
+            border: 1px solid #ddd;
+            white-space: nowrap;
+        }
+
+        .circuits-table td {
+            padding: 0.6rem;
+            border: 1px solid #ddd;
+        }
+
+        .circuits-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .circuits-table input,
+        .circuits-table select {
+            width: 100%;
+            padding: 0.3rem;
+            border: 1px solid #ddd;
+            border-radius: 2px;
+            font-family: 'Segoe UI', 'Meiryo', sans-serif;
+            font-size: 0.85rem;
+        }
+
+        .circuits-table input:focus,
+        .circuits-table select:focus {
+            outline: none;
+            border-color: #42a5f5;
+            box-shadow: inset 0 0 2px rgba(66, 165, 245, 0.3);
+        }
+
+        .circuits-table .row-rc {
+            background-color: #fff9e6;
+        }
+
+        .circuits-table .row-rc td {
+            border-left: 3px solid #ff9800;
+        }
+
+        .btn-delete-circuit {
+            background-color: #d32f2f;
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .btn-delete-circuit:hover {
+            background-color: #b71c1c;
+        }
+
+        /* Master Tab */
+        .master-tables {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 2rem;
+        }
+
+        .master-table {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .master-table-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #1a1a2e;
+            border-bottom: 2px solid #42a5f5;
+            padding-bottom: 0.5rem;
+        }
+
+        .master-table-content table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .master-table-content th {
+            background-color: #f5f5f5;
+            padding: 0.6rem;
+            text-align: left;
+            font-weight: bold;
+            border: 1px solid #ddd;
+        }
+
+        .master-table-content td {
+            padding: 0.6rem;
+            border: 1px solid #ddd;
+        }
+
+        .master-table-content tbody tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        .hidden-row {
+            display: none;
+        }
+
+        .status-message {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .status-success {
+            background-color: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .status-error {
+            background-color: #ffcdd2;
+            color: #c62828;
+        }
+
+        .status-info {
+            background-color: #bbdefb;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-bar">
+        <div class="nav-title">配盤・回路計算システム</div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="panels">盤一覧</button>
+            <button class="nav-tab" data-tab="circuits">回路DB</button>
+            <button class="nav-tab" data-tab="master">マスターデータ</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Panels Tab -->
+        <div id="panels" class="tab-content active">
+            <button class="btn-add-panel" id="btnAddPanel">+ 盤を追加</button>
+            <div class="panels-grid" id="panelsGrid"></div>
+        </div>
+
+        <!-- Circuits Tab -->
+        <div id="circuits" class="tab-content">
+            <div class="circuits-controls">
+                <select id="circuitsPanelFilter" class="circuits-filter">
+                    <option value="">全ての盤</option>
+                </select>
+                <button class="btn-action" id="btnAddCircuit">+ 回路追加</button>
+                <button class="btn-action" id="btnRemconExpand">リモコン展開</button>
+                <button class="btn-action btn-danger" id="btnRemconDelete">RC全削除</button>
+                <button class="btn-action" id="btnCsvExport">CSV出力</button>
+            </div>
+            <div class="circuits-table-wrapper">
+                <table class="circuits-table" id="circuitsTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>盤名称</th>
+                            <th>種別</th>
+                            <th>記号</th>
+                            <th>回路No</th>
+                            <th>親No</th>
+                            <th>相</th>
+                            <th>遮断器</th>
+                            <th>AF</th>
+                            <th>AT</th>
+                            <th>電圧</th>
+                            <th>照明[kVA]</th>
+                            <th>ｺﾝｾﾝﾄ[kVA]</th>
+                            <th>FC[kVA]</th>
+                            <th>OA[kVA]</th>
+                            <th>幹線[kVA]</th>
+                            <th>合計</th>
+                            <th>電流</th>
+                            <th>AT判定</th>
+                            <th>負荷名称</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="circuitsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Master Tab -->
+        <div id="master" class="tab-content">
+            <div class="master-tables">
+                <div class="master-table">
+                    <div class="master-table-title">CV/CVT 電力ケーブル</div>
+                    <div class="master-table-content">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>サイズ (mm²)</th>
+                                    <th>CV 許容電流 (A)</th>
+                                    <th>CVT 許容電流 (A)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>2.0</td><td>21</td><td>26</td></tr>
+                                <tr><td>3.5</td><td>31</td><td>38</td></tr>
+                                <tr><td>5.5</td><td>40</td><td>50</td></tr>
+                                <tr><td>8</td><td>52</td><td>65</td></tr>
+                                <tr><td>14</td><td>73</td><td>92</td></tr>
+                                <tr><td>22</td><td>101</td><td>127</td></tr>
+                                <tr><td>38</td><td>139</td><td>175</td></tr>
+                                <tr><td>60</td><td>180</td><td>227</td></tr>
+                                <tr><td>100</td><td>244</td><td>308</td></tr>
+                                <tr><td>150</td><td>310</td><td>391</td></tr>
+                                <tr><td>200</td><td>367</td><td>464</td></tr>
+                                <tr><td>250</td><td>418</td><td>528</td></tr>
+                                <tr><td>300</td><td>468</td><td>591</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="master-table">
+                    <div class="master-table-title">内線規程 3705-1表</div>
+                    <div class="master-table-content">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>照明</th>
+                                    <th>コンセント</th>
+                                    <th>小計</th>
+                                    <th>需要率 (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>~1.5</td><td>~2</td><td>~3.0</td><td>100</td></tr>
+                                <tr><td>~2</td><td>~2.5</td><td>~4.0</td><td>100</td></tr>
+                                <tr><td>~3</td><td>~4</td><td>~6.0</td><td>100</td></tr>
+                                <tr><td>~5</td><td>~6</td><td>~10.0</td><td>90</td></tr>
+                                <tr><td>~7</td><td>~8</td><td>~14.0</td><td>80</td></tr>
+                                <tr><td>~10</td><td>~12</td><td>~20.0</td><td>70</td></tr>
+                                <tr><td>~15</td><td>~18</td><td>~30.0</td><td>60</td></tr>
+                                <tr><td>~20</td><td>~25</td><td>~40.0</td><td>60</td></tr>
+                                <tr><td>~30</td><td>~35</td><td>~60.0</td><td>50</td></tr>
+                                <tr><td>~50</td><td>~60</td><td>~100.0</td><td>50</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Modal -->
+    <div id="panelModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="panelModalTitle">盤を追加</div>
+            <form id="panelForm">
+                <div class="form-group">
+                    <label for="panelName">盤名称 *</label>
+                    <input type="text" id="panelName" required>
+                </div>
+                <div class="form-group">
+                    <label for="panelElecType">種別 *</label>
+                    <select id="panelElecType" required>
+                        <option value="">選択してください</option>
+                        <option value="1φ3W">1φ3W</option>
+                        <option value="3φ4W">3φ4W</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="panelMainBreaker">主遮断器 *</label>
+                    <select id="panelMainBreaker" required>
+                        <option value="">選択してください</option>
+                        <option value="MCCB2P2E">MCCB2P2E</option>
+                        <option value="MCCB2P1E">MCCB2P1E</option>
+                        <option value="ELCB2P2E">ELCB2P2E</option>
+                        <option value="MCCB3P">MCCB3P</option>
+                        <option value="ELCB3P">ELCB3P</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="panelAF">AF *</label>
+                    <select id="panelAF" required>
+                        <option value="">選択してください</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                        <option value="60">60</option>
+                        <option value="100">100</option>
+                        <option value="125">125</option>
+                        <option value="150">150</option>
+                        <option value="175">175</option>
+                        <option value="200">200</option>
+                        <option value="225">225</option>
+                        <option value="250">250</option>
+                        <option value="300">300</option>
+                        <option value="350">350</option>
+                        <option value="400">400</option>
+                        <option value="500">500</option>
+                        <option value="600">600</option>
+                        <option value="800">800</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="panelAT">AT *</label>
+                    <select id="panelAT" required>
+                        <option value="">選択してください</option>
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                        <option value="40">40</option>
+                        <option value="50">50</option>
+                        <option value="60">60</option>
+                        <option value="75">75</option>
+                        <option value="100">100</option>
+                        <option value="125">125</option>
+                        <option value="150">150</option>
+                        <option value="175">175</option>
+                        <option value="200">200</option>
+                        <option value="225">225</option>
+                        <option value="250">250</option>
+                        <option value="300">300</option>
+                        <option value="350">350</option>
+                        <option value="400">400</option>
+                        <option value="500">500</option>
+                        <option value="600">600</option>
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn-secondary" onclick="closePanelModal()">キャンセル</button>
+                    <button type="submit" class="btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://lqtwxvqzsbjxhssbuphd.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_onAvwGpaZTNFKW5RxFitnw_6EQT4iGT';
+
+        const { createClient } = window.supabase;
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const AF_VALUES = [30, 50, 60, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 500, 600, 800];
+        const AT_VALUES = [5, 10, 15, 20, 30, 40, 50, 60, 75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 500, 600];
+
+        let allPanels = [];
+        let allCircuits = [];
+        let editingPanelId = null;
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', async () => {
+            setupEventListeners();
+            await loadAllData();
+        });
+
+        function setupEventListeners() {
+            // Tab navigation
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    const tabName = e.target.dataset.tab;
+                    switchTab(tabName);
+                });
+            });
+
+            // Panel modal
+            document.getElementById('panelForm').addEventListener('submit', handleSavePanelForm);
+            document.getElementById('btnAddPanel').addEventListener('click', openPanelModal);
+
+            // Circuits controls
+            document.getElementById('circuitsPanelFilter').addEventListener('change', renderCircuits);
+            document.getElementById('btnAddCircuit').addEventListener('click', addCircuitRow);
+            document.getElementById('btnRemconExpand').addEventListener('click', expandRemcon);
+            document.getElementById('btnRemconDelete').addEventListener('click', deleteAllRemcon);
+            document.getElementById('btnCsvExport').addEventListener('click', exportCircuitsCsv);
+        }
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            if (tabName === 'circuits') {
+                renderCircuits();
+            }
+        }
+
+        async function loadAllData() {
+            try {
+                await loadPanels();
+                await loadCircuits();
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        async function loadPanels() {
+            const { data, error } = await supabase
+                .from('panels')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            allPanels = data || [];
+            renderPanels();
+            updatePanelFilterOptions();
+        }
+
+        async function loadCircuits() {
+            const { data, error } = await supabase
+                .from('circuits')
+                .select('*')
+                .order('sort_order', { ascending: true });
+
+            if (error) throw error;
+            allCircuits = data || [];
+        }
+
+        function renderPanels() {
+            const grid = document.getElementById('panelsGrid');
+            grid.innerHTML = '';
+
+            allPanels.forEach(panel => {
+                const circuits = allCircuits.filter(c => c.panel_name === panel.name);
+                const summaries = calculatePanelSummaries(panel.name, circuits);
+                const card = createPanelCard(panel, summaries);
+                grid.appendChild(card);
+            });
+        }
+
+        function calculatePanelSummaries(panelName, circuits) {
+            const lighting = circuits.reduce((sum, c) => sum + (c.lighting || 0), 0);
+            const outlet = circuits.reduce((sum, c) => sum + (c.outlet || 0), 0);
+            const fc = circuits.reduce((sum, c) => sum + (c.fc || 0), 0);
+            const oa = circuits.reduce((sum, c) => sum + (c.oa || 0), 0);
+            const feeder = circuits.reduce((sum, c) => sum + (c.feeder || 0), 0);
+
+            const total = lighting + outlet + fc + oa + feeder;
+            const mainCircuits = circuits.filter(c => c.type === 'M');
+
+            const voltage = mainCircuits.length > 0 ? mainCircuits[0].voltage || 100 : 100;
+            const panel = allPanels.find(p => p.name === panelName);
+            const isThreePhase = panel && panel.elec_type === '3φ4W';
+
+            let current = 0;
+            if (isThreePhase) {
+                current = total * 1000 / (Math.sqrt(3) * voltage);
+            } else {
+                current = total * 1000 / voltage;
+            }
+
+            const panelAT = panel ? (panel.at || 0) : 0;
+            const atStatus = panelAT >= current ? 'OK' : '×';
+
+            let balance = null;
+            if (!isThreePhase && mainCircuits.length > 0) {
+                const l1Sum = mainCircuits.filter(c => c.phase === 'L1').reduce((s, c) => s + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0), 0);
+                const l2Sum = mainCircuits.filter(c => c.phase === 'L2').reduce((s, c) => s + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0), 0);
+                const maxPhase = Math.max(l1Sum, l2Sum);
+                if (maxPhase > 0) {
+                    balance = Math.abs(l1Sum - l2Sum) / maxPhase * 100;
+                }
+            }
+
+            return {
+                lighting,
+                outlet,
+                fc,
+                oa,
+                feeder,
+                total,
+                current: Math.round(current * 100) / 100,
+                atStatus,
+                balance,
+                l1Sum: balance !== null ? mainCircuits.filter(c => c.phase === 'L1').reduce((s, c) => s + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0), 0) : 0,
+                l2Sum: balance !== null ? mainCircuits.filter(c => c.phase === 'L2').reduce((s, c) => s + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0), 0) : 0
+            };
+        }
+
+        function createPanelCard(panel, summaries) {
+            const card = document.createElement('div');
+            card.className = 'panel-card';
+
+            let balanceHtml = '';
+            if (summaries.balance !== null) {
+                const maxPhase = Math.max(summaries.l1Sum, summaries.l2Sum);
+                const l1Width = maxPhase > 0 ? (summaries.l1Sum / maxPhase * 100) : 0;
+                const l2Width = maxPhase > 0 ? (summaries.l2Sum / maxPhase * 100) : 0;
+                const balanceStatus = summaries.balance <= 40 ? 'OK' : '×';
+                balanceHtml = `
+                    <div class="balance-bar">
+                        <div class="balance-segment balance-l1" style="width: ${l1Width}%"></div>
+                        <div class="balance-segment balance-l2" style="width: ${l2Width}%"></div>
+                    </div>
+                    <div class="balance-text">L1: ${summaries.l1Sum.toFixed(2)} kVA | L2: ${summaries.l2Sum.toFixed(2)} kVA | 平衡率: ${summaries.balance.toFixed(1)}% <span class="badge ${summaries.balance <= 40 ? 'badge-ok' : 'badge-ng'}">${balanceStatus}</span></div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="panel-card-header">
+                    <div class="panel-card-title">${panel.name}</div>
+                    <div class="panel-card-actions">
+                        <button class="btn-small" onclick="editPanel(${panel.id})">編集</button>
+                        <button class="btn-small btn-delete" onclick="deletePanel(${panel.id})">削除</button>
+                    </div>
+                </div>
+                <div class="panel-card-info">
+                    <p><strong>種別:</strong> ${panel.elec_type}</p>
+                    <p><strong>主遮断器:</strong> ${panel.main_breaker}</p>
+                    <p><strong>AF/AT:</strong> ${panel.af}A / ${panel.at}A</p>
+                </div>
+                <div class="category-grid">
+                    <div class="category-item">
+                        <div class="category-label">照明</div>
+                        <div class="category-value">${summaries.lighting.toFixed(2)} kVA</div>
+                    </div>
+                    <div class="category-item">
+                        <div class="category-label">コンセント</div>
+                        <div class="category-value">${summaries.outlet.toFixed(2)} kVA</div>
+                    </div>
+                    <div class="category-item">
+                        <div class="category-label">FC</div>
+                        <div class="category-value">${summaries.fc.toFixed(2)} kVA</div>
+                    </div>
+                    <div class="category-item">
+                        <div class="category-label">OA</div>
+                        <div class="category-value">${summaries.oa.toFixed(2)} kVA</div>
+                    </div>
+                    <div class="category-item">
+                        <div class="category-label">幹線</div>
+                        <div class="category-value">${summaries.feeder.toFixed(2)} kVA</div>
+                    </div>
+                </div>
+                <div class="total-row">
+                    <div class="total-item">
+                        <div class="total-item-label">合計</div>
+                        <div class="total-item-value">${summaries.total.toFixed(2)} kVA</div>
+                    </div>
+                    <div class="total-item">
+                        <div class="total-item-label">電流</div>
+                        <div class="total-item-value">${summaries.current} A</div>
+                    </div>
+                    <div class="total-item">
+                        <div class="total-item-label">AT判定</div>
+                        <div class="total-item-value"><span class="badge ${summaries.atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${summaries.atStatus}</span></div>
+                    </div>
+                </div>
+                ${balanceHtml}
+            `;
+
+            return card;
+        }
+
+        function openPanelModal() {
+            editingPanelId = null;
+            document.getElementById('panelModalTitle').textContent = '盤を追加';
+            document.getElementById('panelForm').reset();
+            document.getElementById('panelModal').classList.add('active');
+        }
+
+        function closePanelModal() {
+            document.getElementById('panelModal').classList.remove('active');
+        }
+
+        function editPanel(panelId) {
+            const panel = allPanels.find(p => p.id === panelId);
+            if (!panel) return;
+
+            editingPanelId = panelId;
+            document.getElementById('panelModalTitle').textContent = '盤を編集';
+            document.getElementById('panelName').value = panel.name;
+            document.getElementById('panelElecType').value = panel.elec_type;
+            document.getElementById('panelMainBreaker').value = panel.main_breaker;
+            document.getElementById('panelAF').value = panel.af;
+            document.getElementById('panelAT').value = panel.at;
+            document.getElementById('panelModal').classList.add('active');
+        }
+
+        async function handleSavePanelForm(e) {
+            e.preventDefault();
+
+            const data = {
+                name: document.getElementById('panelName').value,
+                elec_type: document.getElementById('panelElecType').value,
+                main_breaker: document.getElementById('panelMainBreaker').value,
+                af: parseInt(document.getElementById('panelAF').value),
+                at: parseInt(document.getElementById('panelAT').value)
+            };
+
+            try {
+                if (editingPanelId) {
+                    const { error } = await supabase
+                        .from('panels')
+                        .update(data)
+                        .eq('id', editingPanelId);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase
+                        .from('panels')
+                        .insert([data]);
+                    if (error) throw error;
+                }
+
+                closePanelModal();
+                await loadAllData();
+            } catch (error) {
+                console.error('Error saving panel:', error);
+                alert('エラーが発生しました: ' + error.message);
+            }
+        }
+
+        async function deletePanel(panelId) {
+            if (!confirm('この盤を削除しますか？')) return;
+
+            try {
+                const panel = allPanels.find(p => p.id === panelId);
+                if (!panel) return;
+
+                // Delete circuits for this panel
+                const { error: circuitError } = await supabase
+                    .from('circuits')
+                    .delete()
+                    .eq('panel_name', panel.name);
+
+                if (circuitError) throw circuitError;
+
+                // Delete panel
+                const { error: panelError } = await supabase
+                    .from('panels')
+                    .delete()
+                    .eq('id', panelId);
+
+                if (panelError) throw panelError;
+
+                await loadAllData();
+            } catch (error) {
+                console.error('Error deleting panel:', error);
+                alert('エラーが発生しました: ' + error.message);
+            }
+        }
+
+        function updatePanelFilterOptions() {
+            const filter = document.getElementById('circuitsPanelFilter');
+            const currentValue = filter.value;
+            const options = ['<option value="">全ての盤</option>'];
+
+            allPanels.forEach(panel => {
+                options.push(`<option value="${panel.name}">${panel.name}</option>`);
+            });
+
+            filter.innerHTML = options.join('');
+            filter.value = currentValue;
+        }
+
+        async function renderCircuits() {
+            const filterValue = document.getElementById('circuitsPanelFilter').value;
+            let filtered = allCircuits;
+
+            if (filterValue) {
+                filtered = allCircuits.filter(c => c.panel_name === filterValue);
+            }
+
+            filtered.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+            const tbody = document.getElementById('circuitsTableBody');
+            tbody.innerHTML = '';
+
+            filtered.forEach((circuit, index) => {
+                const row = createCircuitRow(circuit, index + 1);
+                tbody.appendChild(row);
+            });
+        }
+
+        function createCircuitRow(circuit, rowNumber) {
+            const row = document.createElement('tr');
+            row.id = `circuit-${circuit.id}`;
+            row.className = circuit.type === 'RC' ? 'row-rc' : '';
+
+            const total = (circuit.lighting || 0) + (circuit.outlet || 0) + (circuit.fc || 0) + (circuit.oa || 0) + (circuit.feeder || 0);
+            const voltage = circuit.voltage || 100;
+            const isThreePhase = circuit.phase && ['R', 'S', 'T', 'R-S', 'S-T', 'R-T', 'RST'].includes(circuit.phase);
+            const current = isThreePhase ? total * 1000 / (Math.sqrt(3) * voltage) : total * 1000 / voltage;
+            const atStatus = (circuit.at || 0) >= current ? 'OK' : '×';
+
+            row.innerHTML = `
+                <td>${rowNumber}</td>
+                <td>
+                    <select class="panel-select" data-id="${circuit.id}" data-field="panel_name">
+                        <option value="">-</option>
+                        ${allPanels.map(p => `<option value="${p.name}" ${circuit.panel_name === p.name ? 'selected' : ''}>${p.name}</option>`).join('')}
+                    </select>
+                </td>
+                <td>
+                    <select class="circuit-select" data-id="${circuit.id}" data-field="type">
+                        <option value="M" ${circuit.type === 'M' ? 'selected' : ''}>M</option>
+                        <option value="RC" ${circuit.type === 'RC' ? 'selected' : ''}>RC</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="circuit-select" data-id="${circuit.id}" data-field="symbol">
+                        <option value="◎" ${circuit.symbol === '◎' ? 'selected' : ''}>◎</option>
+                        <option value="○" ${circuit.symbol === '○' ? 'selected' : ''}>○</option>
+                        <option value="◇" ${circuit.symbol === '◇' ? 'selected' : ''}>◇</option>
+                        <option value="□" ${circuit.symbol === '□' ? 'selected' : ''}>□</option>
+                        <option value="■" ${circuit.symbol === '■' ? 'selected' : ''}>■</option>
+                        <option value="△" ${circuit.symbol === '△' ? 'selected' : ''}>△</option>
+                    </select>
+                </td>
+                <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="circuit_no" value="${circuit.circuit_no || ''}" /></td>
+                <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="parent_no" value="${circuit.parent_no || ''}" /></td>
+                <td>
+                    <select class="circuit-select" data-id="${circuit.id}" data-field="phase">
+                        <option value="">-</option>
+                        <option value="L1" ${circuit.phase === 'L1' ? 'selected' : ''}>L1</option>
+                        <option value="L2" ${circuit.phase === 'L2' ? 'selected' : ''}>L2</option>
+                        <option value="L1-L2" ${circuit.phase === 'L1-L2' ? 'selected' : ''}>L1-L2</option>
+                        <option value="R" ${circuit.phase === 'R' ? 'selected' : ''}>R</option>
+                        <option value="S" ${circuit.phase === 'S' ? 'selected' : ''}>S</option>
+                        <option value="T" ${circuit.phase === 'T' ? 'selected' : ''}>T</option>
+                        <option value="R-S" ${circuit.phase === 'R-S' ? 'selected' : ''}>R-S</option>
+                        <option value="S-T" ${circuit.phase === 'S-T' ? 'selected' : ''}>S-T</option>
+                        <option value="R-T" ${circuit.phase === 'R-T' ? 'selected' : ''}>R-T</option>
+                        <option value="RST" ${circuit.phase === 'RST' ? 'selected' : ''}>RST</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="circuit-select" data-id="${circuit.id}" data-field="breaker">
+                        <option value="MCCB2P2E" ${circuit.breaker === 'MCCB2P2E' ? 'selected' : ''}>MCCB2P2E</option>
+                        <option value="MCCB2P1E" ${circuit.breaker === 'MCCB2P1E' ? 'selected' : ''}>MCCB2P1E</option>
+                        <option value="ELCB2P2E" ${circuit.breaker === 'ELCB2P2E' ? 'selected' : ''}>ELCB2P2E</option>
+                        <option value="MCCB3P" ${circuit.breaker === 'MCCB3P' ? 'selected' : ''}>MCCB3P</option>
+                        <option value="ELCB3P" ${circuit.breaker === 'ELCB3P' ? 'selected' : ''}>ELCB3P</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="circuit-select" data-id="${circuit.id}" data-field="af">
+                        ${AF_VALUES.map(val => `<option value="${val}" ${circuit.af === val ? 'selected' : ''}>${val}</option>`).join('')}
+                    </select>
+                </td>
+                <td>
+                    <select class="circuit-select" data-id="${circuit.id}" data-field="at">
+                        ${AT_VALUES.map(val => `<option value="${val}" ${circuit.at === val ? 'selected' : ''}>${val}</option>`).join('')}
+                    </select>
+                </td>
+                <td><input type="number" class="circuit-input" data-id="${circuit.id}" data-field="voltage" value="${circuit.voltage || 100}" /></td>
+                <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="lighting" value="${(circuit.lighting || 0).toFixed(2)}" /></td>
+                <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="outlet" value="${(circuit.outlet || 0).toFixed(2)}" /></td>
+                <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="fc" value="${(circuit.fc || 0).toFixed(2)}" /></td>
+                <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="oa" value="${(circuit.oa || 0).toFixed(2)}" /></td>
+                <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="feeder" value="${(circuit.feeder || 0).toFixed(2)}" /></td>
+                <td><strong>${total.toFixed(2)}</strong></td>
+                <td><strong>${current.toFixed(2)}</strong></td>
+                <td><strong><span class="badge ${atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${atStatus}</span></strong></td>
+                <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="load_name" value="${circuit.load_name || ''}" /></td>
+                <td><button class="btn-delete-circuit" onclick="deleteCircuit(${circuit.id})">削除</button></td>
+            `;
+
+            // Add event listeners for inline editing
+            row.querySelectorAll('.circuit-input, .circuit-select, .panel-select').forEach(input => {
+                input.addEventListener('change', handleCircuitChange);
+                input.addEventListener('blur', handleCircuitChange);
+            });
+
+            return row;
+        }
+
+        async function handleCircuitChange(e) {
+            const input = e.target;
+            const circuitId = parseInt(input.dataset.id);
+            const field = input.dataset.field;
+            let value = input.value;
+
+            if (field === 'af' || field === 'at' || field === 'voltage' || field === 'lighting' || field === 'outlet' || field === 'fc' || field === 'oa' || field === 'feeder') {
+                value = field === 'voltage' ? parseInt(value) : parseFloat(value);
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('circuits')
+                    .update({ [field]: value })
+                    .eq('id', circuitId);
+
+                if (error) throw error;
+                await loadCircuits();
+                await loadPanels();
+                await renderCircuits();
+            } catch (error) {
+                console.error('Error updating circuit:', error);
+                alert('エラーが発生しました');
+            }
+        }
+
+        async function addCircuitRow() {
+            const filterValue = document.getElementById('circuitsPanelFilter').value;
+            const panelName = filterValue || (allPanels.length > 0 ? allPanels[0].name : '');
+
+            const newCircuit = {
+                panel_name: panelName,
+                type: 'M',
+                symbol: '◎',
+                circuit_no: '',
+                parent_no: '',
+                phase: 'L1',
+                breaker: 'MCCB2P2E',
+                af: 30,
+                at: 20,
+                voltage: 100,
+                lighting: 0,
+                outlet: 0,
+                fc: 0,
+                oa: 0,
+                feeder: 0,
+                load_name: '',
+                remocon: 0,
+                sort_order: (allCircuits.length + 1) * 10
+            };
+
+            try {
+                const { error } = await supabase
+                    .from('circuits')
+                    .insert([newCircuit]);
+
+                if (error) throw error;
+                await loadCircuits();
+                await renderCircuits();
+            } catch (error) {
+                console.error('Error adding circuit:', error);
+                alert('エラーが発生しました');
+            }
+        }
+
+        async function deleteCircuit(circuitId) {
+            if (!confirm('この回路を削除しますか？')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('circuits')
+                    .delete()
+                    .eq('id', circuitId);
+
+                if (error) throw error;
+                await loadCircuits();
+                await renderCircuits();
+                await loadPanels();
+            } catch (error) {
+                console.error('Error deleting circuit:', error);
+                alert('エラーが発生しました');
+            }
+        }
+
+        async function expandRemcon() {
+            const filterValue = document.getElementById('circuitsPanelFilter').value;
+            let circuits = allCircuits;
+            if (filterValue) {
+                circuits = allCircuits.filter(c => c.panel_name === filterValue);
+            }
+
+            const toInsert = [];
+            const mCircuits = circuits.filter(c => c.type === 'M' && c.remocon && c.remocon > 0);
+
+            for (let i = 0; i < mCircuits.length; i++) {
+                const mCircuit = mCircuits[i];
+                for (let j = 0; j < mCircuit.remocon; j++) {
+                    toInsert.push({
+                        panel_name: mCircuit.panel_name,
+                        type: 'RC',
+                        symbol: mCircuit.symbol,
+                        circuit_no: `${mCircuit.circuit_no}-${j + 1}`,
+                        parent_no: mCircuit.circuit_no,
+                        phase: mCircuit.phase,
+                        breaker: mCircuit.breaker,
+                        af: mCircuit.af,
+                        at: mCircuit.at,
+                        voltage: mCircuit.voltage,
+                        lighting: 0,
+                        outlet: 0,
+                        fc: 0,
+                        oa: 0,
+                        feeder: 0,
+                        load_name: '',
+                        remocon: 0,
+                        sort_order: (mCircuit.sort_order || 0) + 1 + j
+                    });
+                }
+            }
+
+            if (toInsert.length === 0) {
+                alert('リモコン展開できる回路がありません');
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('circuits')
+                    .insert(toInsert);
+
+                if (error) throw error;
+                await loadCircuits();
+                await renderCircuits();
+                alert(`${toInsert.length}個のRC回路を追加しました`);
+            } catch (error) {
+                console.error('Error expanding remcon:', error);
+                alert('エラーが発生しました');
+            }
+        }
+
+        async function deleteAllRemcon() {
+            if (!confirm('すべてのRC回路を削除しますか？')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('circuits')
+                    .delete()
+                    .eq('type', 'RC');
+
+                if (error) throw error;
+                await loadCircuits();
+                await renderCircuits();
+                await loadPanels();
+                alert('RC回路を削除しました');
+            } catch (error) {
+                console.error('Error deleting remcon:', error);
+                alert('エラーが発生しました');
+            }
+        }
+
+        function exportCircuitsCsv() {
+            const filterValue = document.getElementById('circuitsPanelFilter').value;
+            let circuits = allCircuits;
+            if (filterValue) {
+                circuits = allCircuits.filter(c => c.panel_name === filterValue);
+            }
+
+            const headers = ['#', '盤名称', '種別', '記号', '回路No', '親No', '相', '遮断器', 'AF', 'AT', '電圧', '照明[kVA]', 'ｺﾝｾﾝﾄ[kVA]', 'FC[kVA]', 'OA[kVA]', '幹線[kVA]', '合計', '電流', 'AT判定', '負荷名称'];
+            const rows = [headers.join(',')];
+
+            circuits.forEach((circuit, index) => {
+                const total = (circuit.lighting || 0) + (circuit.outlet || 0) + (circuit.fc || 0) + (circuit.oa || 0) + (circuit.feeder || 0);
+                const voltage = circuit.voltage || 100;
+                const isThreePhase = circuit.phase && ['R', 'S', 'T', 'R-S', 'S-T', 'R-T', 'RST'].includes(circuit.phase);
+                const current = isThreePhase ? total * 1000 / (Math.sqrt(3) * voltage) : total * 1000 / voltage;
+                const atStatus = (circuit.at || 0) >= current ? 'OK' : '×';
+
+                const row = [
+                    index + 1,
+                    circuit.panel_name || '',
+                    circuit.type || '',
+                    circuit.symbol || '',
+                    circuit.circuit_no || '',
+                    circuit.parent_no || '',
+                    circuit.phase || '',
+                    circuit.breaker || '',
+                    circuit.af || '',
+                    circuit.at || '',
+                    circuit.voltage || '',
+                    circuit.lighting || 0,
+                    circuit.outlet || 0,
+                    circuit.fc || 0,
+                    circuit.oa || 0,
+                    circuit.feeder || 0,
+                    total.toFixed(2),
+                    current.toFixed(2),
+                    atStatus,
+                    circuit.load_name || ''
+                ];
+                rows.push(row.map(cell => `"${cell}"`).join(','));
+            });
+
+            const csv = rows.join('\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `circuits_${new Date().getTime()}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
