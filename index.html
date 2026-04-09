@@ -2246,6 +2246,20 @@
             // 回路ごとの負荷合計（kVA）
             const circuitVA = (c) => num(c.lighting) + num(c.outlet) + num(c.fc) + num(c.oa) + num(c.feeder);
 
+            // 実効相判定: DB保存の c.phase は古い可能性があるため、電圧・回路Noから毎回算出
+            //   1φ3W: 200V以上 → L1-L2 / 100V → 回路Noの奇偶 (奇=L1, 偶=L2) / アルファベットも循環
+            //   3φ3W: 保存値(R/S/T)を使用（フォールバック R）
+            const effectivePhase = (c) => {
+                const v = num(c.voltage) || 100;
+                if (isThreePhase) return c.phase || 'R';
+                if (v >= 200) return 'L1-L2';
+                // circuitNoToIndex は後方で function 宣言されているためホイスティングで呼べる
+                const no = (typeof circuitNoToIndex === 'function') ? circuitNoToIndex(c.circuit_no) : parseInt(c.circuit_no, 10);
+                if (!isNaN(no)) return (no % 2 === 1) ? 'L1' : 'L2';
+                // 回路No不明時は保存値にフォールバック
+                return c.phase || 'L1';
+            };
+
             let current = 0;
             let l1Current = 0;
             let l2Current = 0;
@@ -2261,8 +2275,8 @@
                 mainCircuits.forEach(c => {
                     const va = circuitVA(c) * 1000; // kVA → VA
                     if (va <= 0) return;
-                    const v = c.voltage || 100;
-                    const ph = c.phase || 'L1';
+                    const v = num(c.voltage) || 100;
+                    const ph = effectivePhase(c);
                     if (v >= 200 || ph === 'L1-L2') {
                         // 200V負荷は両側線に同じ電流が流れる
                         const i = va / 200;
@@ -2281,10 +2295,10 @@
             const panelAT = panel ? (panel.at || 0) : 0;
             const atStatus = panelAT >= current ? 'OK' : '×';
 
-            // 相別 kVA 内訳（1φ3W 用）
+            // 相別 kVA 内訳（1φ3W 用）実効phaseで判定
             // l1Only: L1単独(100V L1相)
             // l2Only: L2単独(100V L2相)
-            // l12   : L1-L2間(200V または phase==='L1-L2')
+            // l12   : L1-L2間(200V)
             let l1Only = 0;
             let l2Only = 0;
             let l12 = 0;
@@ -2293,7 +2307,7 @@
                     const va = circuitVA(c);
                     if (va <= 0) return;
                     const v = num(c.voltage) || 100;
-                    const ph = c.phase || 'L1';
+                    const ph = effectivePhase(c);
                     if (v >= 200 || ph === 'L1-L2') {
                         l12 += va;
                     } else if (ph === 'L2') {
