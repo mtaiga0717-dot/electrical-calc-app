@@ -1822,7 +1822,8 @@
             const { data, error } = await db
                 .from('panels')
                 .select('*')
-                .order('created_at', { ascending: false });
+                .order('sort_order', { ascending: true, nullsFirst: true })
+                .order('created_at', { ascending: true });
 
             if (error) throw error;
             allPanels = data || [];
