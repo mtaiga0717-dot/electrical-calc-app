@@ -165,11 +165,31 @@
 
         /* Panels Tab */
         .panels-table-wrapper {
-            overflow-x: auto;
+            overflow-x: scroll;
+            overflow-y: visible;
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             margin-bottom: 2rem;
+            scrollbar-width: auto; /* Firefox: 常時表示 */
+            scrollbar-gutter: stable;
+        }
+        /* WebKit（Chrome/Safari/Edge）で横スクロールバーを常時表示 */
+        .panels-table-wrapper::-webkit-scrollbar {
+            height: 12px;
+            -webkit-appearance: none;
+        }
+        .panels-table-wrapper::-webkit-scrollbar-track {
+            background: #e9ecef;
+            border-radius: 6px;
+        }
+        .panels-table-wrapper::-webkit-scrollbar-thumb {
+            background: #868e96;
+            border-radius: 6px;
+            border: 2px solid #e9ecef;
+        }
+        .panels-table-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #495057;
         }
 
         .panels-table {
@@ -1172,6 +1192,55 @@
                         <tbody id="panelsBody"></tbody>
                     </table>
                 </div>
+
+                <div class="circuits-help" style="margin-top:1rem;">
+                    <h3>📐 盤のAT判定・電流計算の根拠</h3>
+                    <dl>
+                        <dt>1φ3W（単相3線式）盤の幹線電流</dt>
+                        <dd>
+                            内線規程 <b>1310-3条／3705節</b>（低圧幹線の許容電流）に基づき、L1・L2 各電圧側線の電流を個別に算出し、その <b>最大値</b> を幹線電流として判定します。<br>
+                            <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
+                                <li><code>I<sub>L1</sub> = Σ(L1単独100V負荷VA)/100 + Σ(L1-L2間200V負荷VA)/200</code></li>
+                                <li><code>I<sub>L2</sub> = Σ(L2単独100V負荷VA)/100 + Σ(L1-L2間200V負荷VA)/200</code></li>
+                                <li><code>I<sub>幹線</sub> = max(I<sub>L1</sub>, I<sub>L2</sub>)</code></li>
+                            </ul>
+                            200V（L1-L2間）負荷は両電圧側線に同じ電流が流れるため、L1/L2双方に <code>VA÷200</code> を加算します。100V負荷は接続された相（L1 または L2）の電流のみに寄与します。
+                        </dd>
+
+                        <dt>3φ3W（三相3線式）盤の幹線電流</dt>
+                        <dd>
+                            <code>I = 総VA ÷ (√3 × 200)</code><br>
+                            内線規程 1310-3条・国土交通省「公共建築設備工事標準仕様書（電気設備工事編）」に準拠。平衡三相回路として扱い、線間電圧 200V で算定します。
+                        </dd>
+
+                        <dt>AT判定</dt>
+                        <dd>
+                            盤の主幹遮断器 AT ≧ 上記で求めた幹線電流であれば <b>OK</b>、下回る場合は <b>×</b>（容量不足）と判定します。
+                        </dd>
+
+                        <dt>設備不平衡率（1φ3W）</dt>
+                        <dd>
+                            内線規程 <b>1305-2条</b>：1φ3W 低圧屋内幹線における設備不平衡率は <b>40% 以下</b> とすること。<br>
+                            <code>不平衡率 = |P<sub>L1</sub> - P<sub>L2</sub>| ÷ ((P<sub>L1</sub> + P<sub>L2</sub>) / 2) × 100 [%]</code><br>
+                            ここで P<sub>L1</sub>・P<sub>L2</sub> は L1側・L2側にそれぞれ接続される100V負荷の合計。L1-L2間に接続される200V負荷は両側線に均等に流れるため不平衡率の分子からは除外します（内線規程の運用解釈）。
+                        </dd>
+
+                        <dt>設備不平衡率（3φ3W）</dt>
+                        <dd>
+                            内線規程 <b>1305-3条</b>：三相3線式の設備不平衡率は <b>30% 以下</b>（本アプリは参考値として R/S/T 相の合計負荷から算出）。<br>
+                            <code>不平衡率 = (最大相負荷 - 最小相負荷) ÷ 最大相負荷 × 100 [%]</code>
+                        </dd>
+
+                        <dt>出典・根拠</dt>
+                        <dd>
+                            <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
+                                <li>一般社団法人 日本電気協会 <b>内線規程 JEAC 8001</b>（1305節 設備不平衡率／1310節・3705節 低圧幹線／3605節 分岐回路）</li>
+                                <li>国土交通省大臣官房官庁営繕部 <b>公共建築設備工事標準仕様書（電気設備工事編）</b></li>
+                                <li>電気設備技術基準・解釈</li>
+                            </ul>
+                        </dd>
+                    </dl>
+                </div>
             </div>
 
             <!-- Circuits Tab -->
@@ -2080,22 +2149,49 @@
             const total = lighting + outlet + fc + oa + feeder;
             const mainCircuits = circuits.filter(c => c.type === 'M');
 
-            const voltage = mainCircuits.length > 0 ? mainCircuits[0].voltage || 100 : 100;
             const panel = allPanels.find(p => p.name === panelName);
             const isThreePhase = panel && panel.elec_type === '3φ3W';
 
+            // 回路ごとの負荷合計（kVA）
+            const circuitVA = (c) => (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0);
+
             let current = 0;
+            let l1Current = 0;
+            let l2Current = 0;
+
             if (isThreePhase) {
-                current = total * 1000 / (Math.sqrt(3) * voltage);
+                // 3φ3W: I = VA / (√3 × 200)
+                current = total * 1000 / (Math.sqrt(3) * 200);
             } else {
-                current = total * 1000 / voltage;
+                // 1φ3W: 内線規程に基づき各電圧側線の電流を相別に算定
+                // L1側電流 = Σ(L1単独100V負荷)/100 + Σ(L1-L2間200V負荷)/200
+                // L2側電流 = Σ(L2単独100V負荷)/100 + Σ(L1-L2間200V負荷)/200
+                // 幹線電流 = max(I_L1, I_L2)
+                mainCircuits.forEach(c => {
+                    const va = circuitVA(c) * 1000; // kVA → VA
+                    if (va <= 0) return;
+                    const v = c.voltage || 100;
+                    const ph = c.phase || 'L1';
+                    if (v >= 200 || ph === 'L1-L2') {
+                        // 200V負荷は両側線に同じ電流が流れる
+                        const i = va / 200;
+                        l1Current += i;
+                        l2Current += i;
+                    } else if (ph === 'L2') {
+                        l2Current += va / 100;
+                    } else {
+                        // L1 または未設定
+                        l1Current += va / 100;
+                    }
+                });
+                current = Math.max(l1Current, l2Current);
             }
 
             const panelAT = panel ? (panel.at || 0) : 0;
             const atStatus = panelAT >= current ? 'OK' : '×';
 
             let balance = null;
-            const sumByPhase = (phaseVal) => mainCircuits.filter(c => c.phase === phaseVal).reduce((s, c) => s + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0), 0);
+            const sumByPhase = (phaseVal) => mainCircuits.filter(c => c.phase === phaseVal).reduce((s, c) => s + circuitVA(c), 0);
 
             if (isThreePhase && mainCircuits.length > 0) {
                 // 3φ3W: R/S/Tの三相平衡率
@@ -2108,12 +2204,28 @@
                     balance = (maxP - minP) / maxP * 100;
                 }
             } else if (!isThreePhase && mainCircuits.length > 0) {
-                // 1φ3W: L1/L2の二相平衡率
-                const l1Sum = sumByPhase('L1');
-                const l2Sum = sumByPhase('L2');
-                const maxPhase = Math.max(l1Sum, l2Sum);
-                if (maxPhase > 0) {
-                    balance = Math.abs(l1Sum - l2Sum) / maxPhase * 100;
+                // 1φ3W: L1/L2の設備不平衡率 内線規程 1305-2条（≤40%）
+                // L1側・L2側の合計負荷（200V負荷は按分せず各側に等しく加算して評価）
+                let l1Load = 0;
+                let l2Load = 0;
+                mainCircuits.forEach(c => {
+                    const va = circuitVA(c);
+                    if (va <= 0) return;
+                    const v = c.voltage || 100;
+                    const ph = c.phase || 'L1';
+                    if (v >= 200 || ph === 'L1-L2') {
+                        // 200V負荷は設備不平衡率の計算では分子(L1,L2差分)には寄与せず、
+                        // 分母(総負荷)には算入するが平衡評価からは除外するのが一般的
+                        return;
+                    } else if (ph === 'L2') {
+                        l2Load += va;
+                    } else {
+                        l1Load += va;
+                    }
+                });
+                const denom = (l1Load + l2Load) / 2;
+                if (denom > 0) {
+                    balance = Math.abs(l1Load - l2Load) / denom * 100;
                 }
             }
 
@@ -2128,7 +2240,9 @@
                 atStatus,
                 balance,
                 l1Sum: !isThreePhase ? sumByPhase('L1') : 0,
-                l2Sum: !isThreePhase ? sumByPhase('L2') : 0
+                l2Sum: !isThreePhase ? sumByPhase('L2') : 0,
+                l1Current: Math.round(l1Current * 100) / 100,
+                l2Current: Math.round(l2Current * 100) / 100
             };
         }
 
@@ -2782,19 +2896,37 @@
             return 100;
         }
 
+        // 回路NOを数値インデックスに変換（数字 or アルファベット A=1, B=2, ...）
+        function circuitNoToIndex(circuit_no) {
+            if (circuit_no == null) return NaN;
+            const s = String(circuit_no).trim();
+            if (s === '') return NaN;
+            // 数字が含まれていればそれを使う
+            const n = parseInt(s, 10);
+            if (!isNaN(n)) return n;
+            // 先頭1文字のアルファベットから A=1, B=2, ... Z=26
+            const ch = s.charAt(0).toUpperCase();
+            const code = ch.charCodeAt(0);
+            if (code >= 65 && code <= 90) return code - 64; // A=1
+            return NaN;
+        }
+
         // 電灯回路の相を自動計算
-        // 分岐 → L1-L2 (3φ3Wの場合 RST)
-        // 電灯 + 奇数回路NO → L1, 偶数 → L2
+        // 分岐 / 200V → L1-L2 (3φ3Wの場合 RST)
+        // 電灯 + 奇数回路NO → L1, 偶数 → L2（アルファベットも A=1,B=2,...で判定）
         function computeAutoPhase(category, symbol, circuit_no, panelType, currentPhase) {
             if (category !== '電灯') return currentPhase || 'L1';
-            if (symbol === '分岐') {
+            // 200V系・分岐は L1-L2 固定
+            const sym = SYMBOL_DEFAULTS[symbol];
+            const is200V = symbol === '分岐' || (sym && sym.voltage === 200);
+            if (is200V) {
                 return panelType === '3φ3W' ? 'RST' : 'L1-L2';
             }
             if (panelType === '3φ3W') {
                 // 3φ3W盤の電灯回路はデフォルトR
                 return currentPhase || 'R';
             }
-            const no = parseInt(circuit_no);
+            const no = circuitNoToIndex(circuit_no);
             if (!isNaN(no)) {
                 return (no % 2 === 1) ? 'L1' : 'L2';
             }
