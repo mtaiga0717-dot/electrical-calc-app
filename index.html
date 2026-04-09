@@ -1019,6 +1019,11 @@
                         <option value="電灯">電灯回路</option>
                         <option value="動力">動力回路</option>
                     </select>
+                    <div class="view-mode-switch" style="display:inline-flex;gap:0;margin-left:0.5rem;border:1px solid #4a5568;border-radius:6px;overflow:hidden;">
+                        <button class="btn-view-mode active" data-view="design" style="padding:0.45rem 0.9rem;border:none;background:#1976d2;color:white;cursor:pointer;font-weight:bold;">設計</button>
+                        <button class="btn-view-mode" data-view="actual" style="padding:0.45rem 0.9rem;border:none;background:#e0e0e0;color:#333;cursor:pointer;font-weight:bold;">実</button>
+                        <button class="btn-view-mode" data-view="both" style="padding:0.45rem 0.9rem;border:none;background:#e0e0e0;color:#333;cursor:pointer;font-weight:bold;">両方</button>
+                    </div>
                     <button class="btn-action" id="btnAddCircuit">+ 回路追加</button>
                     <button class="btn-action" id="btnRemconExpand">リモコン展開</button>
                     <button class="btn-action btn-danger" id="btnRemconDelete">RC全削除</button>
@@ -1032,9 +1037,9 @@
                                 <th>盤名称</th>
                                 <th>種別</th>
                                 <th>区分</th>
-                                <th>記号</th>
+                                <th style="min-width:80px;">記号</th>
                                 <th>回路No</th>
-                                <th>相</th>
+                                <th style="min-width:80px;">相</th>
                                 <th>遮断器</th>
                                 <th>AF</th>
                                 <th>AT</th>
@@ -1640,6 +1645,24 @@
         let editingPanelId = null;
         const localFeederData = {};  // Client-side only data (not in Supabase)
         const localCircuitData = {};  // Client-side only data for circuits (not in Supabase)
+        let circuitViewMode = 'design'; // 'design' | 'actual' | 'both'
+
+        // 実負荷値をlocalStorageから読み込み
+        function getActualCircuit(circuitId) {
+            try {
+                const raw = localStorage.getItem(`actual_circuit_${circuitId}`);
+                if (!raw) return { lighting: 0, outlet: 0, fc: 0, oa: 0, feeder: 0 };
+                return JSON.parse(raw);
+            } catch (e) {
+                return { lighting: 0, outlet: 0, fc: 0, oa: 0, feeder: 0 };
+            }
+        }
+
+        function setActualCircuit(circuitId, field, value) {
+            const cur = getActualCircuit(circuitId);
+            cur[field] = value;
+            localStorage.setItem(`actual_circuit_${circuitId}`, JSON.stringify(cur));
+        }
 
         // Authentication
         function handleLogin(event) {
@@ -1692,6 +1715,23 @@
             document.getElementById('btnRemconExpand').addEventListener('click', expandRemcon);
             document.getElementById('btnRemconDelete').addEventListener('click', deleteAllRemcon);
             document.getElementById('btnCsvExport').addEventListener('click', exportCircuitsCsv);
+
+            // 設計/実/両方 ビュー切替
+            document.querySelectorAll('.btn-view-mode').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    circuitViewMode = e.target.dataset.view;
+                    document.querySelectorAll('.btn-view-mode').forEach(b => {
+                        if (b.dataset.view === circuitViewMode) {
+                            b.style.background = '#1976d2';
+                            b.style.color = 'white';
+                        } else {
+                            b.style.background = '#e0e0e0';
+                            b.style.color = '#333';
+                        }
+                    });
+                    renderCircuits();
+                });
+            });
 
             document.getElementById('btnAddFeeder').addEventListener('click', addFeederRow);
             document.getElementById('btnFeedersExport').addEventListener('click', exportFeedersCsv);
@@ -2048,13 +2088,23 @@
             const row = document.createElement('tr');
             row.id = `circuit-${circuit.id}`;
 
-            const total = (circuit.lighting || 0) + (circuit.outlet || 0) + (circuit.fc || 0) + (circuit.oa || 0) + (circuit.feeder || 0);
+            // 設計値（DB）
+            const designTotal = (circuit.lighting || 0) + (circuit.outlet || 0) + (circuit.fc || 0) + (circuit.oa || 0) + (circuit.feeder || 0);
+            // 実負荷値（localStorage）
+            const actual = getActualCircuit(circuit.id);
+            const actualTotal = (actual.lighting || 0) + (actual.outlet || 0) + (actual.fc || 0) + (actual.oa || 0) + (actual.feeder || 0);
+
             const voltage = circuit.voltage || 100;
             const isThreePhase = circuit.phase && ['R', 'S', 'T', 'R-S', 'S-T', 'R-T', 'RST'].includes(circuit.phase);
-            const current = isThreePhase ? total * 1000 / (Math.sqrt(3) * voltage) : total * 1000 / voltage;
+            const calcCurrent = (kva) => isThreePhase ? kva * 1000 / (Math.sqrt(3) * voltage) : kva * 1000 / voltage;
+            const designCurrent = calcCurrent(designTotal);
+            const actualCurrent = calcCurrent(actualTotal);
+
+            // ATチェックは現在のビューに応じて実施
+            const total = circuitViewMode === 'actual' ? actualTotal : designTotal;
+            const current = circuitViewMode === 'actual' ? actualCurrent : designCurrent;
             const at = circuit.at || 0;
             const category = circuit.category || '電灯';
-            // 内線規程3605-3条3: 電灯・電熱回路は連続負荷→AT≧電流×1.25
             const isLighting = (category === '電灯');
             const requiredAT = isLighting ? current * 1.25 : current;
             let atStatus = '';
@@ -2092,7 +2142,7 @@
                     </select>
                 </td>
                 <td>
-                    <select class="circuit-select" data-id="${circuit.id}" data-field="symbol">
+                    <select class="circuit-select" data-id="${circuit.id}" data-field="symbol" style="min-width:70px;">
                         <option value="◎" ${(circuit.symbol || '◎') === '◎' ? 'selected' : ''}>◎</option>
                         <option value="○" ${circuit.symbol === '○' ? 'selected' : ''}>○</option>
                         <option value="◇" ${circuit.symbol === '◇' ? 'selected' : ''}>◇</option>
@@ -2101,9 +2151,9 @@
                         <option value="分岐" ${circuit.symbol === '分岐' ? 'selected' : ''}>分岐</option>
                     </select>
                 </td>
-                <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="circuit_no" value="${circuit.circuit_no || ''}" /></td>
+                <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="circuit_no" value="${circuit.symbol === '分岐' ? '' : (circuit.circuit_no || '')}" ${circuit.symbol === '分岐' ? 'disabled style="background-color:#f5f5f5;"' : ''} /></td>
                 <td>
-                    <select class="circuit-select" data-id="${circuit.id}" data-field="phase">
+                    <select class="circuit-select" data-id="${circuit.id}" data-field="phase" style="min-width:70px;">
                         ${getPhaseOptions(circuit.panel_name).map(p => `<option value="${p.value}" ${circuit.phase === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}
                     </select>
                 </td>
@@ -2128,14 +2178,50 @@
                         ${AT_VALUES.map(val => `<option value="${val}" ${circuit.at === val ? 'selected' : ''}>${val}</option>`).join('')}
                     </select>
                 </td>
-                <td><input type="number" class="circuit-input" data-id="${circuit.id}" data-field="voltage" value="${getVoltageForPhase(circuit.symbol, circuit.phase)}" readonly /></td>
-                <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="lighting" value="${(circuit.lighting || 0).toFixed(2)}" /></td>
-                <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="outlet" value="${(circuit.outlet || 0).toFixed(2)}" /></td>
-                <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="fc" value="${(circuit.fc || 0).toFixed(2)}" /></td>
-                <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="oa" value="${(circuit.oa || 0).toFixed(2)}" /></td>
-                <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="feeder" value="${(circuit.feeder || 0).toFixed(2)}" /></td>
-                <td class="auto-calc">${total.toFixed(2)}</td>
-                <td class="auto-calc">${current.toFixed(2)}</td>
+                <td>${(() => {
+                    const panelObj = allPanels.find(p => p.name === circuit.panel_name);
+                    const isBranchIn1P3W = circuit.symbol === '分岐' && panelObj && panelObj.elec_type === '1φ3W';
+                    if (isBranchIn1P3W) {
+                        const curVolt = circuit.voltage || 100;
+                        return `<select class="circuit-select" data-id="${circuit.id}" data-field="voltage" style="background-color:#e8f5e9;">
+                            <option value="100" ${curVolt === 100 ? 'selected' : ''}>100</option>
+                            <option value="200" ${curVolt === 200 ? 'selected' : ''}>200</option>
+                        </select>`;
+                    }
+                    return `<input type="number" class="circuit-input" data-id="${circuit.id}" data-field="voltage" value="${getVoltageForPhase(circuit.symbol, circuit.phase)}" readonly />`;
+                })()}</td>
+                ${(() => {
+                    if (circuitViewMode === 'both') {
+                        // 両方モード: 比較サマリーを表示（内訳列は非表示）
+                        const diff = actualTotal - designTotal;
+                        const diffPct = designTotal > 0 ? (diff / designTotal * 100) : 0;
+                        return `
+                            <td colspan="5" style="padding:0;">
+                                <div style="display:flex;gap:2px;font-size:0.75rem;">
+                                    <div style="flex:1;text-align:center;padding:0.3rem;background:#e3f2fd;"><div style="color:#666;">設計</div><div style="font-weight:bold;">${designTotal.toFixed(2)}</div></div>
+                                    <div style="flex:1;text-align:center;padding:0.3rem;background:#fff8e1;"><div style="color:#666;">実</div><div style="font-weight:bold;">${actualTotal.toFixed(2)}</div></div>
+                                    <div style="flex:1;text-align:center;padding:0.3rem;background:${diff > 0 ? '#ffebee' : diff < 0 ? '#e8f5e9' : '#f5f5f5'};"><div style="color:#666;">差分</div><div style="font-weight:bold;">${diff > 0 ? '+' : ''}${diff.toFixed(2)}${designTotal > 0 ? ` (${diffPct > 0 ? '+' : ''}${diffPct.toFixed(0)}%)` : ''}</div></div>
+                                </div>
+                            </td>
+                            <td class="auto-calc" style="background:#e3f2fd;"><div style="font-size:0.7rem;color:#666;">設計</div>${designTotal.toFixed(2)}<div style="font-size:0.7rem;color:#666;">${designCurrent.toFixed(1)}A</div></td>
+                            <td class="auto-calc" style="background:#fff8e1;"><div style="font-size:0.7rem;color:#666;">実</div>${actualTotal.toFixed(2)}<div style="font-size:0.7rem;color:#666;">${actualCurrent.toFixed(1)}A</div></td>
+                        `;
+                    }
+                    // 設計 or 実 モード
+                    const isActual = circuitViewMode === 'actual';
+                    const bgColor = isActual ? 'background-color:#fff8e1;' : '';
+                    const prefix = isActual ? 'actual_' : '';
+                    const values = isActual ? actual : circuit;
+                    return `
+                        <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}lighting" value="${(values.lighting || 0).toFixed(2)}" style="${bgColor}" /></td>
+                        <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}outlet" value="${(values.outlet || 0).toFixed(2)}" style="${bgColor}" /></td>
+                        <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}fc" value="${(values.fc || 0).toFixed(2)}" style="${bgColor}" /></td>
+                        <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}oa" value="${(values.oa || 0).toFixed(2)}" style="${bgColor}" /></td>
+                        <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}feeder" value="${(values.feeder || 0).toFixed(2)}" style="${bgColor}" /></td>
+                        <td class="auto-calc">${total.toFixed(2)}</td>
+                        <td class="auto-calc">${current.toFixed(2)}</td>
+                    `;
+                })()}
                 <td><strong><span class="badge ${atStatus === 'OK' || atStatus === '-' ? 'badge-ok' : 'badge-ng'}" ${atNgReason ? `title="${atNgReason}"` : ''}>${atStatus}${atNgReason ? ' ⚠' : ''}</span></strong>${atNgReason ? `<div style="font-size:0.65rem;color:#d32f2f;white-space:nowrap;">${atNgReason}</div>` : ''}</td>
                 <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="load_name" value="${circuit.load_name || ''}" /></td>
                 <td><input type="number" min="0" class="circuit-input" data-id="${circuit.id}" data-field="remocon" value="${circuit.remocon || 0}" style="width:50px;" /></td>
@@ -2202,6 +2288,16 @@
             const field = input.dataset.field;
             let value = input.value;
 
+            // 実負荷値（localStorage）への保存
+            if (field.startsWith('actual_')) {
+                const actualField = field.replace('actual_', '');
+                setActualCircuit(circuitId, actualField, parseFloat(value) || 0);
+                isRendering = true;
+                await renderCircuits();
+                isRendering = false;
+                return;
+            }
+
             // Handle category field (client-side only)
             if (field === 'category') {
                 if (!localCircuitData[circuitId]) localCircuitData[circuitId] = {};
@@ -2233,6 +2329,10 @@
                     phase: newPhase,
                     breaker: defaults.breaker
                 };
+                // 分岐に切り替えたら回路NOをクリア
+                if (value === '分岐') {
+                    updateData.circuit_no = '';
+                }
                 // カテゴリはclient-sideなのでlocalCircuitDataに保存
                 if (!localCircuitData[circuitId]) localCircuitData[circuitId] = {};
                 localCircuitData[circuitId].category = defaults.category;
@@ -2256,15 +2356,20 @@
                 return;
             }
 
-            // 相変更時、電圧を自動更新
+            // 相変更時、電圧を自動更新（分岐+1φ3Wはユーザ選択を保持）
             if (field === 'phase') {
                 const circuitObj = allCircuits.find(c => c.id === circuitId);
                 const symbol = circuitObj ? (circuitObj.symbol || '◎') : '◎';
-                const newVoltage = getVoltageForPhase(symbol, value);
+                const panelObj = circuitObj ? allPanels.find(p => p.name === circuitObj.panel_name) : null;
+                const isBranchIn1P3W = symbol === '分岐' && panelObj && panelObj.elec_type === '1φ3W';
+                const updateObj = { phase: value };
+                if (!isBranchIn1P3W) {
+                    updateObj.voltage = getVoltageForPhase(symbol, value);
+                }
                 try {
                     const { error } = await db
                         .from('circuits')
-                        .update({ phase: value, voltage: newVoltage })
+                        .update(updateObj)
                         .eq('id', circuitId);
                     if (error) throw error;
                     await loadCircuits();
@@ -2307,7 +2412,37 @@
             const filterValue = document.getElementById('circuitsPanelFilter').value;
             const panelName = filterValue || (allPanels.length > 0 ? allPanels[0].name : '');
 
-            const newCircuit = {
+            // 直前の回路を取得して値を引き継ぐ
+            // フィルタがある場合はその盤の最後の回路、なければ全体の最後の回路
+            let prevCircuit = null;
+            const candidates = filterValue
+                ? allCircuits.filter(c => c.panel_name === filterValue)
+                : allCircuits;
+            if (candidates.length > 0) {
+                // sort_order昇順でソートして最後を取得
+                const sorted = [...candidates].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+                prevCircuit = sorted[sorted.length - 1];
+            }
+
+            const newCircuit = prevCircuit ? {
+                panel_name: prevCircuit.panel_name || panelName,
+                type: prevCircuit.type || 'M',
+                symbol: prevCircuit.symbol || '◎',
+                circuit_no: '',
+                phase: prevCircuit.phase || 'L1',
+                breaker: prevCircuit.breaker || 'MCCB2P2E',
+                af: prevCircuit.af || 30,
+                at: prevCircuit.at || 20,
+                voltage: prevCircuit.voltage || 200,
+                lighting: 0,
+                outlet: 0,
+                fc: 0,
+                oa: 0,
+                feeder: 0,
+                load_name: '',
+                remocon: 0,
+                sort_order: (allCircuits.length + 1) * 10
+            } : {
                 panel_name: panelName,
                 type: 'M',
                 symbol: '◎',
@@ -2334,9 +2469,12 @@
                     .select();
 
                 if (error) throw error;
-                // categoryはDBにないのでlocalCircuitDataに保存
+                // categoryはDBにないのでlocalCircuitDataに保存（直前の回路のカテゴリを引き継ぐ）
                 if (data && data[0]) {
-                    localCircuitData[data[0].id] = { category: '電灯' };
+                    const inheritedCategory = prevCircuit
+                        ? (localCircuitData[prevCircuit.id]?.category || prevCircuit.category || '電灯')
+                        : '電灯';
+                    localCircuitData[data[0].id] = { category: inheritedCategory };
                 }
                 await loadCircuits();
                 await renderCircuits();
