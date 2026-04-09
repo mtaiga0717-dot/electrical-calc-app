@@ -1080,12 +1080,12 @@
                                 <th>AF</th>
                                 <th>AT</th>
                                 <th>電圧[V]</th>
-                                <th>照明[kVA]</th>
-                                <th>ｺﾝｾﾝﾄ[kVA]</th>
-                                <th>FC[kVA]</th>
-                                <th>OA[kVA]</th>
-                                <th>幹線[kVA]</th>
-                                <th>合計[kVA]</th>
+                                <th>照明[VA]</th>
+                                <th>ｺﾝｾﾝﾄ[VA]</th>
+                                <th>FC[VA]</th>
+                                <th>OA[VA]</th>
+                                <th>幹線[VA]</th>
+                                <th>合計[VA]</th>
                                 <th>電流[A]</th>
                                 <th>AT判定</th>
                                 <th>負荷名称</th>
@@ -2273,19 +2273,21 @@
                 <td><input type="number" class="circuit-input" data-id="${circuit.id}" data-field="voltage" value="${getVoltageForPhase(circuit.symbol, autoPhase)}" readonly style="background-color:#e3f2fd;" /></td>
                 ${(() => {
                     if (circuitViewMode === 'both') {
-                        // 両方モード: 比較サマリーを表示（内訳列は非表示）
-                        const diff = actualTotal - designTotal;
-                        const diffPct = designTotal > 0 ? (diff / designTotal * 100) : 0;
+                        // 両方モード: 比較サマリーを表示（内訳列は非表示、VA表示）
+                        const designVA = Math.round(designTotal * 1000);
+                        const actualVA = Math.round(actualTotal * 1000);
+                        const diffVA = actualVA - designVA;
+                        const diffPct = designVA > 0 ? (diffVA / designVA * 100) : 0;
                         return `
                             <td colspan="5" style="padding:0;">
                                 <div style="display:flex;gap:2px;font-size:0.75rem;">
-                                    <div style="flex:1;text-align:center;padding:0.3rem;background:#e3f2fd;"><div style="color:#666;">設計</div><div style="font-weight:bold;">${designTotal.toFixed(2)}</div></div>
-                                    <div style="flex:1;text-align:center;padding:0.3rem;background:#fff8e1;"><div style="color:#666;">実</div><div style="font-weight:bold;">${actualTotal.toFixed(2)}</div></div>
-                                    <div style="flex:1;text-align:center;padding:0.3rem;background:${diff > 0 ? '#ffebee' : diff < 0 ? '#e8f5e9' : '#f5f5f5'};"><div style="color:#666;">差分</div><div style="font-weight:bold;">${diff > 0 ? '+' : ''}${diff.toFixed(2)}${designTotal > 0 ? ` (${diffPct > 0 ? '+' : ''}${diffPct.toFixed(0)}%)` : ''}</div></div>
+                                    <div style="flex:1;text-align:center;padding:0.3rem;background:#e3f2fd;"><div style="color:#666;">設計</div><div style="font-weight:bold;">${designVA}</div></div>
+                                    <div style="flex:1;text-align:center;padding:0.3rem;background:#fff8e1;"><div style="color:#666;">実</div><div style="font-weight:bold;">${actualVA}</div></div>
+                                    <div style="flex:1;text-align:center;padding:0.3rem;background:${diffVA > 0 ? '#ffebee' : diffVA < 0 ? '#e8f5e9' : '#f5f5f5'};"><div style="color:#666;">差分</div><div style="font-weight:bold;">${diffVA > 0 ? '+' : ''}${diffVA}${designVA > 0 ? ` (${diffPct > 0 ? '+' : ''}${diffPct.toFixed(0)}%)` : ''}</div></div>
                                 </div>
                             </td>
-                            <td class="auto-calc" style="background:#e3f2fd;"><div style="font-size:0.7rem;color:#666;">設計</div>${designTotal.toFixed(2)}<div style="font-size:0.7rem;color:#666;">${designCurrent.toFixed(1)}A</div></td>
-                            <td class="auto-calc" style="background:#fff8e1;"><div style="font-size:0.7rem;color:#666;">実</div>${actualTotal.toFixed(2)}<div style="font-size:0.7rem;color:#666;">${actualCurrent.toFixed(1)}A</div></td>
+                            <td class="auto-calc" style="background:#e3f2fd;"><div style="font-size:0.7rem;color:#666;">設計</div>${designVA}<div style="font-size:0.7rem;color:#666;">${designCurrent.toFixed(1)}A</div></td>
+                            <td class="auto-calc" style="background:#fff8e1;"><div style="font-size:0.7rem;color:#666;">実</div>${actualVA}<div style="font-size:0.7rem;color:#666;">${actualCurrent.toFixed(1)}A</div></td>
                         `;
                     }
                     // 設計 or 実 モード
@@ -2293,13 +2295,14 @@
                     const bgColor = isActual ? 'background-color:#fff8e1;' : '';
                     const prefix = isActual ? 'actual_' : '';
                     const values = isActual ? actual : circuit;
+                    // VA表示用（DBはkVA保存なので×1000）
                     return `
-                        <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}lighting" value="${(values.lighting || 0).toFixed(2)}" style="${bgColor}" /></td>
-                        <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}outlet" value="${(values.outlet || 0).toFixed(2)}" style="${bgColor}" /></td>
-                        <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}fc" value="${(values.fc || 0).toFixed(2)}" style="${bgColor}" /></td>
-                        <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}oa" value="${(values.oa || 0).toFixed(2)}" style="${bgColor}" /></td>
-                        <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}feeder" value="${(values.feeder || 0).toFixed(2)}" style="${bgColor}" /></td>
-                        <td class="auto-calc">${total.toFixed(2)}</td>
+                        <td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}lighting" value="${Math.round((values.lighting || 0) * 1000)}" style="${bgColor}" /></td>
+                        <td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}outlet" value="${Math.round((values.outlet || 0) * 1000)}" style="${bgColor}" /></td>
+                        <td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}fc" value="${Math.round((values.fc || 0) * 1000)}" style="${bgColor}" /></td>
+                        <td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}oa" value="${Math.round((values.oa || 0) * 1000)}" style="${bgColor}" /></td>
+                        <td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}feeder" value="${Math.round((values.feeder || 0) * 1000)}" style="${bgColor}" /></td>
+                        <td class="auto-calc">${Math.round(total * 1000)}</td>
                         <td class="auto-calc">${current.toFixed(2)}</td>
                     `;
                 })()}
@@ -2385,10 +2388,11 @@
             const field = input.dataset.field;
             let value = input.value;
 
-            // 実負荷値（localStorage）への保存
+            // 実負荷値（localStorage）への保存 — VA入力をkVAに変換
             if (field.startsWith('actual_')) {
                 const actualField = field.replace('actual_', '');
-                setActualCircuit(circuitId, actualField, parseFloat(value) || 0);
+                const kva = (parseFloat(value) || 0) / 1000;
+                setActualCircuit(circuitId, actualField, kva);
                 isRendering = true;
                 await renderCircuits();
                 isRendering = false;
@@ -2525,7 +2529,14 @@
             }
 
             if (field === 'af' || field === 'at' || field === 'voltage' || field === 'lighting' || field === 'outlet' || field === 'fc' || field === 'oa' || field === 'feeder') {
-                value = field === 'voltage' ? parseInt(value) : parseFloat(value);
+                if (field === 'voltage') {
+                    value = parseInt(value);
+                } else if (field === 'lighting' || field === 'outlet' || field === 'fc' || field === 'oa' || field === 'feeder') {
+                    // 入力はVA → DBはkVA
+                    value = (parseFloat(value) || 0) / 1000;
+                } else {
+                    value = parseFloat(value);
+                }
             }
 
             try {
@@ -2644,58 +2655,94 @@
 
         async function expandRemcon() {
             const filterValue = document.getElementById('circuitsPanelFilter').value;
-            let circuits = allCircuits;
+            let scopedCircuits = allCircuits;
             if (filterValue) {
-                circuits = allCircuits.filter(c => c.panel_name === filterValue);
+                scopedCircuits = allCircuits.filter(c => c.panel_name === filterValue);
             }
 
-            const toInsert = [];
-            const mCircuits = circuits.filter(c => c.type === 'M' && c.remocon && c.remocon > 0);
+            // 対象範囲のM回路（リモコン有無に関わらず、sort_order昇順）
+            const allMInScope = scopedCircuits
+                .filter(c => c.type === 'M')
+                .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
-            let rcIndex = 0;
-            for (let i = 0; i < mCircuits.length; i++) {
-                const mCircuit = mCircuits[i];
-                for (let j = 0; j < mCircuit.remocon; j++) {
-                    const groupNo = Math.floor(rcIndex / 4);
-                    const subNo = (rcIndex % 4) + 1;
-                    toInsert.push({
-                        panel_name: mCircuit.panel_name,
-                        type: 'RC',
-                        symbol: mCircuit.symbol,
-                        circuit_no: mCircuit.circuit_no,
-                        parent_no: `R${groupNo}-${subNo}`,
-                        phase: mCircuit.phase,
-                        breaker: 'RR2P2E',
-                        af: 20,
-                        at: 20,
-                        voltage: mCircuit.voltage,
-                        lighting: 0,
-                        outlet: 0,
-                        fc: 0,
-                        oa: 0,
-                        feeder: 0,
-                        load_name: '',
-                        remocon: 0,
-                        sort_order: (mCircuit.sort_order || 0) + 1 + j
-                    });
-                    rcIndex++;
-                }
-            }
+            const mWithRemocon = allMInScope.filter(c => c.remocon && c.remocon > 0);
 
-            if (toInsert.length === 0) {
+            if (mWithRemocon.length === 0) {
                 alert('リモコン展開できる回路がありません');
                 return;
             }
 
-            try {
-                const { error } = await db
-                    .from('circuits')
-                    .insert(toInsert);
+            const panelNames = [...new Set(allMInScope.map(c => c.panel_name))];
 
-                if (error) throw error;
+            try {
+                // 1. 対象範囲の既存RC行を全削除（再展開のたびに一掃）
+                const { error: delErr } = await db
+                    .from('circuits')
+                    .delete()
+                    .eq('type', 'RC')
+                    .in('panel_name', panelNames);
+                if (delErr) throw delErr;
+
+                // 2. 対象盤のM回路のsort_orderを1000刻みに再割り当てして十分な隙間を確保
+                //    （M間の元の順序は維持）
+                for (let i = 0; i < allMInScope.length; i++) {
+                    const newSort = (i + 1) * 1000;
+                    if (allMInScope[i].sort_order !== newSort) {
+                        const { error: updErr } = await db
+                            .from('circuits')
+                            .update({ sort_order: newSort })
+                            .eq('id', allMInScope[i].id);
+                        if (updErr) throw updErr;
+                        allMInScope[i].sort_order = newSort;
+                    }
+                }
+
+                // 3. RCをグループ単位で生成。各M回路ごとに新しいグループ番号から開始。
+                //    M回路のリモコン数が4を超える場合は、次のグループ番号にまたがる。
+                const toInsert = [];
+                let groupNo = 0;
+                // sort_order更新後のM回路を再取得
+                const mCircuitsFresh = allMInScope.filter(c => c.remocon && c.remocon > 0);
+                for (let i = 0; i < mCircuitsFresh.length; i++) {
+                    const m = mCircuitsFresh[i];
+                    for (let j = 0; j < m.remocon; j++) {
+                        const g = groupNo + Math.floor(j / 4);
+                        const sub = (j % 4) + 1;
+                        toInsert.push({
+                            panel_name: m.panel_name,
+                            type: 'RC',
+                            symbol: m.symbol,
+                            circuit_no: m.circuit_no,
+                            parent_no: `R${g}-${sub}`,
+                            phase: m.phase,
+                            breaker: 'RR2P2E',
+                            af: 20,
+                            at: 20,
+                            voltage: m.voltage,
+                            lighting: 0,
+                            outlet: 0,
+                            fc: 0,
+                            oa: 0,
+                            feeder: 0,
+                            load_name: '',
+                            remocon: 0,
+                            sort_order: (m.sort_order || 0) + (j + 1)
+                        });
+                    }
+                    // 次のM回路は新しいグループ番号から開始
+                    groupNo += Math.ceil(m.remocon / 4);
+                }
+
+                if (toInsert.length > 0) {
+                    const { error: insErr } = await db
+                        .from('circuits')
+                        .insert(toInsert);
+                    if (insErr) throw insErr;
+                }
+
                 await loadCircuits();
                 await renderCircuits();
-                alert(`${toInsert.length}個のRC回路を追加しました`);
+                alert(`${toInsert.length}個のRC回路を展開しました`);
             } catch (error) {
                 console.error('Error expanding remcon:', error);
                 alert('エラーが発生しました');
@@ -2729,7 +2776,7 @@
                 circuits = allCircuits.filter(c => c.panel_name === filterValue);
             }
 
-            const headers = ['#', '盤名称', '種別', '区分', '記号', '回路No', '相', '遮断器', 'AF', 'AT', '電圧', '照明[kVA]', 'ｺﾝｾﾝﾄ[kVA]', 'FC[kVA]', 'OA[kVA]', '幹線[kVA]', '合計', '電流', 'AT判定', '負荷名称'];
+            const headers = ['#', '盤名称', '種別', '区分', '記号', '回路No', '相', '遮断器', 'AF', 'AT', '電圧', '照明[VA]', 'ｺﾝｾﾝﾄ[VA]', 'FC[VA]', 'OA[VA]', '幹線[VA]', '合計[VA]', '電流[A]', 'AT判定', '負荷名称'];
             const rows = [headers.join(',')];
 
             circuits.forEach((circuit, index) => {
@@ -2751,12 +2798,12 @@
                     circuit.af || '',
                     circuit.at || '',
                     circuit.voltage || '',
-                    circuit.lighting || 0,
-                    circuit.outlet || 0,
-                    circuit.fc || 0,
-                    circuit.oa || 0,
-                    circuit.feeder || 0,
-                    total.toFixed(2),
+                    Math.round((circuit.lighting || 0) * 1000),
+                    Math.round((circuit.outlet || 0) * 1000),
+                    Math.round((circuit.fc || 0) * 1000),
+                    Math.round((circuit.oa || 0) * 1000),
+                    Math.round((circuit.feeder || 0) * 1000),
+                    Math.round(total * 1000),
                     current.toFixed(2),
                     atStatus,
                     circuit.load_name || ''
