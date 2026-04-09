@@ -464,9 +464,9 @@
         }
 
         .circuits-table {
-            width: 100%;
+            min-width: 1800px;
             border-collapse: collapse;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
         }
 
         .circuits-table thead {
@@ -514,9 +514,9 @@
         .circuits-table th:nth-child(3),
         .circuits-table td:nth-child(3) { min-width: 55px; }
         .circuits-table th:nth-child(4),
-        .circuits-table td:nth-child(4) { min-width: 60px; }
+        .circuits-table td:nth-child(4) { min-width: 65px; }
         .circuits-table th:nth-child(5),
-        .circuits-table td:nth-child(5) { min-width: 45px; }
+        .circuits-table td:nth-child(5) { min-width: 50px; }
         .circuits-table th:nth-child(6),
         .circuits-table td:nth-child(6) { min-width: 60px; }
         .circuits-table th:nth-child(7),
@@ -579,7 +579,7 @@
         }
 
         .feeders-table {
-            width: 100%;
+            min-width: 2200px;
             border-collapse: collapse;
             font-size: 0.8rem;
         }
@@ -1046,6 +1046,11 @@
             <!-- Feeders Tab -->
             <div id="feeders" class="tab-content">
                 <div class="feeders-controls">
+                    <select id="feederCategoryFilter" class="circuits-filter">
+                        <option value="">全て</option>
+                        <option value="電灯">電灯幹線</option>
+                        <option value="動力">動力幹線</option>
+                    </select>
                     <button class="btn-action" id="btnAddFeeder">+ 幹線追加</button>
                     <button class="btn-action" id="btnFeedersExport">CSV出力</button>
                 </div>
@@ -1053,7 +1058,8 @@
                     <table class="feeders-table" id="feedersTable">
                         <thead>
                             <tr>
-                                <th>No.</th>
+                                <th>幹線No</th>
+                                <th>区分</th>
                                 <th>負荷名称</th>
                                 <th>負荷容量[kVA]</th>
                                 <th>需要率[%]</th>
@@ -1062,7 +1068,7 @@
                                 <th>電圧[V]</th>
                                 <th>電流[A]</th>
                                 <th>ケーブル種別</th>
-                                <th>ケーブルサイズ[mm²]</th>
+                                <th>ケーブル[mm²]</th>
                                 <th>こう長[m]</th>
                                 <th>力率</th>
                                 <th>電圧降下[V]</th>
@@ -1071,10 +1077,10 @@
                                 <th>ブレーカー種別</th>
                                 <th>AF</th>
                                 <th>AT</th>
+                                <th>AT判定</th>
                                 <th>動力合計kW</th>
                                 <th>最大電動機kW</th>
                                 <th>内線規程AT</th>
-                                <th>ブレーカー判定</th>
                                 <th>行先</th>
                                 <th>操作</th>
                             </tr>
@@ -1675,6 +1681,7 @@
 
             document.getElementById('btnAddFeeder').addEventListener('click', addFeederRow);
             document.getElementById('btnFeedersExport').addEventListener('click', exportFeedersCsv);
+            document.getElementById('feederCategoryFilter').addEventListener('change', renderFeeders);
             document.getElementById('overallDemandFactor').addEventListener('change', updateTransformerCalculation);
 
             document.getElementById('lightingLoad').addEventListener('input', (e) => { e.target.dataset.manual = 'true'; updateTransformerCalculation(); });
@@ -2465,22 +2472,101 @@
             const tbody = document.getElementById('feedersTableBody');
             tbody.innerHTML = '';
 
-            allFeeders.forEach((feeder, index) => {
-                const row = createFeederRow(feeder, index + 1);
-                tbody.appendChild(row);
+            const categoryFilter = document.getElementById('feederCategoryFilter').value;
+            let filtered = [...allFeeders];
+
+            // Merge local data
+            filtered.forEach(f => {
+                if (localFeederData[f.id]) {
+                    Object.assign(f, localFeederData[f.id]);
+                }
             });
+
+            if (categoryFilter) {
+                filtered = filtered.filter(f => (f.feeder_category || '電灯') === categoryFilter);
+            }
+
+            if (!categoryFilter) {
+                const lightingFeeders = filtered.filter(f => (f.feeder_category || '電灯') === '電灯');
+                const motorFeeders = filtered.filter(f => f.feeder_category === '動力');
+
+                if (lightingFeeders.length > 0 || motorFeeders.length > 0 || filtered.length === 0) {
+                    if (lightingFeeders.length > 0 || (motorFeeders.length === 0 && filtered.length === 0)) {
+                        const headerRow1 = document.createElement('tr');
+                        headerRow1.innerHTML = `<td colspan="25" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯幹線</td>`;
+                        tbody.appendChild(headerRow1);
+                        lightingFeeders.forEach((feeder, index) => {
+                            tbody.appendChild(createFeederRow(feeder, index + 1));
+                        });
+                    }
+
+                    if (motorFeeders.length > 0) {
+                        const headerRow2 = document.createElement('tr');
+                        headerRow2.innerHTML = `<td colspan="25" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力幹線</td>`;
+                        tbody.appendChild(headerRow2);
+                        motorFeeders.forEach((feeder, index) => {
+                            tbody.appendChild(createFeederRow(feeder, motorFeeders.indexOf(feeder) + 1));
+                        });
+                    }
+                }
+            } else {
+                filtered.forEach((feeder, index) => {
+                    tbody.appendChild(createFeederRow(feeder, index + 1));
+                });
+            }
         }
 
         function createFeederRow(feeder, rowNumber) {
             const row = document.createElement('tr');
             row.id = `feeder-${feeder.id}`;
 
+            // Get local field values (stored client-side only)
+            const feederNo = localFeederData[feeder.id]?.feeder_no || '';
+            const feederCategory = localFeederData[feeder.id]?.feeder_category || feeder.feeder_category || '電灯';
+
+            // Auto-populate from panel if load_name matches
+            let autoLoadCapacity = null;
+            let autoVoltage = null;
+            let autoPhase = null;
+            let autoMotorTotalKw = null;
+            let autoMotorMaxKw = null;
+
+            const matchedPanel = allPanels.find(p => p.name === feeder.load_name);
+            if (matchedPanel) {
+                const panelCircuits = allCircuits.filter(c => c.panel_name === matchedPanel.name);
+                const summaries = calculatePanelSummaries(matchedPanel.name, panelCircuits);
+                autoLoadCapacity = summaries.total;
+
+                // Auto-set voltage based on panel type
+                if (matchedPanel.type === '1φ3W') {
+                    autoVoltage = 200;
+                    autoPhase = '1φ3W';
+                } else if (matchedPanel.type === '1φ2W') {
+                    autoVoltage = 100;
+                    autoPhase = '1φ2W';
+                } else if (matchedPanel.type === '3φ3W') {
+                    autoVoltage = 200;
+                    autoPhase = '3φ3W';
+                }
+
+                // Calculate motor totals from 動力 circuits
+                const motorCircuits = panelCircuits.filter(c => (c.category || '電灯') === '動力');
+                if (motorCircuits.length > 0) {
+                    autoMotorTotalKw = motorCircuits.reduce((sum, c) => {
+                        return sum + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0);
+                    }, 0);
+                    autoMotorMaxKw = Math.max(...motorCircuits.map(c =>
+                        (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0)
+                    ));
+                }
+            }
+
             const capacity = getLoadCapacity(feeder);
             const demandFactor = feeder.demand_factor || getDemandFactor(capacity);
             const demandCapacity = (capacity * demandFactor) / 100;
-            const voltage = feeder.voltage || 100;
-            const phase = feeder.phase_type || '1φ2W';
-            const powerFactor = localFeederData[feeder.id]?.power_factor || 0.85;
+            const voltage = autoVoltage || feeder.voltage || 100;
+            const phase = autoPhase || feeder.phase_type || '1φ2W';
+            const powerFactor = localFeederData[feeder.id]?.power_factor || (feederCategory === '動力' ? 0.8 : 0.85);
 
             let current = 0;
             if (phase === '3φ3W') {
@@ -2490,7 +2576,7 @@
             }
 
             const cableType = feeder.cable_type || 'CV';
-            const cableSize = feeder.cable_size || selectCableSize(current, cableType);
+            const cableSize = selectCableSize(current, cableType);
             const length = feeder.cable_length || 0;
 
             const voltageDrop = calculateVoltageDrop(current, length, cableSize, phase, powerFactor);
@@ -2503,19 +2589,34 @@
 
             const cableEntry = CABLE_DATA.find(c => c.size === cableSize);
             const cableCapacity = cableType === 'CV' ? cableEntry?.cv : cableEntry?.cvt;
-            const breakerStatus = (breakerAT >= current && cableCapacity >= breakerAT) ? 'OK' : '×';
+
+            // AT判定: for 電灯 AT ≥ current×1.25, for 動力 AT ≥ current
+            let atStatus = 'OK';
+            if (feederCategory === '動力') {
+                atStatus = (breakerAT >= current) ? 'OK' : '×';
+            } else {
+                atStatus = (breakerAT >= current * 1.25) ? 'OK' : '×';
+            }
 
             // Calculate 内線規程AT for 3φ3W feeders with motor data
             let kiteiAT = '-';
-            const motorTotalKw = localFeederData[feeder.id]?.motor_total_kw;
-            const motorMaxKw = localFeederData[feeder.id]?.motor_max_kw;
+            const motorTotalKw = autoMotorTotalKw || localFeederData[feeder.id]?.motor_total_kw;
+            const motorMaxKw = autoMotorMaxKw || localFeederData[feeder.id]?.motor_max_kw;
             if (motorTotalKw && motorMaxKw && phase === '3φ3W') {
                 const result = lookupMotorFeederBreaker200V(motorTotalKw, motorMaxKw);
                 if (result) kiteiAT = result.breakerAT;
             }
 
             row.innerHTML = `
-                <td>${rowNumber}</td>
+                <td>
+                    <input type="text" class="feeder-local" data-id="${feeder.id}" data-field="feeder_no" value="${feederNo}" style="width:50px;" />
+                </td>
+                <td>
+                    <select class="feeder-local" data-id="${feeder.id}" data-field="feeder_category">
+                        <option value="電灯" ${feederCategory === '電灯' ? 'selected' : ''}>電灯</option>
+                        <option value="動力" ${feederCategory === '動力' ? 'selected' : ''}>動力</option>
+                    </select>
+                </td>
                 <td>
                     <input type="text" class="feeder-input" data-id="${feeder.id}" data-field="load_name" value="${feeder.load_name || ''}" />
                 </td>
@@ -2585,16 +2686,16 @@
                     <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="breaker_at" value="${breakerAT}" readonly />
                 </td>
                 <td>
-                    <input type="number" step="0.1" class="feeder-local" data-id="${feeder.id}" data-field="motor_total_kw" value="${localFeederData[feeder.id]?.motor_total_kw || ''}" placeholder="-" style="width:55px;" />
+                    <span class="badge ${atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${atStatus}</span>
                 </td>
                 <td>
-                    <input type="number" step="0.1" class="feeder-local" data-id="${feeder.id}" data-field="motor_max_kw" value="${localFeederData[feeder.id]?.motor_max_kw || ''}" placeholder="-" style="width:55px;" />
+                    <input type="number" step="0.1" class="feeder-local" data-id="${feeder.id}" data-field="motor_total_kw" value="${motorTotalKw || ''}" placeholder="-" style="width:55px;" />
+                </td>
+                <td>
+                    <input type="number" step="0.1" class="feeder-local" data-id="${feeder.id}" data-field="motor_max_kw" value="${motorMaxKw || ''}" placeholder="-" style="width:55px;" />
                 </td>
                 <td>
                     <span style="font-weight:bold;">${kiteiAT}</span>
-                </td>
-                <td>
-                    <span class="badge ${breakerStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${breakerStatus}</span>
                 </td>
                 <td>
                     <input type="text" class="feeder-input" data-id="${feeder.id}" data-field="destination" value="${feeder.destination || ''}" />
@@ -2611,6 +2712,7 @@
                 select.addEventListener('change', handleFeederChange);
             });
             row.querySelectorAll('.feeder-local').forEach(input => {
+                input.addEventListener('change', handleFeederLocalChange);
                 input.addEventListener('blur', handleFeederLocalChange);
             });
 
@@ -2623,14 +2725,37 @@
             const field = element.dataset.field;
             let value = element.value;
 
-            if (field === 'voltage' || field === 'demand_factor' || field === 'cable_length') {
-                value = parseInt(value) || 0;
-            } else if (field === 'power_factor') {
-                // Client-side only - not saved to DB
+            // Local-only fields - don't send to DB
+            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'cable_size', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw'];
+
+            if (LOCAL_ONLY_FIELDS.includes(field)) {
+                if (!localFeederData[feederId]) localFeederData[feederId] = {};
+
+                if (field === 'power_factor' || field === 'motor_total_kw' || field === 'motor_max_kw') {
+                    localFeederData[feederId][field] = value ? parseFloat(value) : null;
+                } else {
+                    localFeederData[feederId][field] = value;
+                }
+
                 await renderFeeders();
                 return;
-            } else if (field === 'demand_capacity' || field === 'current' || field === 'cable_size' || field === 'voltage_drop' || field === 'vd_percent') {
-                return;
+            }
+
+            if (field === 'voltage' || field === 'demand_factor' || field === 'cable_length') {
+                value = parseInt(value) || 0;
+            }
+
+            // Check if load_name changed - auto-populate from panel if matched
+            if (field === 'load_name') {
+                const matchedPanel = allPanels.find(p => p.name === value);
+                if (matchedPanel) {
+                    // Auto-set load_type to 'panel'
+                    const { error: err1 } = await db
+                        .from('feeders')
+                        .update({ load_type: 'panel' })
+                        .eq('id', feederId);
+                    if (err1) throw err1;
+                }
             }
 
             try {
@@ -2662,23 +2787,39 @@
             if (value === '' || value === null) {
                 delete localFeederData[feederId][field];
             } else {
-                localFeederData[feederId][field] = parseFloat(value);
+                // For string fields like feeder_no and feeder_category, store as-is
+                // For numeric fields like motor_total_kw, motor_max_kw, parse as number
+                if (field === 'feeder_no' || field === 'feeder_category') {
+                    localFeederData[feederId][field] = value;
+                } else {
+                    localFeederData[feederId][field] = parseFloat(value) || 0;
+                }
             }
 
             await renderFeeders();
         }
 
         async function addFeederRow() {
+            const categoryFilter = document.getElementById('feederCategoryFilter').value;
+            let phase = '1φ2W';
+            let breaker = 'MCCB2P2E';
+
+            // Set defaults based on category filter
+            if (categoryFilter === '動力') {
+                phase = '3φ3W';
+                breaker = 'MCCB3P';
+            }
+
             const newFeeder = {
                 load_name: '',
                 load_type: 'panel',
                 demand_factor: 70,
-                phase_type: '1φ2W',
-                voltage: 100,
+                phase_type: phase,
+                voltage: 200,
                 cable_type: 'CV',
                 cable_size: 2.0,
                 cable_length: 0,
-                breaker_type: 'MCCB2P2E',
+                breaker_type: breaker,
                 breaker_af: 30,
                 breaker_at: 20,
                 destination: '',
@@ -2719,16 +2860,19 @@
         }
 
         function exportFeedersCsv() {
-            const headers = ['No.', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブルサイズ[mm²]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'ブレーカー判定', '行先'];
+            const headers = ['幹線No', '区分', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', '動力合計kW', '最大電動機kW', '内線規程AT', '行先'];
             const rows = [headers.join(',')];
 
             allFeeders.forEach((feeder, index) => {
+                const feederNo = localFeederData[feeder.id]?.feeder_no || '';
+                const feederCategory = localFeederData[feeder.id]?.feeder_category || feeder.feeder_category || '電灯';
+
                 const capacity = getLoadCapacity(feeder);
                 const demandFactor = feeder.demand_factor || getDemandFactor(capacity);
                 const demandCapacity = (capacity * demandFactor) / 100;
                 const voltage = feeder.voltage || 100;
                 const phase = feeder.phase_type || '1φ2W';
-                const powerFactor = feeder.power_factor || 0.85;
+                const powerFactor = localFeederData[feeder.id]?.power_factor || (feederCategory === '動力' ? 0.8 : 0.85);
 
                 let current = 0;
                 if (phase === '3φ3W') {
@@ -2738,7 +2882,7 @@
                 }
 
                 const cableType = feeder.cable_type || 'CV';
-                const cableSize = feeder.cable_size || selectCableSize(current, cableType);
+                const cableSize = selectCableSize(current, cableType);
                 const length = feeder.cable_length || 0;
                 const vd = calculateVoltageDrop(current, length, cableSize, phase, powerFactor);
                 const vdPercent = (vd / voltage) * 100;
@@ -2748,12 +2892,26 @@
                 const breakerAF = feeder.breaker_af || breaker.af;
                 const breakerAT = feeder.breaker_at || breaker.at;
 
-                const cableEntry = CABLE_DATA.find(c => c.size === cableSize);
-                const cableCapacity = cableType === 'CV' ? cableEntry?.cv : cableEntry?.cvt;
-                const breakerStatus = (breakerAT >= current && cableCapacity >= breakerAT) ? 'OK' : '×';
+                // AT判定
+                let atStatus = 'OK';
+                if (feederCategory === '動力') {
+                    atStatus = (breakerAT >= current) ? 'OK' : '×';
+                } else {
+                    atStatus = (breakerAT >= current * 1.25) ? 'OK' : '×';
+                }
+
+                // 内線規程AT
+                let kiteiAT = '-';
+                const motorTotalKw = localFeederData[feeder.id]?.motor_total_kw;
+                const motorMaxKw = localFeederData[feeder.id]?.motor_max_kw;
+                if (motorTotalKw && motorMaxKw && phase === '3φ3W') {
+                    const result = lookupMotorFeederBreaker200V(motorTotalKw, motorMaxKw);
+                    if (result) kiteiAT = result.breakerAT;
+                }
 
                 const row = [
-                    index + 1,
+                    feederNo,
+                    feederCategory,
                     feeder.load_name || '',
                     capacity.toFixed(2),
                     demandFactor,
@@ -2771,7 +2929,10 @@
                     feeder.breaker_type || '',
                     breakerAF,
                     breakerAT,
-                    breakerStatus,
+                    atStatus,
+                    motorTotalKw || '',
+                    motorMaxKw || '',
+                    kiteiAT,
                     feeder.destination || ''
                 ];
                 rows.push(row.map(cell => `"${cell}"`).join(','));
