@@ -795,6 +795,14 @@
             box-shadow: none !important;
         }
 
+        /* 電灯200V の電圧セルは赤太字・橙背景で強調（readonly の !important を上書き） */
+        .circuits-table input[readonly].voltage-high-lighting,
+        .circuits-table input.voltage-high-lighting {
+            background-color: #ffe0b2 !important;
+            color: #c62828 !important;
+            font-weight: bold !important;
+        }
+
         /* 自動計算セル（td内のstrong等） */
         .auto-calc {
             background-color: #e3f2fd;
@@ -2385,6 +2393,12 @@
             const colIndex = Array.from(tr.children).indexOf(td);
 
             if (key === 'ArrowDown' || key === 'ArrowUp') {
+                // 重要：select / number input の既定動作（選択変更・値の増減）を常に抑止する
+                // これをしないと「値が変わる → change イベント → DB保存 → 再描画 → フォーカス消失」で
+                // 矢印キーを押した瞬間にどこかへ飛ぶ現象が起きる
+                if (target.tagName === 'SELECT' || (target.tagName === 'INPUT' && target.type === 'number')) {
+                    e.preventDefault();
+                }
                 // 同じ列にinput/selectを持つ行のみを探して移動（空セルの行はスキップ）
                 const dir = key === 'ArrowDown' ? 'next' : 'prev';
                 const el = findInputInSameColumn(tr, colIndex, dir);
@@ -2602,8 +2616,8 @@
                         <option value="◎" ${(circuit.symbol || '◎') === '◎' ? 'selected' : ''}>◎</option>
                         <option value="○" ${circuit.symbol === '○' ? 'selected' : ''}>○</option>
                         <option value="◇" ${circuit.symbol === '◇' ? 'selected' : ''}>◇</option>
-                        <option value="[]" ${circuit.symbol === '[]' || circuit.symbol === '□' ? 'selected' : ''}>[]</option>
-                        <option value="[][]" ${circuit.symbol === '[][]' || circuit.symbol === '□□' || circuit.symbol === '■' ? 'selected' : ''}>[][]</option>
+                        <option value="□" ${circuit.symbol === '□' || circuit.symbol === '[]' ? 'selected' : ''}>□</option>
+                        <option value="□□" ${circuit.symbol === '□□' || circuit.symbol === '[][]' || circuit.symbol === '■' ? 'selected' : ''}>□□</option>
                         <option value="分岐" ${circuit.symbol === '分岐' ? 'selected' : ''}>分岐</option>
                     </select>
                 </td>
@@ -2638,7 +2652,7 @@
                         ${AT_VALUES.map(val => `<option value="${val}" ${circuit.at === val ? 'selected' : ''}>${val}</option>`).join('')}
                     </select>
                 </td>
-                <td><input type="number" class="circuit-input" data-id="${circuit.id}" data-field="voltage" value="${getVoltageForPhase(circuit.symbol, autoPhase)}" readonly style="background-color:${isLighting && getVoltageForPhase(circuit.symbol, autoPhase) === 200 ? '#ffe0b2' : '#e3f2fd'};color:${isLighting && getVoltageForPhase(circuit.symbol, autoPhase) === 200 ? '#c62828' : '#000'};font-weight:${isLighting && getVoltageForPhase(circuit.symbol, autoPhase) === 200 ? 'bold' : 'normal'};" /></td>
+                <td><input type="number" class="circuit-input${isLighting && getVoltageForPhase(circuit.symbol, autoPhase) === 200 ? ' voltage-high-lighting' : ''}" data-id="${circuit.id}" data-field="voltage" value="${getVoltageForPhase(circuit.symbol, autoPhase)}" readonly /></td>
                 ${(() => {
                     if (circuitViewMode === 'both') {
                         // 両方モード: 比較サマリーを表示（内訳列は非表示、VA表示）
@@ -2693,12 +2707,12 @@
         // 記号→回路自動設定マッピング
         const SYMBOL_DEFAULTS = {
             '◎': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: '電灯 AC1Φ200V' },
-            '[][]': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ AC1Φ200V' },
             '□□': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ AC1Φ200V' },
+            '[][]': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ AC1Φ200V' },
             '■': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ AC1Φ200V' },
             '○': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: '電灯 1Φ100V' },
-            '[]': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ 1Φ100V' },
             '□': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ 1Φ100V' },
+            '[]': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ 1Φ100V' },
             '◇': { category: '動力', voltage: 200, phase: 'RST', breaker: 'MCCB3P', description: '動力 3Φ3W AC200V' },
             '分岐': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: '幹線分岐' }
         };
