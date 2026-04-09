@@ -2008,6 +2008,9 @@
                         .eq('id', editingPanelId);
                     if (error) throw error;
                 } else {
+                    // 一番下に追加: 既存の最大sort_order + 1000
+                    const maxSort = allPanels.reduce((m, p) => Math.max(m, p.sort_order || 0), 0);
+                    data.sort_order = maxSort + 1000;
                     const { error } = await db
                         .from('panels')
                         .insert([data]);
@@ -2574,11 +2577,26 @@
                 prevCircuit = sorted[sorted.length - 1];
             }
 
+            // 全体の最大sort_orderを取得し、その次に追加（一番下に挿入）
+            const maxSort = allCircuits.reduce((m, c) => Math.max(m, c.sort_order || 0), 0);
+            const newSortOrder = maxSort + 1000;
+
+            // 回路NO自動採番: 直前の回路のcircuit_noを+1（数値の場合のみ）
+            let nextCircuitNo = '';
+            if (prevCircuit && prevCircuit.circuit_no) {
+                const n = parseInt(prevCircuit.circuit_no, 10);
+                if (!isNaN(n)) {
+                    nextCircuitNo = String(n + 1);
+                }
+            } else if (prevCircuit) {
+                nextCircuitNo = '1';
+            }
+
             const newCircuit = prevCircuit ? {
                 panel_name: prevCircuit.panel_name || panelName,
                 type: prevCircuit.type || 'M',
                 symbol: prevCircuit.symbol || '◎',
-                circuit_no: '',
+                circuit_no: nextCircuitNo,
                 phase: prevCircuit.phase || 'L1',
                 breaker: prevCircuit.breaker || 'MCCB2P2E',
                 af: prevCircuit.af || 30,
@@ -2591,12 +2609,12 @@
                 feeder: 0,
                 load_name: '',
                 remocon: 0,
-                sort_order: (allCircuits.length + 1) * 10
+                sort_order: newSortOrder
             } : {
                 panel_name: panelName,
                 type: 'M',
                 symbol: '◎',
-                circuit_no: '',
+                circuit_no: '1',
                 phase: 'L1',
                 breaker: 'MCCB2P2E',
                 af: 30,
@@ -2609,7 +2627,7 @@
                 feeder: 0,
                 load_name: '',
                 remocon: 0,
-                sort_order: (allCircuits.length + 1) * 10
+                sort_order: newSortOrder
             };
 
             try {
@@ -3248,7 +3266,7 @@
                 breaker_af: 30,
                 breaker_at: 20,
                 destination: '',
-                sort_order: (allFeeders.length + 1) * 10
+                sort_order: allFeeders.reduce((m, f) => Math.max(m, f.sort_order || 0), 0) + 1000
             };
 
             try {
