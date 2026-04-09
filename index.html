@@ -1422,7 +1422,7 @@
                     <select id="panelElecType" required>
                         <option value="">選択してください</option>
                         <option value="1φ3W">1φ3W</option>
-                        <option value="3φ4W">3φ4W</option>
+                        <option value="3φ3W">3φ3W</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1805,7 +1805,7 @@
 
             const voltage = mainCircuits.length > 0 ? mainCircuits[0].voltage || 100 : 100;
             const panel = allPanels.find(p => p.name === panelName);
-            const isThreePhase = panel && panel.elec_type === '3φ4W';
+            const isThreePhase = panel && panel.elec_type === '3φ3W';
 
             let current = 0;
             if (isThreePhase) {
