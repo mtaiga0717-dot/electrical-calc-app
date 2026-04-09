@@ -468,6 +468,52 @@
             font-family: 'Segoe UI', 'Meiryo', sans-serif;
         }
 
+        /* 盤フィルタ時の合計容量サマリー */
+        .panel-filter-summary {
+            background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);
+            border: 1px solid #64b5f6;
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .panel-filter-summary .pfs-panel-name {
+            font-weight: bold;
+            font-size: 1.05rem;
+            color: #0d47a1;
+            padding-right: 0.8rem;
+            border-right: 2px solid #64b5f6;
+        }
+        .panel-filter-summary .pfs-item {
+            display: inline-flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        .panel-filter-summary .pfs-label {
+            font-size: 0.72rem;
+            color: #546e7a;
+            font-weight: normal;
+        }
+        .panel-filter-summary .pfs-value {
+            font-weight: bold;
+            color: #1a237e;
+            font-size: 0.95rem;
+        }
+        .panel-filter-summary .pfs-badge {
+            display: inline-block;
+            padding: 0.2rem 0.55rem;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .panel-filter-summary .pfs-badge.ok { background: #c8e6c9; color: #1b5e20; }
+        .panel-filter-summary .pfs-badge.ng { background: #ffcdd2; color: #b71c1c; }
+
         .btn-action {
             background-color: #42a5f5;
             color: white;
@@ -1280,6 +1326,7 @@
                     <button class="btn-action btn-danger" id="btnRemconDelete">RC全削除</button>
                     <button class="btn-action" id="btnCsvExport">CSV出力</button>
                 </div>
+                <div id="panelFilterSummary" class="panel-filter-summary" style="display:none;"></div>
                 <div class="circuits-table-wrapper" id="circuitsTableWrapper">
                     <table class="circuits-table" id="circuitsTable">
                         <thead>
@@ -2680,6 +2727,97 @@
             }
         }
 
+        // 盤フィルタ適用時の合計容量サマリーを描画
+        function renderPanelFilterSummary(panelName) {
+            const box = document.getElementById('panelFilterSummary');
+            if (!box) return;
+            if (!panelName) {
+                box.style.display = 'none';
+                box.innerHTML = '';
+                return;
+            }
+            const panel = allPanels.find(p => p.name === panelName);
+            if (!panel) {
+                box.style.display = 'none';
+                box.innerHTML = '';
+                return;
+            }
+            const panelCircuits = allCircuits.filter(c => c.panel_name === panelName);
+            const s = calculatePanelSummaries(panelName, panelCircuits);
+            const isThreePhase = panel.elec_type === '3φ3W';
+            const panelAT = panel.at || 0;
+            const atOK = panelAT > 0 && panelAT >= s.current;
+            const atBadge = panelAT === 0
+                ? '<span class="pfs-badge">-</span>'
+                : `<span class="pfs-badge ${atOK ? 'ok' : 'ng'}">${atOK ? 'OK' : '×'}</span>`;
+
+            let balanceHtml = '';
+            if (s.balance !== null) {
+                const bOK = s.balance <= 40;
+                balanceHtml = `
+                    <span class="pfs-item">
+                        <span class="pfs-label">設備不平衡率</span>
+                        <span class="pfs-value">${s.balance.toFixed(1)}% <span class="pfs-badge ${bOK ? 'ok' : 'ng'}" style="font-size:0.7rem;padding:0.05rem 0.35rem;">${bOK ? 'OK' : '×'}</span></span>
+                    </span>`;
+            }
+
+            let phaseHtml = '';
+            if (!isThreePhase) {
+                phaseHtml = `
+                    <span class="pfs-item">
+                        <span class="pfs-label">I_L1 / I_L2</span>
+                        <span class="pfs-value">${s.l1Current.toFixed(1)} / ${s.l2Current.toFixed(1)} A</span>
+                    </span>`;
+            }
+
+            box.innerHTML = `
+                <span class="pfs-panel-name">${panel.name}</span>
+                <span class="pfs-item">
+                    <span class="pfs-label">電気種別</span>
+                    <span class="pfs-value">${panel.elec_type || '-'}</span>
+                </span>
+                <span class="pfs-item">
+                    <span class="pfs-label">主遮断器</span>
+                    <span class="pfs-value">${panel.main_breaker || '-'} AF${panel.af || '-'}/AT${panel.at || '-'}</span>
+                </span>
+                <span class="pfs-item">
+                    <span class="pfs-label">照明</span>
+                    <span class="pfs-value">${s.lighting.toFixed(2)} kVA</span>
+                </span>
+                <span class="pfs-item">
+                    <span class="pfs-label">ｺﾝｾﾝﾄ</span>
+                    <span class="pfs-value">${s.outlet.toFixed(2)} kVA</span>
+                </span>
+                <span class="pfs-item">
+                    <span class="pfs-label">FC</span>
+                    <span class="pfs-value">${s.fc.toFixed(2)} kVA</span>
+                </span>
+                <span class="pfs-item">
+                    <span class="pfs-label">OA</span>
+                    <span class="pfs-value">${s.oa.toFixed(2)} kVA</span>
+                </span>
+                <span class="pfs-item">
+                    <span class="pfs-label">幹線分岐</span>
+                    <span class="pfs-value">${s.feeder.toFixed(2)} kVA</span>
+                </span>
+                <span class="pfs-item">
+                    <span class="pfs-label">合計</span>
+                    <span class="pfs-value" style="color:#0d47a1;font-size:1.05rem;">${s.total.toFixed(2)} kVA</span>
+                </span>
+                <span class="pfs-item">
+                    <span class="pfs-label">幹線電流</span>
+                    <span class="pfs-value">${s.current.toFixed(1)} A</span>
+                </span>
+                ${phaseHtml}
+                <span class="pfs-item">
+                    <span class="pfs-label">AT判定</span>
+                    <span class="pfs-value">${atBadge}</span>
+                </span>
+                ${balanceHtml}
+            `;
+            box.style.display = 'flex';
+        }
+
         async function renderCircuits() {
             // 描画前のフォーカス状態を記憶
             const _savedFocus = captureCircuitFocusState();
@@ -2690,6 +2828,9 @@
             if (filterValue) {
                 filtered = allCircuits.filter(c => c.panel_name === filterValue);
             }
+
+            // 盤フィルタ適用時は合計容量サマリーを表示
+            renderPanelFilterSummary(filterValue);
 
             if (categoryFilter) {
                 filtered = filtered.filter(c => (c.category || '電灯') === categoryFilter);
