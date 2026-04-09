@@ -2127,6 +2127,17 @@
             if (error) throw error;
             allCircuits = data || [];
 
+            // Supabase numeric 列が文字列で返るケースがあるので強制的に Number 化
+            const numFields = ['lighting', 'outlet', 'fc', 'oa', 'feeder', 'voltage', 'af', 'at', 'remocon', 'sort_order'];
+            allCircuits.forEach(c => {
+                numFields.forEach(f => {
+                    if (c[f] != null) {
+                        const n = Number(c[f]);
+                        c[f] = isNaN(n) ? 0 : n;
+                    }
+                });
+            });
+
             // Merge local data
             allCircuits.forEach(c => {
                 if (localCircuitData[c.id]) {
@@ -2164,20 +2175,26 @@
         }
 
         function calculatePanelSummaries(panelName, circuits) {
-            const lighting = circuits.reduce((sum, c) => sum + (c.lighting || 0), 0);
-            const outlet = circuits.reduce((sum, c) => sum + (c.outlet || 0), 0);
-            const fc = circuits.reduce((sum, c) => sum + (c.fc || 0), 0);
-            const oa = circuits.reduce((sum, c) => sum + (c.oa || 0), 0);
-            const feeder = circuits.reduce((sum, c) => sum + (c.feeder || 0), 0);
+            // Supabase numeric 列は文字列で返ることがあるので必ず Number へ正規化
+            const num = (v) => {
+                const n = Number(v);
+                return isNaN(n) ? 0 : n;
+            };
+            const lighting = circuits.reduce((sum, c) => sum + num(c.lighting), 0);
+            const outlet = circuits.reduce((sum, c) => sum + num(c.outlet), 0);
+            const fc = circuits.reduce((sum, c) => sum + num(c.fc), 0);
+            const oa = circuits.reduce((sum, c) => sum + num(c.oa), 0);
+            const feeder = circuits.reduce((sum, c) => sum + num(c.feeder), 0);
 
             const total = lighting + outlet + fc + oa + feeder;
-            const mainCircuits = circuits.filter(c => c.type === 'M');
+            // type が未設定・他の値でも集計対象とする（RC行のみ除外）
+            const mainCircuits = circuits.filter(c => c.type !== 'RC');
 
             const panel = allPanels.find(p => p.name === panelName);
             const isThreePhase = panel && panel.elec_type === '3φ3W';
 
             // 回路ごとの負荷合計（kVA）
-            const circuitVA = (c) => (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0);
+            const circuitVA = (c) => num(c.lighting) + num(c.outlet) + num(c.fc) + num(c.oa) + num(c.feeder);
 
             let current = 0;
             let l1Current = 0;
@@ -2279,18 +2296,19 @@
                 balanceText = `${summaries.balance.toFixed(1)}% <span class="badge ${summaries.balance <= 40 ? 'badge-ok' : 'badge-ng'}">${balanceStatus}</span>`;
             }
 
+            const fx = (v) => (Number(v) || 0).toFixed(2);
             row.innerHTML = `
                 <td style="font-weight:bold;">${panel.name}</td>
                 <td>${panel.elec_type}</td>
                 <td>${panel.main_breaker}</td>
                 <td>${panel.af}</td>
                 <td>${panel.at}</td>
-                <td>${summaries.lighting.toFixed(2)}</td>
-                <td>${summaries.outlet.toFixed(2)}</td>
-                <td>${summaries.fc.toFixed(2)}</td>
-                <td>${summaries.oa.toFixed(2)}</td>
-                <td>${summaries.feeder.toFixed(2)}</td>
-                <td style="font-weight:bold;">${summaries.total.toFixed(2)}</td>
+                <td>${fx(summaries.lighting)}</td>
+                <td>${fx(summaries.outlet)}</td>
+                <td>${fx(summaries.fc)}</td>
+                <td>${fx(summaries.oa)}</td>
+                <td>${fx(summaries.feeder)}</td>
+                <td style="font-weight:bold;">${fx(summaries.total)}</td>
                 <td>${summaries.current} A</td>
                 <td><span class="badge ${summaries.atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${summaries.atStatus}</span></td>
                 <td>${balanceText}</td>
