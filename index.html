@@ -2982,6 +2982,10 @@
                 }
             }
 
+            // load_name / remocon は計算に影響しないのでテーブル再描画をスキップ
+            // （再描画で入力中セルが破壊されカーソルが消える現象を防ぐ）
+            const skipRerender = (field === 'load_name' || field === 'remocon');
+
             try {
                 const { error } = await db
                     .from('circuits')
@@ -2989,6 +2993,16 @@
                     .eq('id', circuitId);
 
                 if (error) throw error;
+
+                // メモリ側の値だけ更新（allCircuits / localCircuitData）
+                const circuitObj = allCircuits.find(c => c.id === circuitId);
+                if (circuitObj) circuitObj[field] = value;
+
+                if (skipRerender) {
+                    // 再描画せずにリターン → フォーカスもカーソルもそのまま
+                    return;
+                }
+
                 await loadCircuits();
                 await loadPanels();
                 isRendering = true;
@@ -3133,11 +3147,23 @@
 
             try {
                 // 1. 既存のRC行を全盤まとめて削除（全盤通しで振り直すため）
-                const { error: delErr } = await db
+                //    Supabase の delete は WHERE 条件がゆるいと失敗することがあるので、
+                //    まずID一覧を取得してから .in('id', ...) で明示的に削除する
+                const { data: existingRcs, error: selErr } = await db
                     .from('circuits')
-                    .delete()
+                    .select('id')
                     .eq('type', 'RC');
-                if (delErr) throw delErr;
+                if (selErr) throw selErr;
+                const rcIds = (existingRcs || []).map(r => r.id);
+                if (rcIds.length > 0) {
+                    const { error: delErr } = await db
+                        .from('circuits')
+                        .delete()
+                        .in('id', rcIds);
+                    if (delErr) throw delErr;
+                }
+                // ローカルメモリからも除去しておく（以降のロジックが allCircuits を参照するため）
+                allCircuits = allCircuits.filter(c => c.type !== 'RC');
 
                 // 2. 対象盤のM回路のsort_orderを1000刻みに再割り当てして十分な隙間を確保
                 //    （M間の元の順序は維持）
