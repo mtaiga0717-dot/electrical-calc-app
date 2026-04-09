@@ -1247,7 +1247,7 @@
                         <dd>新しい回路を一番下に追加します。直前の回路の回路NOが自動で +1 されます。</dd>
 
                         <dt>リモコン展開</dt>
-                        <dd>RC数を入力した M 回路から、RC子回路（R0-1、R0-2…）を自動生成します。途中でRC数を変更した場合も、再実行すれば番号が振り直されます。RC行は計算には影響しません。</dd>
+                        <dd>RC数を入力した M 回路から、RC子回路（R0-1、R0-2…）を自動生成します。番号は<b>全盤を通しで連番</b>（盤をまたいで同じ番号が出ないように振られます）。途中でRC数を変更した場合も、再実行すれば番号が振り直されます。RC行は計算には影響しません。</dd>
 
                         <dt>RC全削除</dt>
                         <dd>表示中の盤の RC（リモコン子）行をすべて削除します。</dd>
@@ -2465,7 +2465,37 @@
             return null;
         }
 
+        // 再描画前にフォーカス位置を覚えておき、描画後に復元する
+        function captureCircuitFocusState() {
+            const el = document.activeElement;
+            if (!el || !el.dataset || !el.dataset.id || !el.dataset.field) return null;
+            // circuits テーブル内の要素だけを対象に
+            if (!el.closest('#circuitsTable')) return null;
+            const state = {
+                dataId: el.dataset.id,
+                dataField: el.dataset.field,
+                tagName: el.tagName,
+            };
+            if (el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'search' || el.type === 'tel' || el.type === 'url' || el.type === 'password')) {
+                state.selectionStart = el.selectionStart;
+                state.selectionEnd = el.selectionEnd;
+            }
+            return state;
+        }
+        function restoreCircuitFocusState(state) {
+            if (!state) return;
+            const selector = `#circuitsTable [data-id="${state.dataId}"][data-field="${state.dataField}"]`;
+            const el = document.querySelector(selector);
+            if (!el) return;
+            try { el.focus({ preventScroll: true }); } catch (_) { el.focus(); }
+            if (state.selectionStart != null && 'setSelectionRange' in el) {
+                try { el.setSelectionRange(state.selectionStart, state.selectionEnd); } catch (_) {}
+            }
+        }
+
         async function renderCircuits() {
+            // 描画前のフォーカス状態を記憶
+            const _savedFocus = captureCircuitFocusState();
             const filterValue = document.getElementById('circuitsPanelFilter').value;
             const categoryFilter = document.getElementById('circuitCategoryFilter').value;
             let filtered = allCircuits;
@@ -2525,6 +2555,8 @@
                 const floatThead = document.getElementById('circuitsFloatingHeaderThead');
                 if (floatThead) floatThead.innerHTML = '';
                 updateFloatingHeader();
+                // 再描画前にフォーカスしていた要素を（存在すれば）再フォーカス
+                restoreCircuitFocusState(_savedFocus);
             });
         }
 
@@ -3080,16 +3112,17 @@
         }
 
         async function expandRemcon() {
-            const filterValue = document.getElementById('circuitsPanelFilter').value;
-            let scopedCircuits = allCircuits;
-            if (filterValue) {
-                scopedCircuits = allCircuits.filter(c => c.panel_name === filterValue);
-            }
-
-            // 対象範囲のM回路（リモコン有無に関わらず、sort_order昇順）
-            const allMInScope = scopedCircuits
+            // RC番号は全盤で連番（R0-1 から順番に振る）にするため、
+            // フィルタの有無に関わらず「全盤のM回路」を対象にする
+            const allMInScope = allCircuits
                 .filter(c => c.type === 'M')
-                .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+                // 盤ごと＋sort_order でソート（盤の順序は allPanels の順に合わせる）
+                .sort((a, b) => {
+                    const pa = allPanels.findIndex(p => p.name === a.panel_name);
+                    const pb = allPanels.findIndex(p => p.name === b.panel_name);
+                    if (pa !== pb) return pa - pb;
+                    return (a.sort_order || 0) - (b.sort_order || 0);
+                });
 
             const mWithRemocon = allMInScope.filter(c => c.remocon && c.remocon > 0);
 
@@ -3098,15 +3131,12 @@
                 return;
             }
 
-            const panelNames = [...new Set(allMInScope.map(c => c.panel_name))];
-
             try {
-                // 1. 対象範囲の既存RC行を全削除（再展開のたびに一掃）
+                // 1. 既存のRC行を全盤まとめて削除（全盤通しで振り直すため）
                 const { error: delErr } = await db
                     .from('circuits')
                     .delete()
-                    .eq('type', 'RC')
-                    .in('panel_name', panelNames);
+                    .eq('type', 'RC');
                 if (delErr) throw delErr;
 
                 // 2. 対象盤のM回路のsort_orderを1000刻みに再割り当てして十分な隙間を確保
