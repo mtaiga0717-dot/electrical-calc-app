@@ -173,7 +173,7 @@
             margin-bottom: 0;
         }
         .panels-table {
-            min-width: 1500px;
+            min-width: 1900px;
         }
         /* 画面下に常時表示される横スクロールバー（プロキシ） */
         .panels-scroll-proxy {
@@ -1298,6 +1298,10 @@
                                 <th>合計[kVA]</th>
                                 <th>電流[A]</th>
                                 <th>AT判定</th>
+                                <th>需要率[%]</th>
+                                <th>需要後[kVA]</th>
+                                <th>需要後電流[A]</th>
+                                <th>需要後AT判定</th>
                                 <th>平衡率</th>
                                 <th>操作</th>
                             </tr>
@@ -2272,6 +2276,33 @@
                 const row = createPanelRow(panel, summaries);
                 tbody.appendChild(row);
             });
+
+            // 需要率inputのイベント付与（値変更で localStorage 保存 → その行だけ再描画）
+            tbody.querySelectorAll('.panel-demand-rate-input').forEach(input => {
+                const commit = (el) => {
+                    const name = el.dataset.panelName;
+                    const n = Number(el.value);
+                    if (isNaN(n)) return;
+                    setDemandRate(name, n);
+                    // 行単位で再描画
+                    const panel = allPanels.find(p => p.name === name);
+                    if (!panel) return;
+                    const circuits = allCircuits.filter(c => c.panel_name === name);
+                    const summaries = calculatePanelSummaries(name, circuits);
+                    const newRow = createPanelRow(panel, summaries);
+                    const oldRow = el.closest('tr');
+                    if (oldRow && oldRow.parentNode) oldRow.parentNode.replaceChild(newRow, oldRow);
+                };
+                input.addEventListener('change', (e) => commit(e.target));
+                input.addEventListener('blur', (e) => commit(e.target));
+                // 入力中もlocalStorage更新（再描画はしない）
+                input.addEventListener('input', (e) => {
+                    const n = Number(e.target.value);
+                    if (!isNaN(n) && n >= 0 && n <= 200) {
+                        setDemandRate(e.target.dataset.panelName, n);
+                    }
+                });
+            });
             requestAnimationFrame(syncPanelsScrollProxyWidth);
         }
 
@@ -2427,6 +2458,17 @@
             }
 
             const fx = (v) => (Number(v) || 0).toFixed(2);
+
+            // 需要率（盤ごとに localStorage から取得）適用後の値を算定
+            const demandRate = getDemandRate(panel.name);
+            const factor = demandRate / 100;
+            const dTotal = summaries.total * factor;
+            const dCurrent = summaries.current * factor;
+            const panelAT = Number(panel.at) || 0;
+            const atOKd = panelAT > 0 && panelAT >= dCurrent;
+            const atBadgeD = panelAT === 0 ? '-'
+                : `<span class="badge ${atOKd ? 'badge-ok' : 'badge-ng'}">${atOKd ? 'OK' : '×'}</span>`;
+
             row.innerHTML = `
                 <td style="font-weight:bold;">${panel.name}</td>
                 <td>${panel.elec_type}</td>
@@ -2441,6 +2483,14 @@
                 <td style="font-weight:bold;">${fx(summaries.total)}</td>
                 <td>${summaries.current} A</td>
                 <td><span class="badge ${summaries.atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${summaries.atStatus}</span></td>
+                <td>
+                    <input type="number" class="panel-demand-rate-input" data-panel-name="${panel.name}"
+                        value="${demandRate}" min="0" max="200" step="1"
+                        style="width:60px;padding:0.2rem 0.3rem;border:1px solid #64b5f6;border-radius:4px;text-align:right;font-weight:bold;color:#0d47a1;background:#fff9c4;" />
+                </td>
+                <td style="background:#fff9c4;font-weight:bold;">${fx(dTotal)}</td>
+                <td style="background:#fff9c4;">${dCurrent.toFixed(1)} A</td>
+                <td style="background:#fff9c4;">${atBadgeD}</td>
                 <td>${balanceText}</td>
                 <td>
                     <button class="btn-small" onclick="editPanel(${panel.id})">編集</button>
