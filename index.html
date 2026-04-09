@@ -1283,9 +1283,11 @@
 
                         <dt>設備不平衡率（1φ3W）</dt>
                         <dd>
-                            内線規程 <b>1305-2条</b>：1φ3W 低圧屋内幹線における設備不平衡率は <b>40% 以下</b> とすること。<br>
-                            <code>不平衡率 = |P<sub>L1</sub> - P<sub>L2</sub>| ÷ ((P<sub>L1</sub> + P<sub>L2</sub>) / 2) × 100 [%]</code><br>
-                            ここで P<sub>L1</sub>・P<sub>L2</sub> は L1側・L2側にそれぞれ接続される100V負荷の合計。L1-L2間に接続される200V負荷は両側線に均等に流れるため不平衡率の分子からは除外します（内線規程の運用解釈）。
+                            内線規程 <b>1305-2条</b>：1φ3W 低圧屋内幹線における設備不平衡率は <b>40% 以下</b>。<br>
+                            <code>不平衡率 = |P<sub>L1単独</sub> − P<sub>L2単独</sub>| ÷ (総負荷設備容量 ÷ 2) × 100 [%]</code><br>
+                            <code>総負荷設備容量 = P<sub>L1単独</sub> + P<sub>L2単独</sub> + P<sub>L1-L2間</sub></code><br>
+                            L1-L2間（200V）負荷は L1側・L2側双方に全量算入（＝分母に寄与）されますが、分子では両側同量のため相殺されます。<br>
+                            また、L1側 合計 = L1単独 + L1-L2間、L2側 合計 = L2単独 + L1-L2間 で計算します。
                         </dd>
 
                         <dt>設備不平衡率（3φ3W）</dt>
@@ -2279,6 +2281,32 @@
             const panelAT = panel ? (panel.at || 0) : 0;
             const atStatus = panelAT >= current ? 'OK' : '×';
 
+            // 相別 kVA 内訳（1φ3W 用）
+            // l1Only: L1単独(100V L1相)
+            // l2Only: L2単独(100V L2相)
+            // l12   : L1-L2間(200V または phase==='L1-L2')
+            let l1Only = 0;
+            let l2Only = 0;
+            let l12 = 0;
+            if (!isThreePhase) {
+                mainCircuits.forEach(c => {
+                    const va = circuitVA(c);
+                    if (va <= 0) return;
+                    const v = num(c.voltage) || 100;
+                    const ph = c.phase || 'L1';
+                    if (v >= 200 || ph === 'L1-L2') {
+                        l12 += va;
+                    } else if (ph === 'L2') {
+                        l2Only += va;
+                    } else {
+                        l1Only += va;
+                    }
+                });
+            }
+            // 内線規程 1305-2 の設備容量按分: L1-L2間負荷は L1側・L2側双方に全量算入
+            const l1Sum = l1Only + l12;
+            const l2Sum = l2Only + l12;
+
             let balance = null;
             const sumByPhase = (phaseVal) => mainCircuits.filter(c => c.phase === phaseVal).reduce((s, c) => s + circuitVA(c), 0);
 
@@ -2293,28 +2321,13 @@
                     balance = (maxP - minP) / maxP * 100;
                 }
             } else if (!isThreePhase && mainCircuits.length > 0) {
-                // 1φ3W: L1/L2の設備不平衡率 内線規程 1305-2条（≤40%）
-                // L1側・L2側の合計負荷（200V負荷は按分せず各側に等しく加算して評価）
-                let l1Load = 0;
-                let l2Load = 0;
-                mainCircuits.forEach(c => {
-                    const va = circuitVA(c);
-                    if (va <= 0) return;
-                    const v = c.voltage || 100;
-                    const ph = c.phase || 'L1';
-                    if (v >= 200 || ph === 'L1-L2') {
-                        // 200V負荷は設備不平衡率の計算では分子(L1,L2差分)には寄与せず、
-                        // 分母(総負荷)には算入するが平衡評価からは除外するのが一般的
-                        return;
-                    } else if (ph === 'L2') {
-                        l2Load += va;
-                    } else {
-                        l1Load += va;
-                    }
-                });
-                const denom = (l1Load + l2Load) / 2;
+                // 1φ3W: 内線規程 1305-2 設備不平衡率 ≤40%
+                // 分子 = |L1単独 − L2単独|   （L1-L2間は双方に同量入るため差に寄与しない）
+                // 分母 = 総負荷設備容量 / 2 = (L1単独 + L2単独 + L1-L2間) / 2
+                const totalLoad = l1Only + l2Only + l12;
+                const denom = totalLoad / 2;
                 if (denom > 0) {
-                    balance = Math.abs(l1Load - l2Load) / denom * 100;
+                    balance = Math.abs(l1Only - l2Only) / denom * 100;
                 }
             }
 
@@ -2328,8 +2341,12 @@
                 current: Math.round(current * 100) / 100,
                 atStatus,
                 balance,
-                l1Sum: !isThreePhase ? sumByPhase('L1') : 0,
-                l2Sum: !isThreePhase ? sumByPhase('L2') : 0,
+                // 1φ3W 相別 kVA 内訳
+                l1Only: Math.round(l1Only * 100) / 100,
+                l2Only: Math.round(l2Only * 100) / 100,
+                l12: Math.round(l12 * 100) / 100,
+                l1Sum: Math.round(l1Sum * 100) / 100, // L1側合計(L1単独+L1-L2間)
+                l2Sum: Math.round(l2Sum * 100) / 100, // L2側合計(L2単独+L1-L2間)
                 l1Current: Math.round(l1Current * 100) / 100,
                 l2Current: Math.round(l2Current * 100) / 100
             };
@@ -2765,6 +2782,18 @@
             let phaseHtml = '';
             if (!isThreePhase) {
                 phaseHtml = `
+                    <span class="pfs-item">
+                        <span class="pfs-label">L1側 合計 (L1単独+L1-L2間)</span>
+                        <span class="pfs-value">${s.l1Sum.toFixed(2)} kVA</span>
+                    </span>
+                    <span class="pfs-item">
+                        <span class="pfs-label">L2側 合計 (L2単独+L1-L2間)</span>
+                        <span class="pfs-value">${s.l2Sum.toFixed(2)} kVA</span>
+                    </span>
+                    <span class="pfs-item">
+                        <span class="pfs-label">L1単独 / L2単独 / L1-L2間</span>
+                        <span class="pfs-value">${s.l1Only.toFixed(2)} / ${s.l2Only.toFixed(2)} / ${s.l12.toFixed(2)} kVA</span>
+                    </span>
                     <span class="pfs-item">
                         <span class="pfs-label">I_L1 / I_L2</span>
                         <span class="pfs-value">${s.l1Current.toFixed(1)} / ${s.l2Current.toFixed(1)} A</span>
