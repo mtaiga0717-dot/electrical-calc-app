@@ -2395,32 +2395,57 @@
                 tbody.appendChild(row);
             });
 
-            // 需要率inputのイベント付与（値変更で localStorage 保存 → その行だけ再描画）
-            tbody.querySelectorAll('.panel-demand-rate-input').forEach(input => {
-                const commit = (el) => {
-                    const name = el.dataset.panelName;
-                    const n = Number(el.value);
-                    if (isNaN(n)) return;
-                    setDemandRate(name, n);
-                    // 行単位で再描画
+            // 需要率inputのイベント: tbodyへのデリゲーションに一本化
+            //  - 行を差し替えても(replaceChild)リスナーが失われない
+            //  - 重複バインド防止フラグで renderPanels 複数回呼び出しに対応
+            if (!tbody.dataset.demandRateDelegated) {
+                tbody.dataset.demandRateDelegated = '1';
+
+                const rerenderRow = (input) => {
+                    const name = input.dataset.panelName;
+                    if (!name) return;
                     const panel = allPanels.find(p => p.name === name);
                     if (!panel) return;
                     const circuits = allCircuits.filter(c => c.panel_name === name);
                     const summaries = calculatePanelSummaries(name, circuits);
                     const newRow = createPanelRow(panel, summaries);
-                    const oldRow = el.closest('tr');
-                    if (oldRow && oldRow.parentNode) oldRow.parentNode.replaceChild(newRow, oldRow);
-                };
-                input.addEventListener('change', (e) => commit(e.target));
-                input.addEventListener('blur', (e) => commit(e.target));
-                // 入力中もlocalStorage更新（再描画はしない）
-                input.addEventListener('input', (e) => {
-                    const n = Number(e.target.value);
-                    if (!isNaN(n) && n >= 0 && n <= 200) {
-                        setDemandRate(e.target.dataset.panelName, n);
+                    const oldRow = input.closest('tr');
+                    if (!oldRow || !oldRow.parentNode) return;
+                    // 新しい行のinputにフォーカスを引き継ぐため、元の入力値と選択範囲を記録
+                    const caret = input.selectionStart;
+                    oldRow.parentNode.replaceChild(newRow, oldRow);
+                    // フォーカス復帰（表示のみ更新して入力継続できるようにする）
+                    const newInput = newRow.querySelector('.panel-demand-rate-input');
+                    if (newInput) {
+                        newInput.focus();
+                        if (caret != null) {
+                            try { newInput.setSelectionRange(caret, caret); } catch (_) {}
+                        }
                     }
+                };
+
+                // 入力中: 値が有効なら即座にlocalStorage保存＋行再描画
+                tbody.addEventListener('input', (e) => {
+                    const el = e.target;
+                    if (!el.classList || !el.classList.contains('panel-demand-rate-input')) return;
+                    const n = Number(el.value);
+                    if (isNaN(n)) return;
+                    if (n < 0 || n > 200) return;
+                    setDemandRate(el.dataset.panelName, n);
+                    rerenderRow(el);
                 });
-            });
+
+                // 確定時: 最終値をもう一度保存して再描画（念のため）
+                tbody.addEventListener('change', (e) => {
+                    const el = e.target;
+                    if (!el.classList || !el.classList.contains('panel-demand-rate-input')) return;
+                    const n = Number(el.value);
+                    if (isNaN(n)) return;
+                    setDemandRate(el.dataset.panelName, Math.max(0, Math.min(200, n)));
+                    rerenderRow(el);
+                });
+            }
+
             requestAnimationFrame(syncPanelsScrollProxyWidth);
         }
 
