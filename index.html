@@ -3642,13 +3642,15 @@
                 autoLoadCapacity = summaries.total;
 
                 // Auto-set voltage based on panel type
-                if (matchedPanel.type === '1φ3W') {
+                // NOTE: 盤オブジェクトのフィールド名は elec_type（type ではない）
+                const pElecType = matchedPanel.elec_type || matchedPanel.type;
+                if (pElecType === '1φ3W') {
                     autoVoltage = 200;
                     autoPhase = '1φ3W';
-                } else if (matchedPanel.type === '1φ2W') {
+                } else if (pElecType === '1φ2W') {
                     autoVoltage = 100;
                     autoPhase = '1φ2W';
-                } else if (matchedPanel.type === '3φ3W') {
+                } else if (pElecType === '3φ3W') {
                     autoVoltage = 200;
                     autoPhase = '3φ3W';
                 }
@@ -3674,8 +3676,14 @@
 
             let current = 0;
             if (phase === '3φ3W') {
+                // 3φ3W: I = VA / (√3 × V_line)
                 current = demandCapacity * 1000 / (Math.sqrt(3) * voltage);
+            } else if (phase === '1φ3W') {
+                // 1φ3W: 線間電圧 200V で算定（内線規程 1310-3）
+                // 平衡時 I_L1 = I_L2 = VA / (2 × 100) = VA / 200
+                current = demandCapacity * 1000 / 200;
             } else {
+                // 1φ2W: I = VA / V
                 current = demandCapacity * 1000 / voltage;
             }
 
@@ -3694,13 +3702,9 @@
             const cableEntry = CABLE_DATA.find(c => c.size === cableSize);
             const cableCapacity = cableType === 'CV' ? cableEntry?.cv : cableEntry?.cvt;
 
-            // AT判定: for 電灯 AT ≥ current×1.25, for 動力 AT ≥ current
-            let atStatus = 'OK';
-            if (feederCategory === '動力') {
-                atStatus = (breakerAT >= current) ? 'OK' : '×';
-            } else {
-                atStatus = (breakerAT >= current * 1.25) ? 'OK' : '×';
-            }
+            // AT判定: 幹線（main feeder）は内線規程 1310条により AT ≥ 設計電流で判定
+            // ※分岐回路の 1.25倍（3605-3条）は幹線には適用しない
+            let atStatus = (breakerAT >= current) ? 'OK' : '×';
 
             // Calculate 内線規程AT for 3φ3W feeders with motor data
             let kiteiAT = '-';
@@ -3989,6 +3993,8 @@
                 let current = 0;
                 if (phase === '3φ3W') {
                     current = demandCapacity * 1000 / (Math.sqrt(3) * voltage);
+                } else if (phase === '1φ3W') {
+                    current = demandCapacity * 1000 / 200;
                 } else {
                     current = demandCapacity * 1000 / voltage;
                 }
@@ -4004,13 +4010,8 @@
                 const breakerAF = feeder.breaker_af || breaker.af;
                 const breakerAT = feeder.breaker_at || breaker.at;
 
-                // AT判定
-                let atStatus = 'OK';
-                if (feederCategory === '動力') {
-                    atStatus = (breakerAT >= current) ? 'OK' : '×';
-                } else {
-                    atStatus = (breakerAT >= current * 1.25) ? 'OK' : '×';
-                }
+                // AT判定（幹線は内線規程 1310条: AT ≥ 設計電流。1.25倍は分岐回路のみ適用）
+                let atStatus = (breakerAT >= current) ? 'OK' : '×';
 
                 // 内線規程AT
                 let kiteiAT = '-';
