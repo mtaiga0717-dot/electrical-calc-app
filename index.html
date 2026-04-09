@@ -534,6 +534,37 @@
         .panel-filter-summary .pfs-badge.ok { background: #c8e6c9; color: #1b5e20; }
         .panel-filter-summary .pfs-badge.ng { background: #ffcdd2; color: #b71c1c; }
         .panel-filter-summary.pfs-hidden { display: none !important; }
+        .panel-filter-summary .pfs-demand {
+            display: inline-flex;
+            flex-direction: column;
+            padding: 0.2rem 0.9rem;
+            border-right: 1px solid #90caf9;
+            justify-content: center;
+            gap: 0.15rem;
+        }
+        .panel-filter-summary .pfs-demand select,
+        .panel-filter-summary .pfs-demand input[type="number"] {
+            font-size: 0.85rem;
+            padding: 0.15rem 0.35rem;
+            border: 1px solid #64b5f6;
+            border-radius: 4px;
+            background: #fff;
+            color: #0d47a1;
+            font-weight: bold;
+        }
+        .panel-filter-summary .pfs-demand select { min-width: 120px; }
+        .panel-filter-summary .pfs-demand input[type="number"] { width: 70px; }
+        .panel-filter-summary .pfs-demand-row {
+            display: inline-flex;
+            gap: 0.3rem;
+            align-items: center;
+        }
+        .panel-filter-summary .pfs-after-demand {
+            background: linear-gradient(90deg, #fff9c4 0%, #fff59d 100%);
+            border: 1px solid #fbc02d;
+            border-radius: 4px;
+            padding: 0.1rem 0.55rem;
+        }
 
         .btn-action {
             background-color: #42a5f5;
@@ -2779,6 +2810,32 @@
             }
         }
 
+        // 需要率プリセット（内線規程 1305節 参考／国交省公共建築工事標準仕様書）
+        const DEMAND_RATE_PRESETS = [
+            { label: '100% (適用なし)', value: 100 },
+            { label: '住宅・アパート 50%', value: 50 },
+            { label: '事務所・銀行 70%', value: 70 },
+            { label: '学校・教会 70%', value: 70 },
+            { label: '店舗・飲食店 70%', value: 70 },
+            { label: '旅館・ホテル 60%', value: 60 },
+            { label: '病院 60%', value: 60 },
+            { label: '劇場・映画館 80%', value: 80 },
+            { label: '工場 80%', value: 80 },
+            { label: 'カスタム…', value: 'custom' }
+        ];
+        const DEMAND_STORAGE_PREFIX = 'elecCalc:demandRate:';
+        function getDemandRate(panelName) {
+            try {
+                const v = localStorage.getItem(DEMAND_STORAGE_PREFIX + panelName);
+                if (v == null) return 100;
+                const n = Number(v);
+                return isNaN(n) ? 100 : Math.max(0, Math.min(200, n));
+            } catch (_) { return 100; }
+        }
+        function setDemandRate(panelName, rate) {
+            try { localStorage.setItem(DEMAND_STORAGE_PREFIX + panelName, String(rate)); } catch (_) {}
+        }
+
         // 盤フィルタ適用時の合計容量サマリーを描画
         function renderPanelFilterSummary(panelName) {
             const box = document.getElementById('panelFilterSummary');
@@ -2802,6 +2859,27 @@
             const atBadge = panelAT === 0
                 ? '<span class="pfs-badge">-</span>'
                 : `<span class="pfs-badge ${atOK ? 'ok' : 'ng'}">${atOK ? 'OK' : '×'}</span>`;
+
+            // 需要率（localStorage 保存値）
+            const rate = getDemandRate(panelName);
+            const rateFactor = rate / 100;
+            const dTotal = s.total * rateFactor;
+            const dCurrent = s.current * rateFactor;
+            const dL1Cur = s.l1Current * rateFactor;
+            const dL2Cur = s.l2Current * rateFactor;
+            const atOKd = panelAT > 0 && panelAT >= dCurrent;
+            const atBadgeD = panelAT === 0
+                ? '<span class="pfs-badge">-</span>'
+                : `<span class="pfs-badge ${atOKd ? 'ok' : 'ng'}">${atOKd ? 'OK' : '×'}</span>`;
+
+            // プリセットセレクトのoptions生成 + カスタム判定
+            const matchedPreset = DEMAND_RATE_PRESETS.find(p => p.value === rate);
+            const isCustom = !matchedPreset;
+            const presetOptions = DEMAND_RATE_PRESETS.map(p => {
+                const v = p.value === 'custom' ? 'custom' : String(p.value);
+                const sel = (isCustom && p.value === 'custom') || (!isCustom && matchedPreset && matchedPreset.label === p.label) ? 'selected' : '';
+                return `<option value="${v}" ${sel}>${p.label}</option>`;
+            }).join('');
 
             let balanceHtml = '';
             if (s.balance !== null) {
@@ -2858,6 +2936,14 @@
                     <span class="pfs-label">主遮断器</span>
                     <span class="pfs-value">${panel.main_breaker || '-'} AF${panel.af || '-'}/AT${panel.at || '-'}</span>
                 </span>
+                <span class="pfs-demand">
+                    <span class="pfs-label">需要率（内線規程1305節参考）</span>
+                    <span class="pfs-demand-row">
+                        <select id="pfsDemandPreset" title="用途別需要率プリセット">${presetOptions}</select>
+                        <input type="number" id="pfsDemandCustom" value="${rate}" min="0" max="200" step="1" title="需要率 %" />
+                        <span style="font-weight:bold;color:#0d47a1;">%</span>
+                    </span>
+                </span>
                 <span class="pfs-group-break"></span>
                 <span class="pfs-item">
                     <span class="pfs-label">照明</span>
@@ -2880,22 +2966,78 @@
                     <span class="pfs-value">${s.feeder.toFixed(2)} kVA</span>
                 </span>
                 <span class="pfs-item">
-                    <span class="pfs-label">合計</span>
+                    <span class="pfs-label">設備容量 合計</span>
                     <span class="pfs-value pfs-total">${s.total.toFixed(2)} kVA</span>
                 </span>
                 <span class="pfs-item">
-                    <span class="pfs-label">幹線電流</span>
+                    <span class="pfs-label">幹線電流(100%)</span>
                     <span class="pfs-value">${s.current.toFixed(1)} A</span>
                 </span>
                 ${phaseRowHtml}
                 <span class="pfs-group-break"></span>
+                <span class="pfs-item pfs-after-demand">
+                    <span class="pfs-label">最大需要電力 (×${rate}%)</span>
+                    <span class="pfs-value pfs-total">${dTotal.toFixed(2)} kVA</span>
+                </span>
+                <span class="pfs-item pfs-after-demand">
+                    <span class="pfs-label">想定幹線電流</span>
+                    <span class="pfs-value">${dCurrent.toFixed(1)} A</span>
+                </span>
+                ${isThreePhase ? '' : `
+                <span class="pfs-item pfs-after-demand">
+                    <span class="pfs-label">I_L1 (需要後)</span>
+                    <span class="pfs-value">${dL1Cur.toFixed(1)} A</span>
+                </span>
+                <span class="pfs-item pfs-after-demand">
+                    <span class="pfs-label">I_L2 (需要後)</span>
+                    <span class="pfs-value">${dL2Cur.toFixed(1)} A</span>
+                </span>`}
+                <span class="pfs-item pfs-after-demand">
+                    <span class="pfs-label">AT判定 (需要後)</span>
+                    <span class="pfs-value">${atBadgeD}</span>
+                </span>
+                <span class="pfs-group-break"></span>
                 <span class="pfs-item">
-                    <span class="pfs-label">AT判定</span>
+                    <span class="pfs-label">AT判定 (100%)</span>
                     <span class="pfs-value">${atBadge}</span>
                 </span>
                 ${balanceHtml}
             `;
             box.classList.remove('pfs-hidden');
+
+            // 需要率コントロールのイベント
+            const presetSel = document.getElementById('pfsDemandPreset');
+            const customInp = document.getElementById('pfsDemandCustom');
+            if (presetSel) {
+                presetSel.addEventListener('change', (e) => {
+                    const v = e.target.value;
+                    if (v === 'custom') {
+                        customInp.focus();
+                        return;
+                    }
+                    const n = Number(v);
+                    if (!isNaN(n)) {
+                        setDemandRate(panelName, n);
+                        renderPanelFilterSummary(panelName);
+                    }
+                });
+            }
+            if (customInp) {
+                customInp.addEventListener('change', (e) => {
+                    const n = Number(e.target.value);
+                    if (!isNaN(n)) {
+                        setDemandRate(panelName, n);
+                        renderPanelFilterSummary(panelName);
+                    }
+                });
+                customInp.addEventListener('input', (e) => {
+                    // 即時反映（入力中）
+                    const n = Number(e.target.value);
+                    if (!isNaN(n) && n >= 0 && n <= 200) {
+                        setDemandRate(panelName, n);
+                    }
+                });
+            }
         }
 
         async function renderCircuits() {
