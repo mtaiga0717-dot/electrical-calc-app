@@ -621,14 +621,28 @@
             box-sizing: border-box;
         }
 
-        .feeders-table input:readonly {
+        .feeders-table input:readonly,
+        .circuits-table input:readonly {
             background-color: #e3f2fd;
             border: none;
+            color: #1565c0;
+            font-weight: bold;
+            cursor: not-allowed;
+            pointer-events: none;
         }
 
-        .feeders-table input:readonly:focus {
+        .feeders-table input:readonly:focus,
+        .circuits-table input:readonly:focus {
             border: none;
             box-shadow: none;
+        }
+
+        /* 自動計算セル（td内のstrong等） */
+        .auto-calc {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            font-weight: bold;
+            text-align: center;
         }
 
         .feeders-table input:focus,
@@ -2111,8 +2125,8 @@
                 <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="fc" value="${(circuit.fc || 0).toFixed(2)}" /></td>
                 <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="oa" value="${(circuit.oa || 0).toFixed(2)}" /></td>
                 <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="feeder" value="${(circuit.feeder || 0).toFixed(2)}" /></td>
-                <td><strong>${total.toFixed(2)}</strong></td>
-                <td><strong>${current.toFixed(2)}</strong></td>
+                <td class="auto-calc">${total.toFixed(2)}</td>
+                <td class="auto-calc">${current.toFixed(2)}</td>
                 <td><strong><span class="badge ${atStatus === 'OK' || atStatus === '-' ? 'badge-ok' : 'badge-ng'}" ${atNgReason ? `title="${atNgReason}"` : ''}>${atStatus}${atNgReason ? ' ⚠' : ''}</span></strong>${atNgReason ? `<div style="font-size:0.65rem;color:#d32f2f;white-space:nowrap;">${atNgReason}</div>` : ''}</td>
                 <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="load_name" value="${circuit.load_name || ''}" /></td>
                 <td><input type="number" min="0" class="circuit-input" data-id="${circuit.id}" data-field="remocon" value="${circuit.remocon || 0}" style="width:50px;" /></td>
@@ -2221,7 +2235,6 @@
             const newCircuit = {
                 panel_name: panelName,
                 type: 'M',
-                category: '電灯',
                 symbol: '◎',
                 circuit_no: '',
                 phase: 'L1',
@@ -2240,11 +2253,16 @@
             };
 
             try {
-                const { error } = await db
+                const { data, error } = await db
                     .from('circuits')
-                    .insert([newCircuit]);
+                    .insert([newCircuit])
+                    .select();
 
                 if (error) throw error;
+                // categoryはDBにないのでlocalCircuitDataに保存
+                if (data && data[0]) {
+                    localCircuitData[data[0].id] = { category: '電灯' };
+                }
                 await loadCircuits();
                 await renderCircuits();
             } catch (error) {
