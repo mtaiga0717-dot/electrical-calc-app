@@ -1880,7 +1880,6 @@
             const { data, error } = await db
                 .from('panels')
                 .select('*')
-                .order('sort_order', { ascending: true, nullsFirst: true })
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
@@ -2067,9 +2066,7 @@
                         .eq('id', editingPanelId);
                     if (error) throw error;
                 } else {
-                    // 一番下に追加: 既存の最大sort_order + 1000
-                    const maxSort = allPanels.reduce((m, p) => Math.max(m, p.sort_order || 0), 0);
-                    data.sort_order = maxSort + 1000;
+                    // panels テーブルには sort_order 列が無いので created_at ASC で自然に末尾に入る
                     const { error } = await db
                         .from('panels')
                         .insert([data]);
