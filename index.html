@@ -2393,19 +2393,16 @@
             const colIndex = Array.from(tr.children).indexOf(td);
 
             if (key === 'ArrowDown' || key === 'ArrowUp') {
-                // 重要：select / number input の既定動作（選択変更・値の増減）を常に抑止する
-                // これをしないと「値が変わる → change イベント → DB保存 → 再描画 → フォーカス消失」で
-                // 矢印キーを押した瞬間にどこかへ飛ぶ現象が起きる
-                if (target.tagName === 'SELECT' || (target.tagName === 'INPUT' && target.type === 'number')) {
-                    e.preventDefault();
-                }
-                // 同じ列にinput/selectを持つ行のみを探して移動（空セルの行はスキップ）
+                // 重要：↑↓ は常にブラウザ既定動作を抑止する
+                // - select：選択変更を抑止（change → 再描画 → フォーカス消失を防ぐ）
+                // - number：値の増減を抑止
+                // - text：自動スクロール等を抑止
+                e.preventDefault();
+                e.stopPropagation();
                 const dir = key === 'ArrowDown' ? 'next' : 'prev';
                 const el = findInputInSameColumn(tr, colIndex, dir);
                 if (el) {
-                    e.preventDefault();
-                    el.focus();
-                    if (el.select) el.select();
+                    focusCellElement(el);
                 }
                 return;
             } else if (key === 'ArrowRight' || key === 'ArrowLeft') {
@@ -2415,10 +2412,39 @@
                 while (i >= 0 && i < tr.children.length) {
                     const cell = tr.children[i];
                     const el = cell.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled])');
-                    if (el) { e.preventDefault(); el.focus(); if (el.select) el.select(); return; }
+                    if (el) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        focusCellElement(el);
+                        return;
+                    }
                     i += dir;
                 }
                 return;
+            }
+        }
+
+        // セル要素に安全にフォーカスを当てる（自動スクロール抑止＋テキスト入力のみ全選択）
+        function focusCellElement(el) {
+            try {
+                el.focus({ preventScroll: true });
+            } catch (_) {
+                el.focus();
+            }
+            // 全選択できるのは text/search/url/tel/password のみ。number/select/readonly では呼ばない
+            if (el.tagName === 'INPUT') {
+                const t = el.type;
+                if ((t === 'text' || t === 'search' || t === 'url' || t === 'tel' || t === 'password') && !el.readOnly) {
+                    try { el.select(); } catch (_) {}
+                }
+            }
+            // 画面外なら最小限のスクロールで見える位置に寄せる
+            const rect = el.getBoundingClientRect();
+            const vh = window.innerHeight || document.documentElement.clientHeight;
+            if (rect.top < 60) {
+                window.scrollBy({ top: rect.top - 80, behavior: 'instant' in window ? 'instant' : 'auto' });
+            } else if (rect.bottom > vh - 30) {
+                window.scrollBy({ top: rect.bottom - vh + 40, behavior: 'instant' in window ? 'instant' : 'auto' });
             }
         }
 
