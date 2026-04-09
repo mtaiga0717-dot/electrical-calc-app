@@ -1342,6 +1342,7 @@
                             <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
                                 <li>区分＝<b>電灯</b>（照明・コンセント・FC・OA）：連続負荷として扱い、<code>AT &lt; 電流 × 1.25</code> で NG</li>
                                 <li>区分＝<b>動力</b>：連続負荷ではないため 1.25倍補正は適用せず、<code>AT &lt; 電流</code> のみで判定（始動電流は別途 3705-1表 等で電動機用分岐遮断器を選定）</li>
+                                <li>記号＝<b>分岐</b>（幹線分岐／幹線タップ）：3605-3条の対象外。幹線扱いで <code>AT ≧ 設計電流</code> のみ（内線規程 <b>1310節</b>）</li>
                                 <li>電流＝0A は「-」（未使用扱い）</li>
                             </ul>
                         </dd>
@@ -1517,6 +1518,7 @@
                                 <li>三相（3φ）：<code>I = VA ÷ (√3 × V)</code></li>
                             </ul>
                             <b>電灯回路で×1.25 する根拠</b>：内線規程 <b>3605-3条</b>は「<b>連続負荷を有する分岐回路の負荷容量は、その分岐回路を保護する過電流遮断器の定格電流の 80% を超えないこと</b>」と定めています。すなわち <code>負荷電流 ≦ AT × 0.8</code>、これを逆数で表すと <code>AT ≧ 負荷電流 × 1.25</code> となります。本アプリは電灯・コンセント系統の回路（区分＝電灯）を連続負荷として扱い、<code>AT &lt; 電流 × 1.25</code> のとき NG と判定します。動力回路は連続負荷ではなく、始動時の突入電流は別途電動機用遮断器選定（3705-1表等）で扱うため、この 1.25 倍補正は適用しません。<br>
+                            <b>記号「分岐」は除外</b>：3605-3条は「分岐回路」に対する規定であり、<b>幹線分岐（幹線タップ）</b>である記号「分岐」は幹線扱いのため、1.25倍ルールを<b>適用しません</b>。幹線は内線規程<b>1310節</b>により <code>AT ≧ 設計電流</code> のみで判定します。<br>
                             <b>補足</b>：NG の場合は AT セルにカーソルを合わせると、不足理由（例：<code>AT(20) &lt; 電流×1.25(22.5A) [3605-3条 80%ルール]</code>）がツールチップで表示されます。
                         </dd>
 
@@ -3348,7 +3350,11 @@
             const current = circuitViewMode === 'actual' ? actualCurrent : designCurrent;
             const at = circuit.at || 0;
             const category = circuit.category || '電灯';
-            const isLighting = (category === '電灯');
+            // 3605-3条(80%ルール)は「分岐回路」に対する規定のため、
+            // 記号「分岐」(＝幹線分岐/幹線タップ)は幹線扱いで1.25倍を適用しない。
+            // 幹線は内線規程1310節により AT ≧ 設計電流 のみで判定する。
+            const isFeederTap = (circuit.symbol === '分岐');
+            const isLighting = (category === '電灯') && !isFeederTap;
             const requiredAT = isLighting ? current * 1.25 : current;
 
             // 自動相計算（電灯回路のみ）
@@ -3773,13 +3779,31 @@
             const maxSort = allCircuits.reduce((m, c) => Math.max(m, c.sort_order || 0), 0);
             const newSortOrder = maxSort + 1000;
 
-            // 回路NO自動採番: 直前の回路のcircuit_noを+1（数値の場合のみ）
+            // 回路NO自動採番:
+            //  - 候補の中で「最大の数値circuit_no」を基準にする（sort_order最後の行とは限らない）
+            //  - 最大NOの行の記号が 2P系(200V単相)なら +2、3P系(3φ3W)なら +3、それ以外は +1
+            //    物理的な分電盤のスロット数に合わせる
             let nextCircuitNo = '';
-            if (prevCircuit && prevCircuit.circuit_no) {
-                const n = parseInt(prevCircuit.circuit_no, 10);
-                if (!isNaN(n)) {
-                    nextCircuitNo = String(n + 1);
+            const POLE_3P_SYMBOLS = new Set(['◇']);
+            const POLE_2P_SYMBOLS = new Set(['◎', '□□', '[][]', '■', '分岐']);
+            const stepForSymbol = (sym) => {
+                if (POLE_3P_SYMBOLS.has(sym)) return 3;
+                if (POLE_2P_SYMBOLS.has(sym)) return 2;
+                return 1;
+            };
+            // 数値circuit_noを持つ候補から最大を探す
+            let maxNoCircuit = null;
+            let maxNoVal = -Infinity;
+            candidates.forEach(c => {
+                const n = parseInt(c.circuit_no, 10);
+                if (!isNaN(n) && n > maxNoVal) {
+                    maxNoVal = n;
+                    maxNoCircuit = c;
                 }
+            });
+            if (maxNoCircuit) {
+                const step = stepForSymbol(maxNoCircuit.symbol);
+                nextCircuitNo = String(maxNoVal + step);
             } else if (prevCircuit) {
                 nextCircuitNo = '1';
             }
