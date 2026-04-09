@@ -165,30 +165,45 @@
 
         /* Panels Tab */
         .panels-table-wrapper {
-            overflow-x: scroll;
+            overflow-x: auto;
             overflow-y: visible;
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-            scrollbar-width: auto; /* Firefox: 常時表示 */
-            scrollbar-gutter: stable;
+            margin-bottom: 0;
         }
-        /* WebKit（Chrome/Safari/Edge）で横スクロールバーを常時表示 */
-        .panels-table-wrapper::-webkit-scrollbar {
-            height: 12px;
+        .panels-table {
+            min-width: 1500px;
+        }
+        /* 画面下に常時表示される横スクロールバー（プロキシ） */
+        .panels-scroll-proxy {
+            position: sticky;
+            bottom: 0;
+            overflow-x: scroll;
+            overflow-y: hidden;
+            height: 16px;
+            background: rgba(255,255,255,0.98);
+            border-top: 1px solid #bbb;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.08);
+            z-index: 20;
+            margin-bottom: 2rem;
+        }
+        .panels-scroll-proxy-inner {
+            height: 1px;
+        }
+        .panels-scroll-proxy::-webkit-scrollbar {
+            height: 14px;
             -webkit-appearance: none;
         }
-        .panels-table-wrapper::-webkit-scrollbar-track {
+        .panels-scroll-proxy::-webkit-scrollbar-track {
             background: #e9ecef;
-            border-radius: 6px;
         }
-        .panels-table-wrapper::-webkit-scrollbar-thumb {
+        .panels-scroll-proxy::-webkit-scrollbar-thumb {
             background: #868e96;
             border-radius: 6px;
             border: 2px solid #e9ecef;
         }
-        .panels-table-wrapper::-webkit-scrollbar-thumb:hover {
+        .panels-scroll-proxy::-webkit-scrollbar-thumb:hover {
             background: #495057;
         }
 
@@ -1168,7 +1183,7 @@
             <!-- Panels Tab -->
             <div id="panels" class="tab-content active">
                 <button class="btn-add-panel" id="btnAddPanel">+ 盤を追加</button>
-                <div class="panels-table-wrapper">
+                <div class="panels-table-wrapper" id="panelsTableWrapper">
                     <table class="panels-table" id="panelsTable">
                         <thead>
                             <tr>
@@ -1192,6 +1207,7 @@
                         <tbody id="panelsBody"></tbody>
                     </table>
                 </div>
+                <div class="panels-scroll-proxy" id="panelsScrollProxy"><div class="panels-scroll-proxy-inner" id="panelsScrollProxyInner"></div></div>
 
                 <div class="circuits-help" style="margin-top:1rem;">
                     <h3>📐 盤のAT判定・電流計算の根拠</h3>
@@ -2017,6 +2033,7 @@
 
             // 横スクロール同期（画面下に常時表示されるプロキシバー）
             setupScrollProxy();
+            setupPanelsScrollProxy();
             window.addEventListener('resize', syncScrollProxyWidth);
 
             // 画面上に浮かせるヘッダー（縦スクロール時も列名が残る）
@@ -2080,8 +2097,9 @@
 
         async function loadAllData() {
             try {
-                await loadPanels();
+                // 先に回路データを読み込まないと 盤一覧の集計（lighting/outlet/電流等）が 0 になる
                 await loadCircuits();
+                await loadPanels();
                 await loadFeeders();
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -2115,6 +2133,11 @@
                     Object.assign(c, localCircuitData[c.id]);
                 }
             });
+
+            // 回路データが更新されたら 盤一覧の集計も再計算
+            if (allPanels && allPanels.length > 0) {
+                renderPanels();
+            }
         }
 
         async function loadFeeders() {
@@ -2137,6 +2160,7 @@
                 const row = createPanelRow(panel, summaries);
                 tbody.appendChild(row);
             });
+            requestAnimationFrame(syncPanelsScrollProxyWidth);
         }
 
         function calculatePanelSummaries(panelName, circuits) {
@@ -2408,6 +2432,37 @@
             const wrapper = document.getElementById('circuitsTableWrapper');
             const inner = document.getElementById('circuitsScrollProxyInner');
             const table = document.getElementById('circuitsTable');
+            if (wrapper && inner && table) {
+                inner.style.width = table.scrollWidth + 'px';
+            }
+            syncPanelsScrollProxyWidth();
+        }
+
+        // 盤一覧用の横スクロール プロキシ
+        function setupPanelsScrollProxy() {
+            const wrapper = document.getElementById('panelsTableWrapper');
+            const proxy = document.getElementById('panelsScrollProxy');
+            if (!wrapper || !proxy) return;
+            let syncing = false;
+            proxy.addEventListener('scroll', () => {
+                if (syncing) return;
+                syncing = true;
+                wrapper.scrollLeft = proxy.scrollLeft;
+                syncing = false;
+            });
+            wrapper.addEventListener('scroll', () => {
+                if (syncing) return;
+                syncing = true;
+                proxy.scrollLeft = wrapper.scrollLeft;
+                syncing = false;
+            });
+            syncPanelsScrollProxyWidth();
+        }
+
+        function syncPanelsScrollProxyWidth() {
+            const wrapper = document.getElementById('panelsTableWrapper');
+            const inner = document.getElementById('panelsScrollProxyInner');
+            const table = document.getElementById('panelsTable');
             if (!wrapper || !inner || !table) return;
             inner.style.width = table.scrollWidth + 'px';
         }
