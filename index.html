@@ -621,20 +621,20 @@
             box-sizing: border-box;
         }
 
-        .feeders-table input:readonly,
-        .circuits-table input:readonly {
-            background-color: #e3f2fd;
-            border: none;
-            color: #1565c0;
-            font-weight: bold;
-            cursor: not-allowed;
-            pointer-events: none;
+        .feeders-table input[readonly],
+        .circuits-table input[readonly] {
+            background-color: #e3f2fd !important;
+            border: none !important;
+            color: #1565c0 !important;
+            font-weight: bold !important;
+            cursor: not-allowed !important;
+            pointer-events: none !important;
         }
 
-        .feeders-table input:readonly:focus,
-        .circuits-table input:readonly:focus {
-            border: none;
-            box-shadow: none;
+        .feeders-table input[readonly]:focus,
+        .circuits-table input[readonly]:focus {
+            border: none !important;
+            box-shadow: none !important;
         }
 
         /* 自動計算セル（td内のstrong等） */
