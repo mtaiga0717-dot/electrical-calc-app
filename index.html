@@ -506,28 +506,31 @@
             box-sizing: border-box;
         }
 
+        /* Circuit table column widths (includes new 区分 column) */
         .circuits-table th:nth-child(1),
-        .circuits-table td:nth-child(1) { width: 25px; }
+        .circuits-table td:nth-child(1) { min-width: 30px; width: 30px; }
         .circuits-table th:nth-child(2),
-        .circuits-table td:nth-child(2) { width: 65px; }
+        .circuits-table td:nth-child(2) { min-width: 100px; }
         .circuits-table th:nth-child(3),
-        .circuits-table td:nth-child(3) { width: 40px; }
+        .circuits-table td:nth-child(3) { min-width: 55px; }
         .circuits-table th:nth-child(4),
-        .circuits-table td:nth-child(4) { width: 40px; }
+        .circuits-table td:nth-child(4) { min-width: 60px; }
         .circuits-table th:nth-child(5),
-        .circuits-table td:nth-child(5) { width: 55px; }
+        .circuits-table td:nth-child(5) { min-width: 45px; }
         .circuits-table th:nth-child(6),
-        .circuits-table td:nth-child(6) { width: 45px; }
+        .circuits-table td:nth-child(6) { min-width: 60px; }
         .circuits-table th:nth-child(7),
-        .circuits-table td:nth-child(7) { width: 40px; }
+        .circuits-table td:nth-child(7) { min-width: 60px; }
         .circuits-table th:nth-child(8),
-        .circuits-table td:nth-child(8) { width: 85px; }
+        .circuits-table td:nth-child(8) { min-width: 100px; }
         .circuits-table th:nth-child(9),
-        .circuits-table td:nth-child(9) { width: 40px; }
+        .circuits-table td:nth-child(9) { min-width: 55px; }
         .circuits-table th:nth-child(10),
-        .circuits-table td:nth-child(10) { width: 40px; }
+        .circuits-table td:nth-child(10) { min-width: 55px; }
         .circuits-table th:nth-child(11),
-        .circuits-table td:nth-child(11) { width: 40px; }
+        .circuits-table td:nth-child(11) { min-width: 55px; }
+        .circuits-table th:nth-child(12),
+        .circuits-table td:nth-child(12) { min-width: 55px; }
 
         .circuits-table input:focus,
         .circuits-table select:focus {
@@ -974,13 +977,13 @@
                                 <th>主遮断器</th>
                                 <th>AF</th>
                                 <th>AT</th>
-                                <th>照明</th>
-                                <th>ｺﾝｾﾝﾄ</th>
-                                <th>FC</th>
-                                <th>OA</th>
-                                <th>幹線</th>
-                                <th>合計</th>
-                                <th>電流</th>
+                                <th>照明[kVA]</th>
+                                <th>ｺﾝｾﾝﾄ[kVA]</th>
+                                <th>FC[kVA]</th>
+                                <th>OA[kVA]</th>
+                                <th>幹線[kVA]</th>
+                                <th>合計[kVA]</th>
+                                <th>電流[A]</th>
                                 <th>AT判定</th>
                                 <th>平衡率</th>
                                 <th>操作</th>
@@ -997,6 +1000,11 @@
                     <select id="circuitsPanelFilter" class="circuits-filter">
                         <option value="">全ての盤</option>
                     </select>
+                    <select id="circuitCategoryFilter" class="circuits-filter">
+                        <option value="">全て</option>
+                        <option value="電灯">電灯回路</option>
+                        <option value="動力">動力回路</option>
+                    </select>
                     <button class="btn-action" id="btnAddCircuit">+ 回路追加</button>
                     <button class="btn-action" id="btnRemconExpand">リモコン展開</button>
                     <button class="btn-action btn-danger" id="btnRemconDelete">RC全削除</button>
@@ -1009,21 +1017,21 @@
                                 <th>#</th>
                                 <th>盤名称</th>
                                 <th>種別</th>
+                                <th>区分</th>
                                 <th>記号</th>
                                 <th>回路No</th>
-                                <th>親No</th>
                                 <th>相</th>
                                 <th>遮断器</th>
                                 <th>AF</th>
                                 <th>AT</th>
-                                <th>電圧</th>
-                                <th>照明</th>
-                                <th>ｺﾝｾﾝﾄ</th>
-                                <th>FC</th>
-                                <th>OA</th>
-                                <th>幹線</th>
-                                <th>合計</th>
-                                <th>電流</th>
+                                <th>電圧[V]</th>
+                                <th>照明[kVA]</th>
+                                <th>ｺﾝｾﾝﾄ[kVA]</th>
+                                <th>FC[kVA]</th>
+                                <th>OA[kVA]</th>
+                                <th>幹線[kVA]</th>
+                                <th>合計[kVA]</th>
+                                <th>電流[A]</th>
                                 <th>AT判定</th>
                                 <th>負荷名称</th>
                                 <th>RC数</th>
@@ -1063,6 +1071,9 @@
                                 <th>ブレーカー種別</th>
                                 <th>AF</th>
                                 <th>AT</th>
+                                <th>動力合計kW</th>
+                                <th>最大電動機kW</th>
+                                <th>内線規程AT</th>
                                 <th>ブレーカー判定</th>
                                 <th>行先</th>
                                 <th>操作</th>
@@ -1607,6 +1618,8 @@
         let allCircuits = [];
         let allFeeders = [];
         let editingPanelId = null;
+        const localFeederData = {};  // Client-side only data (not in Supabase)
+        const localCircuitData = {};  // Client-side only data for circuits (not in Supabase)
 
         // Authentication
         function handleLogin(event) {
@@ -1652,6 +1665,7 @@
             document.getElementById('btnAddPanel').addEventListener('click', openPanelModal);
 
             document.getElementById('circuitsPanelFilter').addEventListener('change', renderCircuits);
+            document.getElementById('circuitCategoryFilter').addEventListener('change', renderCircuits);
             document.getElementById('btnAddCircuit').addEventListener('click', addCircuitRow);
             document.getElementById('btnRemconExpand').addEventListener('click', expandRemcon);
             document.getElementById('btnRemconDelete').addEventListener('click', deleteAllRemcon);
@@ -1725,6 +1739,13 @@
 
             if (error) throw error;
             allCircuits = data || [];
+
+            // Merge local data
+            allCircuits.forEach(c => {
+                if (localCircuitData[c.id]) {
+                    Object.assign(c, localCircuitData[c.id]);
+                }
+            });
         }
 
         async function loadFeeders() {
@@ -1932,10 +1953,15 @@
 
         async function renderCircuits() {
             const filterValue = document.getElementById('circuitsPanelFilter').value;
+            const categoryFilter = document.getElementById('circuitCategoryFilter').value;
             let filtered = allCircuits;
 
             if (filterValue) {
                 filtered = allCircuits.filter(c => c.panel_name === filterValue);
+            }
+
+            if (categoryFilter) {
+                filtered = filtered.filter(c => (c.category || '電灯') === categoryFilter);
             }
 
             filtered.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
@@ -1943,11 +1969,39 @@
             const tbody = document.getElementById('circuitsTableBody');
             tbody.innerHTML = '';
 
-            filtered.forEach((circuit, index) => {
-                const row = createCircuitRow(circuit, index + 1);
-                if (circuit.type === 'RC') row.classList.add('row-rc');
-                tbody.appendChild(row);
-            });
+            if (!categoryFilter) {
+                // 電灯回路
+                const lightingCircuits = filtered.filter(c => (c.category || '電灯') === '電灯');
+                const motorCircuits = filtered.filter(c => c.category === '動力');
+
+                if (lightingCircuits.length > 0) {
+                    const headerRow = document.createElement('tr');
+                    headerRow.innerHTML = `<td colspan="22" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯回路</td>`;
+                    tbody.appendChild(headerRow);
+                    lightingCircuits.forEach((circuit, index) => {
+                        const row = createCircuitRow(circuit, index + 1);
+                        if (circuit.type === 'RC') row.classList.add('row-rc');
+                        tbody.appendChild(row);
+                    });
+                }
+
+                if (motorCircuits.length > 0) {
+                    const headerRow = document.createElement('tr');
+                    headerRow.innerHTML = `<td colspan="22" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力回路</td>`;
+                    tbody.appendChild(headerRow);
+                    motorCircuits.forEach((circuit, index) => {
+                        const row = createCircuitRow(circuit, index + 1);
+                        if (circuit.type === 'RC') row.classList.add('row-rc');
+                        tbody.appendChild(row);
+                    });
+                }
+            } else {
+                filtered.forEach((circuit, index) => {
+                    const row = createCircuitRow(circuit, index + 1);
+                    if (circuit.type === 'RC') row.classList.add('row-rc');
+                    tbody.appendChild(row);
+                });
+            }
         }
 
         function createCircuitRow(circuit, rowNumber) {
@@ -1974,9 +2028,23 @@
                         <option value="L" ${circuit.type === 'L' ? 'selected' : ''}>L</option>
                     </select>
                 </td>
-                <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="symbol" value="${circuit.symbol || '◎'}" style="width:30px;" /></td>
+                <td>
+                    <select class="circuit-select" data-id="${circuit.id}" data-field="category">
+                        <option value="電灯" ${(circuit.category || '電灯') === '電灯' ? 'selected' : ''}>電灯</option>
+                        <option value="動力" ${circuit.category === '動力' ? 'selected' : ''}>動力</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="circuit-select" data-id="${circuit.id}" data-field="symbol">
+                        <option value="◎" ${(circuit.symbol || '◎') === '◎' ? 'selected' : ''}>◎</option>
+                        <option value="○" ${circuit.symbol === '○' ? 'selected' : ''}>○</option>
+                        <option value="◇" ${circuit.symbol === '◇' ? 'selected' : ''}>◇</option>
+                        <option value="□" ${circuit.symbol === '□' ? 'selected' : ''}>□</option>
+                        <option value="■" ${circuit.symbol === '■' ? 'selected' : ''}>■</option>
+                        <option value="△" ${circuit.symbol === '△' ? 'selected' : ''}>△</option>
+                    </select>
+                </td>
                 <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="circuit_no" value="${circuit.circuit_no || ''}" /></td>
-                <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="parent_no" value="${circuit.parent_no || ''}" /></td>
                 <td>
                     <select class="circuit-select" data-id="${circuit.id}" data-field="phase">
                         <option value="L1" ${circuit.phase === 'L1' ? 'selected' : ''}>L1</option>
@@ -2035,6 +2103,16 @@
             return row;
         }
 
+        // 記号→回路自動設定マッピング
+        const SYMBOL_DEFAULTS = {
+            '◎': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: '電灯 AC1Φ200V' },
+            '■': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ AC1Φ200V' },
+            '○': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: '電灯 1Φ100V' },
+            '□': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ 1Φ100V' },
+            '◇': { category: '動力', voltage: 200, phase: 'RST', breaker: 'MCCB3P', description: '動力 3Φ3W AC200V' },
+            '△': { category: '動力', voltage: 200, phase: 'RST', breaker: 'MCCB3P', description: '動力' }
+        };
+
         let isRendering = false;
         async function handleCircuitChange(e) {
             if (isRendering) return;
@@ -2042,6 +2120,50 @@
             const circuitId = parseInt(input.dataset.id);
             const field = input.dataset.field;
             let value = input.value;
+
+            // Handle category field (client-side only)
+            if (field === 'category') {
+                if (!localCircuitData[circuitId]) localCircuitData[circuitId] = {};
+                localCircuitData[circuitId].category = value;
+                const circuitObj = allCircuits.find(c => c.id === circuitId);
+                if (circuitObj) circuitObj.category = value;
+                isRendering = true;
+                await renderCircuits();
+                isRendering = false;
+                return;
+            }
+
+            // 記号変更時、関連フィールドを自動設定
+            if (field === 'symbol' && SYMBOL_DEFAULTS[value]) {
+                const defaults = SYMBOL_DEFAULTS[value];
+                const updateData = {
+                    symbol: value,
+                    voltage: defaults.voltage,
+                    phase: defaults.phase,
+                    breaker: defaults.breaker
+                };
+                // カテゴリはclient-sideなのでlocalCircuitDataに保存
+                if (!localCircuitData[circuitId]) localCircuitData[circuitId] = {};
+                localCircuitData[circuitId].category = defaults.category;
+
+                try {
+                    const { error } = await db
+                        .from('circuits')
+                        .update(updateData)
+                        .eq('id', circuitId);
+                    if (error) throw error;
+                    await loadCircuits();
+                    await loadPanels();
+                    isRendering = true;
+                    await renderCircuits();
+                    isRendering = false;
+                } catch (error) {
+                    isRendering = false;
+                    console.error('Error updating circuit:', error);
+                    alert('エラーが発生しました');
+                }
+                return;
+            }
 
             if (field === 'af' || field === 'at' || field === 'voltage' || field === 'lighting' || field === 'outlet' || field === 'fc' || field === 'oa' || field === 'feeder') {
                 value = field === 'voltage' ? parseInt(value) : parseFloat(value);
@@ -2073,14 +2195,14 @@
             const newCircuit = {
                 panel_name: panelName,
                 type: 'M',
+                category: '電灯',
                 symbol: '◎',
                 circuit_no: '',
-                parent_no: '',
                 phase: 'L1',
                 breaker: 'MCCB2P2E',
                 af: 30,
                 at: 20,
-                voltage: 100,
+                voltage: 200,
                 lighting: 0,
                 outlet: 0,
                 fc: 0,
@@ -2211,7 +2333,7 @@
                 circuits = allCircuits.filter(c => c.panel_name === filterValue);
             }
 
-            const headers = ['#', '盤名称', '種別', '記号', '回路No', '親No', '相', '遮断器', 'AF', 'AT', '電圧', '照明[kVA]', 'ｺﾝｾﾝﾄ[kVA]', 'FC[kVA]', 'OA[kVA]', '幹線[kVA]', '合計', '電流', 'AT判定', '負荷名称'];
+            const headers = ['#', '盤名称', '種別', '区分', '記号', '回路No', '相', '遮断器', 'AF', 'AT', '電圧', '照明[kVA]', 'ｺﾝｾﾝﾄ[kVA]', 'FC[kVA]', 'OA[kVA]', '幹線[kVA]', '合計', '電流', 'AT判定', '負荷名称'];
             const rows = [headers.join(',')];
 
             circuits.forEach((circuit, index) => {
@@ -2225,9 +2347,9 @@
                     index + 1,
                     circuit.panel_name || '',
                     circuit.type || '',
+                    circuit.category || '電灯',
                     circuit.symbol || '',
                     circuit.circuit_no || '',
-                    circuit.parent_no || '',
                     circuit.phase || '',
                     circuit.breaker || '',
                     circuit.af || '',
@@ -2339,7 +2461,7 @@
             const demandCapacity = (capacity * demandFactor) / 100;
             const voltage = feeder.voltage || 100;
             const phase = feeder.phase_type || '1φ2W';
-            const powerFactor = feeder.power_factor || 0.85;
+            const powerFactor = localFeederData[feeder.id]?.power_factor || 0.85;
 
             let current = 0;
             if (phase === '3φ3W') {
@@ -2363,6 +2485,15 @@
             const cableEntry = CABLE_DATA.find(c => c.size === cableSize);
             const cableCapacity = cableType === 'CV' ? cableEntry?.cv : cableEntry?.cvt;
             const breakerStatus = (breakerAT >= current && cableCapacity >= breakerAT) ? 'OK' : '×';
+
+            // Calculate 内線規程AT for 3φ3W feeders with motor data
+            let kiteiAT = '-';
+            const motorTotalKw = localFeederData[feeder.id]?.motor_total_kw;
+            const motorMaxKw = localFeederData[feeder.id]?.motor_max_kw;
+            if (motorTotalKw && motorMaxKw && phase === '3φ3W') {
+                const result = lookupMotorFeederBreaker200V(motorTotalKw, motorMaxKw);
+                if (result) kiteiAT = result.breakerAT;
+            }
 
             row.innerHTML = `
                 <td>${rowNumber}</td>
@@ -2435,6 +2566,15 @@
                     <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="breaker_at" value="${breakerAT}" readonly />
                 </td>
                 <td>
+                    <input type="number" step="0.1" class="feeder-local" data-id="${feeder.id}" data-field="motor_total_kw" value="${localFeederData[feeder.id]?.motor_total_kw || ''}" placeholder="-" style="width:55px;" />
+                </td>
+                <td>
+                    <input type="number" step="0.1" class="feeder-local" data-id="${feeder.id}" data-field="motor_max_kw" value="${localFeederData[feeder.id]?.motor_max_kw || ''}" placeholder="-" style="width:55px;" />
+                </td>
+                <td>
+                    <span style="font-weight:bold;">${kiteiAT}</span>
+                </td>
+                <td>
                     <span class="badge ${breakerStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${breakerStatus}</span>
                 </td>
                 <td>
@@ -2451,6 +2591,9 @@
             row.querySelectorAll('.feeder-select').forEach(select => {
                 select.addEventListener('change', handleFeederChange);
             });
+            row.querySelectorAll('.feeder-local').forEach(input => {
+                input.addEventListener('blur', handleFeederLocalChange);
+            });
 
             return row;
         }
@@ -2464,7 +2607,9 @@
             if (field === 'voltage' || field === 'demand_factor' || field === 'cable_length') {
                 value = parseInt(value) || 0;
             } else if (field === 'power_factor') {
-                value = parseFloat(value) || 0.85;
+                // Client-side only - not saved to DB
+                await renderFeeders();
+                return;
             } else if (field === 'demand_capacity' || field === 'current' || field === 'cable_size' || field === 'voltage_drop' || field === 'vd_percent') {
                 return;
             }
@@ -2485,6 +2630,25 @@
             }
         }
 
+        async function handleFeederLocalChange(e) {
+            const element = e.target;
+            const feederId = parseInt(element.dataset.id);
+            const field = element.dataset.field;
+            let value = element.value;
+
+            if (!localFeederData[feederId]) {
+                localFeederData[feederId] = {};
+            }
+
+            if (value === '' || value === null) {
+                delete localFeederData[feederId][field];
+            } else {
+                localFeederData[feederId][field] = parseFloat(value);
+            }
+
+            await renderFeeders();
+        }
+
         async function addFeederRow() {
             const newFeeder = {
                 load_name: '',
@@ -2495,7 +2659,6 @@
                 cable_type: 'CV',
                 cable_size: 2.0,
                 cable_length: 0,
-                power_factor: 0.85,
                 breaker_type: 'MCCB2P2E',
                 breaker_af: 30,
                 breaker_at: 20,
