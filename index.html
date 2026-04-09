@@ -1089,8 +1089,8 @@
                                 <th>VD率[%]</th>
                                 <th>VD判定</th>
                                 <th>ブレーカー種別</th>
-                                <th>AF</th>
-                                <th>AT</th>
+                                <th style="min-width:70px;">AF</th>
+                                <th style="min-width:70px;">AT</th>
                                 <th>AT判定</th>
                                 <th>動力合計kW</th>
                                 <th>最大電動機kW</th>
@@ -1929,7 +1929,11 @@
                 await loadAllData();
             } catch (error) {
                 console.error('Error saving panel:', error);
-                alert('エラーが発生しました: ' + error.message);
+                if (error.message && error.message.includes('panels_name_key')) {
+                    alert('同じ盤名称が既に登録されています。別の名称を入力してください。');
+                } else {
+                    alert('エラーが発生しました: ' + error.message);
+                }
             }
         }
 
@@ -2700,12 +2704,12 @@
                     </select>
                 </td>
                 <td>
-                    <select class="feeder-select" data-id="${feeder.id}" data-field="breaker_af" style="background-color:#e8f5e9;">
+                    <select class="feeder-select" data-id="${feeder.id}" data-field="breaker_af" style="background-color:#e8f5e9;min-width:70px;">
                         ${AF_VALUES.map(v => `<option value="${v}" ${v === breakerAF ? 'selected' : ''}>${v}</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <select class="feeder-select" data-id="${feeder.id}" data-field="breaker_at" style="background-color:#e8f5e9;">
+                    <select class="feeder-select" data-id="${feeder.id}" data-field="breaker_at" style="background-color:#e8f5e9;min-width:70px;">
                         ${AT_VALUES.map(v => `<option value="${v}" ${v === breakerAT ? 'selected' : ''}>${v}</option>`).join('')}
                     </select>
                 </td>
