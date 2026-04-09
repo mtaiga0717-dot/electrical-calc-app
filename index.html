@@ -2686,7 +2686,7 @@
                 <td>
                     <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="vd_percent" value="${vdPercent.toFixed(2)}" readonly />
                 </td>
-                <td>
+                <td class="auto-calc">
                     <span class="badge ${vdStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${vdStatus}</span>
                 </td>
                 <td>
@@ -2703,17 +2703,17 @@
                 <td>
                     <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="breaker_at" value="${breakerAT}" readonly />
                 </td>
-                <td>
+                <td class="auto-calc">
                     <span class="badge ${atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${atStatus}</span>
                 </td>
                 <td>
-                    <input type="number" step="0.1" class="feeder-local" data-id="${feeder.id}" data-field="motor_total_kw" value="${motorTotalKw || ''}" placeholder="-" style="width:55px;" />
+                    <input type="number" step="0.1" class="${autoMotorTotalKw ? 'feeder-input' : 'feeder-local'}" data-id="${feeder.id}" data-field="motor_total_kw" value="${motorTotalKw || ''}" placeholder="-" style="width:55px;" ${autoMotorTotalKw ? 'readonly' : ''} />
                 </td>
                 <td>
-                    <input type="number" step="0.1" class="feeder-local" data-id="${feeder.id}" data-field="motor_max_kw" value="${motorMaxKw || ''}" placeholder="-" style="width:55px;" />
+                    <input type="number" step="0.1" class="${autoMotorMaxKw ? 'feeder-input' : 'feeder-local'}" data-id="${feeder.id}" data-field="motor_max_kw" value="${motorMaxKw || ''}" placeholder="-" style="width:55px;" ${autoMotorMaxKw ? 'readonly' : ''} />
                 </td>
-                <td>
-                    <span style="font-weight:bold;">${kiteiAT}</span>
+                <td class="auto-calc">
+                    ${kiteiAT}
                 </td>
                 <td>
                     <input type="text" class="feeder-input" data-id="${feeder.id}" data-field="destination" value="${feeder.destination || ''}" />
