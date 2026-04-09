@@ -458,6 +458,7 @@
 
         .circuits-table-wrapper {
             overflow-x: auto;
+            overflow-y: visible;
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -508,17 +509,71 @@
 
         /* Circuit table column widths (includes new 区分 column) */
         .circuits-table th:nth-child(1),
-        .circuits-table td:nth-child(1) { min-width: 30px; width: 30px; }
+        .circuits-table td:nth-child(1) { min-width: 30px; width: 30px; max-width: 30px; }
         .circuits-table th:nth-child(2),
-        .circuits-table td:nth-child(2) { min-width: 100px; }
+        .circuits-table td:nth-child(2) { min-width: 100px; width: 100px; max-width: 100px; }
         .circuits-table th:nth-child(3),
-        .circuits-table td:nth-child(3) { min-width: 55px; }
+        .circuits-table td:nth-child(3) { min-width: 55px; width: 55px; max-width: 55px; }
         .circuits-table th:nth-child(4),
-        .circuits-table td:nth-child(4) { min-width: 65px; }
+        .circuits-table td:nth-child(4) { min-width: 65px; width: 65px; max-width: 65px; }
         .circuits-table th:nth-child(5),
-        .circuits-table td:nth-child(5) { min-width: 60px; }
+        .circuits-table td:nth-child(5) { min-width: 58px; width: 58px; max-width: 58px; }
         .circuits-table th:nth-child(6),
-        .circuits-table td:nth-child(6) { min-width: 60px; }
+        .circuits-table td:nth-child(6) { min-width: 44px; width: 44px; max-width: 44px; }
+
+        /* ── 左固定列（# ～ 回路No） ── */
+        .circuits-table th:nth-child(1),
+        .circuits-table td:nth-child(1),
+        .circuits-table th:nth-child(2),
+        .circuits-table td:nth-child(2),
+        .circuits-table th:nth-child(3),
+        .circuits-table td:nth-child(3),
+        .circuits-table th:nth-child(4),
+        .circuits-table td:nth-child(4),
+        .circuits-table th:nth-child(5),
+        .circuits-table td:nth-child(5),
+        .circuits-table th:nth-child(6),
+        .circuits-table td:nth-child(6) {
+            position: sticky;
+            z-index: 5;
+        }
+        .circuits-table tbody td:nth-child(1) { left: 0; background-color: #fff; }
+        .circuits-table tbody td:nth-child(2) { left: 30px; background-color: #fff; }
+        .circuits-table tbody td:nth-child(3) { left: 130px; background-color: #fff; }
+        .circuits-table tbody td:nth-child(4) { left: 185px; background-color: #fff; }
+        .circuits-table tbody td:nth-child(5) { left: 250px; background-color: #fff; }
+        .circuits-table tbody td:nth-child(6) { left: 308px; background-color: #fff; border-right: 2px solid #888; }
+
+        .circuits-table thead th:nth-child(1) { left: 0; z-index: 15; }
+        .circuits-table thead th:nth-child(2) { left: 30px; z-index: 15; }
+        .circuits-table thead th:nth-child(3) { left: 130px; z-index: 15; }
+        .circuits-table thead th:nth-child(4) { left: 185px; z-index: 15; }
+        .circuits-table thead th:nth-child(5) { left: 250px; z-index: 15; }
+        .circuits-table thead th:nth-child(6) { left: 308px; z-index: 15; border-right: 2px solid #888; }
+
+        /* hover / RC 行も固定列の背景を上書き */
+        .circuits-table tbody tr:hover td:nth-child(1),
+        .circuits-table tbody tr:hover td:nth-child(2),
+        .circuits-table tbody tr:hover td:nth-child(3),
+        .circuits-table tbody tr:hover td:nth-child(4),
+        .circuits-table tbody tr:hover td:nth-child(5),
+        .circuits-table tbody tr:hover td:nth-child(6) {
+            background-color: #f5f5f5;
+        }
+        .circuits-table tbody tr.row-rc td:nth-child(1),
+        .circuits-table tbody tr.row-rc td:nth-child(2),
+        .circuits-table tbody tr.row-rc td:nth-child(3),
+        .circuits-table tbody tr.row-rc td:nth-child(4),
+        .circuits-table tbody tr.row-rc td:nth-child(5),
+        .circuits-table tbody tr.row-rc td:nth-child(6) {
+            background-color: #f5f2ec !important;
+        }
+
+        /* カテゴリヘッダ行（colspanの1セル行）は固定解除 */
+        .circuits-table tbody tr.category-header-row td {
+            position: static !important;
+            left: auto !important;
+        }
         .circuits-table th:nth-child(7),
         .circuits-table td:nth-child(7) { min-width: 75px; }
         .circuits-table th:nth-child(8),
@@ -1072,7 +1127,7 @@
                                 <th>盤名称</th>
                                 <th>種別</th>
                                 <th>区分</th>
-                                <th style="min-width:80px;">記号</th>
+                                <th>記号</th>
                                 <th>回路No</th>
                                 <th style="min-width:70px;">ﾘﾓｺﾝ</th>
                                 <th style="min-width:80px;">相</th>
@@ -1752,6 +1807,9 @@
             document.getElementById('btnRemconDelete').addEventListener('click', deleteAllRemcon);
             document.getElementById('btnCsvExport').addEventListener('click', exportCircuitsCsv);
 
+            // 矢印キーでセル移動（←↑→↓）
+            document.getElementById('circuitsTableBody').addEventListener('keydown', handleArrowNav);
+
             // 設計/実/両方 ビュー切替
             document.querySelectorAll('.btn-view-mode').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -2071,6 +2129,80 @@
             filter.value = currentValue;
         }
 
+        // 矢印キーでセル間を移動（← → ↑ ↓）
+        function handleArrowNav(e) {
+            const target = e.target;
+            if (!target.matches('input, select')) return;
+            const key = e.key;
+            if (key !== 'ArrowUp' && key !== 'ArrowDown' && key !== 'ArrowLeft' && key !== 'ArrowRight') return;
+
+            // input[type=number/text] で左右キーはテキストキャレット移動を優先
+            // （セル移動したい場合は Alt/Ctrl/Shift を押しながら、または end/home 付近では動く）
+            // ここではシンプルに常にセル移動させる
+            if ((key === 'ArrowLeft' || key === 'ArrowRight') && target.tagName === 'INPUT' && target.type !== 'number' && target.type !== 'checkbox') {
+                // テキスト入力の場合はキャレットが端にある時だけ移動
+                const pos = target.selectionStart;
+                const len = (target.value || '').length;
+                if (key === 'ArrowLeft' && pos > 0) return;
+                if (key === 'ArrowRight' && pos < len) return;
+            }
+
+            const td = target.closest('td');
+            const tr = target.closest('tr');
+            if (!td || !tr) return;
+            const tbody = tr.parentElement;
+            const colIndex = Array.from(tr.children).indexOf(td);
+
+            let targetRow = null;
+            if (key === 'ArrowDown') {
+                targetRow = findNavigableRow(tr, 'next', tbody);
+            } else if (key === 'ArrowUp') {
+                targetRow = findNavigableRow(tr, 'prev', tbody);
+            } else if (key === 'ArrowRight' || key === 'ArrowLeft') {
+                // 同じ行内の隣セル
+                const dir = key === 'ArrowRight' ? 1 : -1;
+                let i = colIndex + dir;
+                while (i >= 0 && i < tr.children.length) {
+                    const cell = tr.children[i];
+                    const el = cell.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled])');
+                    if (el) { e.preventDefault(); el.focus(); if (el.select) el.select(); return; }
+                    i += dir;
+                }
+                return;
+            }
+
+            if (!targetRow) return;
+            // 同じ列のinput/selectを取得。無ければ隣接列を探す
+            const sameCol = targetRow.children[colIndex];
+            let el = sameCol && sameCol.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled])');
+            if (!el) {
+                // 隣接列を前後に探す
+                for (let d = 1; d < tr.children.length; d++) {
+                    const left = targetRow.children[colIndex - d];
+                    const right = targetRow.children[colIndex + d];
+                    if (left) { el = left.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled])'); if (el) break; }
+                    if (right) { el = right.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled])'); if (el) break; }
+                }
+            }
+            if (el) {
+                e.preventDefault();
+                el.focus();
+                if (el.select) el.select();
+            }
+        }
+
+        // 入力可能な要素を持つ隣接行を探す（カテゴリヘッダ行などをスキップ）
+        function findNavigableRow(currentRow, direction, tbody) {
+            let row = direction === 'next' ? currentRow.nextElementSibling : currentRow.previousElementSibling;
+            while (row) {
+                if (row.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled])')) {
+                    return row;
+                }
+                row = direction === 'next' ? row.nextElementSibling : row.previousElementSibling;
+            }
+            return null;
+        }
+
         async function renderCircuits() {
             const filterValue = document.getElementById('circuitsPanelFilter').value;
             const categoryFilter = document.getElementById('circuitCategoryFilter').value;
@@ -2096,6 +2228,7 @@
 
                 if (lightingCircuits.length > 0) {
                     const headerRow = document.createElement('tr');
+                    headerRow.className = 'category-header-row';
                     headerRow.innerHTML = `<td colspan="23" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯回路</td>`;
                     tbody.appendChild(headerRow);
                     lightingCircuits.forEach((circuit, index) => {
@@ -2107,6 +2240,7 @@
 
                 if (motorCircuits.length > 0) {
                     const headerRow = document.createElement('tr');
+                    headerRow.className = 'category-header-row';
                     headerRow.innerHTML = `<td colspan="23" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力回路</td>`;
                     tbody.appendChild(headerRow);
                     motorCircuits.forEach((circuit, index) => {
@@ -2234,12 +2368,12 @@
                     </select>
                 </td>
                 <td>
-                    <select class="circuit-select" data-id="${circuit.id}" data-field="symbol" style="min-width:70px;">
+                    <select class="circuit-select" data-id="${circuit.id}" data-field="symbol" style="min-width:54px;">
                         <option value="◎" ${(circuit.symbol || '◎') === '◎' ? 'selected' : ''}>◎</option>
                         <option value="○" ${circuit.symbol === '○' ? 'selected' : ''}>○</option>
                         <option value="◇" ${circuit.symbol === '◇' ? 'selected' : ''}>◇</option>
                         <option value="□" ${circuit.symbol === '□' ? 'selected' : ''}>□</option>
-                        <option value="■" ${circuit.symbol === '■' ? 'selected' : ''}>■</option>
+                        <option value="□□" ${circuit.symbol === '□□' || circuit.symbol === '■' ? 'selected' : ''}>□□</option>
                         <option value="分岐" ${circuit.symbol === '分岐' ? 'selected' : ''}>分岐</option>
                     </select>
                 </td>
@@ -2329,6 +2463,7 @@
         // 記号→回路自動設定マッピング
         const SYMBOL_DEFAULTS = {
             '◎': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: '電灯 AC1Φ200V' },
+            '□□': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ AC1Φ200V' },
             '■': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ AC1Φ200V' },
             '○': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: '電灯 1Φ100V' },
             '□': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ 1Φ100V' },
