@@ -1818,9 +1818,22 @@
             const atStatus = panelAT >= current ? 'OK' : '×';
 
             let balance = null;
-            if (!isThreePhase && mainCircuits.length > 0) {
-                const l1Sum = mainCircuits.filter(c => c.phase === 'L1').reduce((s, c) => s + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0), 0);
-                const l2Sum = mainCircuits.filter(c => c.phase === 'L2').reduce((s, c) => s + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0), 0);
+            const sumByPhase = (phaseVal) => mainCircuits.filter(c => c.phase === phaseVal).reduce((s, c) => s + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0), 0);
+
+            if (isThreePhase && mainCircuits.length > 0) {
+                // 3φ3W: R/S/Tの三相平衡率
+                const rSum = sumByPhase('R');
+                const sSum = sumByPhase('S');
+                const tSum = sumByPhase('T');
+                const maxP = Math.max(rSum, sSum, tSum);
+                const minP = Math.min(rSum, sSum, tSum);
+                if (maxP > 0) {
+                    balance = (maxP - minP) / maxP * 100;
+                }
+            } else if (!isThreePhase && mainCircuits.length > 0) {
+                // 1φ3W: L1/L2の二相平衡率
+                const l1Sum = sumByPhase('L1');
+                const l2Sum = sumByPhase('L2');
                 const maxPhase = Math.max(l1Sum, l2Sum);
                 if (maxPhase > 0) {
                     balance = Math.abs(l1Sum - l2Sum) / maxPhase * 100;
@@ -1837,8 +1850,8 @@
                 current: Math.round(current * 100) / 100,
                 atStatus,
                 balance,
-                l1Sum: balance !== null ? mainCircuits.filter(c => c.phase === 'L1').reduce((s, c) => s + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0), 0) : 0,
-                l2Sum: balance !== null ? mainCircuits.filter(c => c.phase === 'L2').reduce((s, c) => s + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0), 0) : 0
+                l1Sum: !isThreePhase ? sumByPhase('L1') : 0,
+                l2Sum: !isThreePhase ? sumByPhase('L2') : 0
             };
         }
 
@@ -2086,20 +2099,13 @@
                         <option value="□" ${circuit.symbol === '□' ? 'selected' : ''}>□</option>
                         <option value="■" ${circuit.symbol === '■' ? 'selected' : ''}>■</option>
                         <option value="△" ${circuit.symbol === '△' ? 'selected' : ''}>△</option>
+                        <option value="分岐" ${circuit.symbol === '分岐' ? 'selected' : ''}>分岐</option>
                     </select>
                 </td>
                 <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="circuit_no" value="${circuit.circuit_no || ''}" /></td>
                 <td>
                     <select class="circuit-select" data-id="${circuit.id}" data-field="phase">
-                        <option value="L1" ${circuit.phase === 'L1' ? 'selected' : ''}>L1</option>
-                        <option value="L2" ${circuit.phase === 'L2' ? 'selected' : ''}>L2</option>
-                        <option value="R" ${circuit.phase === 'R' ? 'selected' : ''}>R</option>
-                        <option value="S" ${circuit.phase === 'S' ? 'selected' : ''}>S</option>
-                        <option value="T" ${circuit.phase === 'T' ? 'selected' : ''}>T</option>
-                        <option value="R-S" ${circuit.phase === 'R-S' ? 'selected' : ''}>R-S</option>
-                        <option value="S-T" ${circuit.phase === 'S-T' ? 'selected' : ''}>S-T</option>
-                        <option value="R-T" ${circuit.phase === 'R-T' ? 'selected' : ''}>R-T</option>
-                        <option value="RST" ${circuit.phase === 'RST' ? 'selected' : ''}>RST</option>
+                        ${getPhaseOptions(circuit.panel_name).map(p => `<option value="${p.value}" ${circuit.phase === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}
                     </select>
                 </td>
                 <td>
@@ -2123,7 +2129,7 @@
                         ${AT_VALUES.map(val => `<option value="${val}" ${circuit.at === val ? 'selected' : ''}>${val}</option>`).join('')}
                     </select>
                 </td>
-                <td><input type="number" class="circuit-input" data-id="${circuit.id}" data-field="voltage" value="${circuit.voltage || 100}" /></td>
+                <td><input type="number" class="circuit-input" data-id="${circuit.id}" data-field="voltage" value="${getVoltageForPhase(circuit.symbol, circuit.phase)}" readonly /></td>
                 <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="lighting" value="${(circuit.lighting || 0).toFixed(2)}" /></td>
                 <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="outlet" value="${(circuit.outlet || 0).toFixed(2)}" /></td>
                 <td><input type="number" step="0.01" class="circuit-input" data-id="${circuit.id}" data-field="fc" value="${(circuit.fc || 0).toFixed(2)}" /></td>
@@ -2154,8 +2160,41 @@
             '○': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: '電灯 1Φ100V' },
             '□': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ 1Φ100V' },
             '◇': { category: '動力', voltage: 200, phase: 'RST', breaker: 'MCCB3P', description: '動力 3Φ3W AC200V' },
-            '△': { category: '動力', voltage: 200, phase: 'RST', breaker: 'MCCB3P', description: '動力' }
+            '△': { category: '動力', voltage: 200, phase: 'RST', breaker: 'MCCB3P', description: '動力' },
+            '分岐': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: '幹線分岐' }
         };
+
+        // 分岐記号の電圧を相に応じて自動決定
+        function getVoltageForPhase(symbol, phase) {
+            if (symbol === '分岐') {
+                if (phase === 'L1' || phase === 'L2') return 100;
+                return 200; // L1-L2, RST, R-S, S-T, R-T
+            }
+            if (SYMBOL_DEFAULTS[symbol]) return SYMBOL_DEFAULTS[symbol].voltage;
+            return 100;
+        }
+
+        // 盤の種別に応じた相の選択肢
+        function getPhaseOptions(panelName) {
+            const panel = allPanels.find(p => p.name === panelName);
+            if (panel && panel.elec_type === '3φ3W') {
+                return [
+                    { value: 'R', label: 'R' },
+                    { value: 'S', label: 'S' },
+                    { value: 'T', label: 'T' },
+                    { value: 'R-S', label: 'R-S' },
+                    { value: 'S-T', label: 'S-T' },
+                    { value: 'R-T', label: 'R-T' },
+                    { value: 'RST', label: 'RST' }
+                ];
+            }
+            // 1φ3W or default
+            return [
+                { value: 'L1', label: 'L1' },
+                { value: 'L2', label: 'L2' },
+                { value: 'L1-L2', label: 'L1-L2' }
+            ];
+        }
 
         let isRendering = false;
         async function handleCircuitChange(e) {
@@ -2180,10 +2219,20 @@
             // 記号変更時、関連フィールドを自動設定
             if (field === 'symbol' && SYMBOL_DEFAULTS[value]) {
                 const defaults = SYMBOL_DEFAULTS[value];
+                const circuitObj = allCircuits.find(c => c.id === circuitId);
+                const panelName = circuitObj ? circuitObj.panel_name : '';
+                // 盤種別に合った相を設定
+                const phaseOptions = getPhaseOptions(panelName);
+                let newPhase = defaults.phase;
+                // デフォルト相が盤種別に存在しない場合、最初の選択肢にする
+                if (!phaseOptions.find(p => p.value === newPhase)) {
+                    newPhase = phaseOptions[0].value;
+                }
+                const voltage = getVoltageForPhase(value, newPhase);
                 const updateData = {
                     symbol: value,
-                    voltage: defaults.voltage,
-                    phase: defaults.phase,
+                    voltage: voltage,
+                    phase: newPhase,
                     breaker: defaults.breaker
                 };
                 // カテゴリはclient-sideなのでlocalCircuitDataに保存
@@ -2194,6 +2243,30 @@
                     const { error } = await db
                         .from('circuits')
                         .update(updateData)
+                        .eq('id', circuitId);
+                    if (error) throw error;
+                    await loadCircuits();
+                    await loadPanels();
+                    isRendering = true;
+                    await renderCircuits();
+                    isRendering = false;
+                } catch (error) {
+                    isRendering = false;
+                    console.error('Error updating circuit:', error);
+                    alert('エラーが発生しました');
+                }
+                return;
+            }
+
+            // 相変更時、電圧を自動更新
+            if (field === 'phase') {
+                const circuitObj = allCircuits.find(c => c.id === circuitId);
+                const symbol = circuitObj ? (circuitObj.symbol || '◎') : '◎';
+                const newVoltage = getVoltageForPhase(symbol, value);
+                try {
+                    const { error } = await db
+                        .from('circuits')
+                        .update({ phase: value, voltage: newVoltage })
                         .eq('id', circuitId);
                     if (error) throw error;
                     await loadCircuits();
