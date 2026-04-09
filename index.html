@@ -464,6 +464,60 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
+        /* 回路DB 説明セクション */
+        .circuits-help {
+            margin-top: 2rem;
+            padding: 1.25rem 1.5rem;
+            background: #fafbfc;
+            border: 1px solid #e0e4ea;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #333;
+        }
+        .circuits-help h3 {
+            margin: 0 0 0.8rem 0;
+            font-size: 1rem;
+            color: #1a1a2e;
+            border-bottom: 2px solid #42a5f5;
+            padding-bottom: 0.4rem;
+        }
+        .circuits-help dl {
+            margin: 0;
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 0.35rem 1rem;
+        }
+        .circuits-help dt {
+            font-weight: bold;
+            color: #1a1a2e;
+            white-space: nowrap;
+        }
+        .circuits-help dd {
+            margin: 0;
+            color: #555;
+        }
+        @media (max-width: 700px) {
+            .circuits-help dl { grid-template-columns: 1fr; gap: 0.1rem 0; }
+            .circuits-help dd { margin-bottom: 0.5rem; }
+        }
+
+        /* 画面下に常時表示される横スクロールバー（プロキシ） */
+        .circuits-scroll-proxy {
+            position: sticky;
+            bottom: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            height: 16px;
+            background: rgba(255,255,255,0.98);
+            border-top: 1px solid #bbb;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.08);
+            z-index: 20;
+        }
+        .circuits-scroll-proxy-inner {
+            height: 1px;
+        }
+
         .circuits-table {
             min-width: 1800px;
             border-collapse: collapse;
@@ -577,7 +631,7 @@
         .circuits-table th:nth-child(7),
         .circuits-table td:nth-child(7) { min-width: 75px; }
         .circuits-table th:nth-child(8),
-        .circuits-table td:nth-child(8) { min-width: 70px; }
+        .circuits-table td:nth-child(8) { min-width: 52px; width: 52px; max-width: 52px; }
         .circuits-table th:nth-child(9),
         .circuits-table td:nth-child(9) { min-width: 115px; }
         .circuits-table th:nth-child(10),
@@ -1085,7 +1139,7 @@
                                 <th>ｺﾝｾﾝﾄ[kVA]</th>
                                 <th>FC[kVA]</th>
                                 <th>OA[kVA]</th>
-                                <th>幹線[kVA]</th>
+                                <th>幹線分岐[kVA]</th>
                                 <th>合計[kVA]</th>
                                 <th>電流[A]</th>
                                 <th>AT判定</th>
@@ -1119,7 +1173,7 @@
                     <button class="btn-action btn-danger" id="btnRemconDelete">RC全削除</button>
                     <button class="btn-action" id="btnCsvExport">CSV出力</button>
                 </div>
-                <div class="circuits-table-wrapper">
+                <div class="circuits-table-wrapper" id="circuitsTableWrapper">
                     <table class="circuits-table" id="circuitsTable">
                         <thead>
                             <tr>
@@ -1130,7 +1184,7 @@
                                 <th>記号</th>
                                 <th>回路No</th>
                                 <th style="min-width:70px;">ﾘﾓｺﾝ</th>
-                                <th style="min-width:80px;">相</th>
+                                <th>相</th>
                                 <th>遮断器</th>
                                 <th>AF</th>
                                 <th>AT</th>
@@ -1139,7 +1193,7 @@
                                 <th>ｺﾝｾﾝﾄ[VA]</th>
                                 <th>FC[VA]</th>
                                 <th>OA[VA]</th>
-                                <th>幹線[VA]</th>
+                                <th>幹線分岐[VA]</th>
                                 <th>合計[VA]</th>
                                 <th>電流[A]</th>
                                 <th>AT判定</th>
@@ -1150,6 +1204,45 @@
                         </thead>
                         <tbody id="circuitsTableBody"></tbody>
                     </table>
+                </div>
+                <div class="circuits-scroll-proxy" id="circuitsScrollProxy"><div class="circuits-scroll-proxy-inner" id="circuitsScrollProxyInner"></div></div>
+
+                <div class="circuits-help">
+                    <h3>📖 回路DBの使い方</h3>
+                    <dl>
+                        <dt>盤フィルタ / 区分フィルタ</dt>
+                        <dd>左上のドロップダウンで、表示する盤や区分（電灯／動力）を絞り込めます。</dd>
+
+                        <dt>設計 / 実 / 両方</dt>
+                        <dd>表示モードの切り替え。設計値（計算用）と実負荷値（ローカル保存）を並べて確認できます。</dd>
+
+                        <dt>＋ 回路追加</dt>
+                        <dd>新しい回路を一番下に追加します。直前の回路の回路NOが自動で +1 されます。</dd>
+
+                        <dt>リモコン展開</dt>
+                        <dd>RC数を入力した M 回路から、RC子回路（R0-1、R0-2…）を自動生成します。途中でRC数を変更した場合も、再実行すれば番号が振り直されます。RC行は計算には影響しません。</dd>
+
+                        <dt>RC全削除</dt>
+                        <dd>表示中の盤の RC（リモコン子）行をすべて削除します。</dd>
+
+                        <dt>CSV出力</dt>
+                        <dd>現在の表示内容を CSV ファイルとしてダウンロードします。</dd>
+
+                        <dt>記号の自動設定</dt>
+                        <dd>記号を選ぶと、区分・電圧・相・遮断器が自動で入ります。電灯回路の相は回路NOの奇数／偶数で L1/L2 に自動設定、分岐は L1-L2（200V固定）になります。</dd>
+
+                        <dt>容量入力（VA）</dt>
+                        <dd>照明・コンセント・FC・OA・幹線の容量は VA 単位で入力します。内部では kVA で保持され、合計・電流は自動計算されます。</dd>
+
+                        <dt>キーボード操作</dt>
+                        <dd>セルを選択中に <b>↑ / ↓</b> で同じ列の上下へ、<b>← / →</b> で同じ行の左右へ移動できます（入力中のテキストはキャレットが端にある時のみ移動）。</dd>
+
+                        <dt>列・行の固定</dt>
+                        <dd>見出し行と、左側の # / 盤名称 / 種別 / 区分 / 記号 / 回路No の6列はスクロールしても固定表示されます。横スクロールバーは画面下に常時表示されます。</dd>
+
+                        <dt>AT判定</dt>
+                        <dd>回路の電流値が遮断器 AT を超えると「NG」、範囲内なら「OK」と表示されます。</dd>
+                    </dl>
                 </div>
             </div>
 
@@ -1810,6 +1903,10 @@
             // 矢印キーでセル移動（←↑→↓）
             document.getElementById('circuitsTableBody').addEventListener('keydown', handleArrowNav);
 
+            // 横スクロール同期（画面下に常時表示されるプロキシバー）
+            setupScrollProxy();
+            window.addEventListener('resize', syncScrollProxyWidth);
+
             // 設計/実/両方 ビュー切替
             document.querySelectorAll('.btn-view-mode').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -2126,6 +2223,35 @@
             filter.value = currentValue;
         }
 
+        // 横スクロール プロキシ（画面下に常時表示される横スクロールバー）
+        function setupScrollProxy() {
+            const wrapper = document.getElementById('circuitsTableWrapper');
+            const proxy = document.getElementById('circuitsScrollProxy');
+            if (!wrapper || !proxy) return;
+            let syncing = false;
+            proxy.addEventListener('scroll', () => {
+                if (syncing) return;
+                syncing = true;
+                wrapper.scrollLeft = proxy.scrollLeft;
+                syncing = false;
+            });
+            wrapper.addEventListener('scroll', () => {
+                if (syncing) return;
+                syncing = true;
+                proxy.scrollLeft = wrapper.scrollLeft;
+                syncing = false;
+            });
+            syncScrollProxyWidth();
+        }
+
+        function syncScrollProxyWidth() {
+            const wrapper = document.getElementById('circuitsTableWrapper');
+            const inner = document.getElementById('circuitsScrollProxyInner');
+            const table = document.getElementById('circuitsTable');
+            if (!wrapper || !inner || !table) return;
+            inner.style.width = table.scrollWidth + 'px';
+        }
+
         // 矢印キーでセル間を移動（← → ↑ ↓）
         function handleArrowNav(e) {
             const target = e.target;
@@ -2150,11 +2276,16 @@
             const tbody = tr.parentElement;
             const colIndex = Array.from(tr.children).indexOf(td);
 
-            let targetRow = null;
-            if (key === 'ArrowDown') {
-                targetRow = findNavigableRow(tr, 'next', tbody);
-            } else if (key === 'ArrowUp') {
-                targetRow = findNavigableRow(tr, 'prev', tbody);
+            if (key === 'ArrowDown' || key === 'ArrowUp') {
+                // 同じ列にinput/selectを持つ行のみを探して移動（空セルの行はスキップ）
+                const dir = key === 'ArrowDown' ? 'next' : 'prev';
+                const el = findInputInSameColumn(tr, colIndex, dir);
+                if (el) {
+                    e.preventDefault();
+                    el.focus();
+                    if (el.select) el.select();
+                }
+                return;
             } else if (key === 'ArrowRight' || key === 'ArrowLeft') {
                 // 同じ行内の隣セル
                 const dir = key === 'ArrowRight' ? 1 : -1;
@@ -2167,33 +2298,19 @@
                 }
                 return;
             }
-
-            if (!targetRow) return;
-            // 同じ列のinput/selectを取得。無ければ隣接列を探す
-            const sameCol = targetRow.children[colIndex];
-            let el = sameCol && sameCol.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled])');
-            if (!el) {
-                // 隣接列を前後に探す
-                for (let d = 1; d < tr.children.length; d++) {
-                    const left = targetRow.children[colIndex - d];
-                    const right = targetRow.children[colIndex + d];
-                    if (left) { el = left.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled])'); if (el) break; }
-                    if (right) { el = right.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled])'); if (el) break; }
-                }
-            }
-            if (el) {
-                e.preventDefault();
-                el.focus();
-                if (el.select) el.select();
-            }
         }
 
-        // 入力可能な要素を持つ隣接行を探す（カテゴリヘッダ行などをスキップ）
-        function findNavigableRow(currentRow, direction, tbody) {
+        // 同じ列にinput/selectを持つ最初の隣接行を探す（空セル行はスキップ、違う列には絶対に移動しない）
+        function findInputInSameColumn(currentRow, colIndex, direction) {
             let row = direction === 'next' ? currentRow.nextElementSibling : currentRow.previousElementSibling;
             while (row) {
-                if (row.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled])')) {
-                    return row;
+                // カテゴリヘッダ（colspan行）はスキップ
+                if (!row.classList.contains('category-header-row')) {
+                    const cell = row.children[colIndex];
+                    if (cell) {
+                        const el = cell.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled])');
+                        if (el) return el;
+                    }
                 }
                 row = direction === 'next' ? row.nextElementSibling : row.previousElementSibling;
             }
@@ -2253,6 +2370,8 @@
                     tbody.appendChild(row);
                 });
             }
+            // 描画後にスクロールプロキシの幅を再同期
+            requestAnimationFrame(syncScrollProxyWidth);
         }
 
         function createCircuitRow(circuit, rowNumber) {
@@ -2378,8 +2497,8 @@
                 <td></td>
                 <td>
                     ${isLighting
-                        ? `<input type="text" class="circuit-input" data-id="${circuit.id}" data-field="phase" value="${autoPhase}" readonly style="background-color:#e3f2fd;min-width:70px;text-align:center;font-weight:bold;" title="電灯回路の相は自動計算（奇数=L1/偶数=L2、分岐=L1-L2）" />`
-                        : `<select class="circuit-select" data-id="${circuit.id}" data-field="phase" style="min-width:70px;">
+                        ? `<input type="text" class="circuit-input" data-id="${circuit.id}" data-field="phase" value="${autoPhase}" readonly style="background-color:#e3f2fd;min-width:46px;text-align:center;font-weight:bold;font-size:0.72rem;padding:0.15rem 0.1rem;" title="電灯回路の相は自動計算（奇数=L1/偶数=L2、分岐=L1-L2）" />`
+                        : `<select class="circuit-select" data-id="${circuit.id}" data-field="phase" style="min-width:46px;font-size:0.72rem;">
                             ${getPhaseOptions(circuit.panel_name).map(p => `<option value="${p.value}" ${circuit.phase === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}
                         </select>`
                     }
@@ -2927,7 +3046,7 @@
                 circuits = allCircuits.filter(c => c.panel_name === filterValue);
             }
 
-            const headers = ['#', '盤名称', '種別', '区分', '記号', '回路No', '相', '遮断器', 'AF', 'AT', '電圧', '照明[VA]', 'ｺﾝｾﾝﾄ[VA]', 'FC[VA]', 'OA[VA]', '幹線[VA]', '合計[VA]', '電流[A]', 'AT判定', '負荷名称'];
+            const headers = ['#', '盤名称', '種別', '区分', '記号', '回路No', '相', '遮断器', 'AF', 'AT', '電圧', '照明[VA]', 'ｺﾝｾﾝﾄ[VA]', 'FC[VA]', 'OA[VA]', '幹線分岐[VA]', '合計[VA]', '電流[A]', 'AT判定', '負荷名称'];
             const rows = [headers.join(',')];
 
             circuits.forEach((circuit, index) => {
