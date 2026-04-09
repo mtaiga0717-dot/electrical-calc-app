@@ -1039,6 +1039,7 @@
                                 <th>区分</th>
                                 <th style="min-width:80px;">記号</th>
                                 <th>回路No</th>
+                                <th style="min-width:70px;">ﾘﾓｺﾝ</th>
                                 <th style="min-width:80px;">相</th>
                                 <th>遮断器</th>
                                 <th>AF</th>
@@ -2056,7 +2057,7 @@
 
                 if (lightingCircuits.length > 0) {
                     const headerRow = document.createElement('tr');
-                    headerRow.innerHTML = `<td colspan="22" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯回路</td>`;
+                    headerRow.innerHTML = `<td colspan="23" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯回路</td>`;
                     tbody.appendChild(headerRow);
                     lightingCircuits.forEach((circuit, index) => {
                         const row = createCircuitRow(circuit, index + 1);
@@ -2067,7 +2068,7 @@
 
                 if (motorCircuits.length > 0) {
                     const headerRow = document.createElement('tr');
-                    headerRow.innerHTML = `<td colspan="22" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力回路</td>`;
+                    headerRow.innerHTML = `<td colspan="23" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力回路</td>`;
                     tbody.appendChild(headerRow);
                     motorCircuits.forEach((circuit, index) => {
                         const row = createCircuitRow(circuit, index + 1);
@@ -2087,6 +2088,59 @@
         function createCircuitRow(circuit, rowNumber) {
             const row = document.createElement('tr');
             row.id = `circuit-${circuit.id}`;
+
+            // RC（リモコン展開行）は最小限のカラムだけ表示。計算には影響しない
+            if (circuit.type === 'RC') {
+                row.classList.add('row-rc');
+                // 親回路NOのぶら下がりが視覚的に分かるよう、背景色＋左罫線＋インデント
+                row.style.cssText = 'background-color:#fff8e1;border-left:4px solid #ff9800;';
+                const parentNoLabel = circuit.parent_no || '';
+                row.innerHTML = `
+                    <td style="background-color:#fff8e1;">${rowNumber}</td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;padding-left:1.5rem;color:#666;font-size:0.8rem;" title="親回路NO">↳ ${circuit.circuit_no || ''}</td>
+                    <td style="background-color:#fff3cd;"><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="parent_no" value="${parentNoLabel}" style="background-color:#fff3cd;font-weight:bold;color:#e65100;text-align:center;" /></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;">
+                        <select class="circuit-select" data-id="${circuit.id}" data-field="breaker">
+                            <option value="RR2P2E" ${circuit.breaker === 'RR2P2E' ? 'selected' : ''}>RR2P2E</option>
+                            <option value="RR2P1E" ${circuit.breaker === 'RR2P1E' || circuit.breaker === 'RR2P11E' ? 'selected' : ''}>RR2P1E</option>
+                        </select>
+                    </td>
+                    <td style="background-color:#fff8e1;">
+                        <select class="circuit-select" data-id="${circuit.id}" data-field="af">
+                            ${AF_VALUES.map(val => `<option value="${val}" ${circuit.af === val ? 'selected' : ''}>${val}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td style="background-color:#fff8e1;">
+                        <select class="circuit-select" data-id="${circuit.id}" data-field="at">
+                            ${AT_VALUES.map(val => `<option value="${val}" ${circuit.at === val ? 'selected' : ''}>${val}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td style="background-color:#fff8e1;"><input type="number" class="circuit-input" data-id="${circuit.id}" data-field="voltage" value="${circuit.voltage || 100}" readonly style="background-color:#f5f5f5;" /></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="load_name" value="${circuit.load_name || ''}" /></td>
+                    <td style="background-color:#fff8e1;"></td>
+                    <td style="background-color:#fff8e1;"><button class="btn-delete-circuit" onclick="deleteCircuit(${circuit.id})">削除</button></td>
+                `;
+                row.querySelectorAll('.circuit-input').forEach(input => {
+                    input.addEventListener('blur', handleCircuitChange);
+                });
+                row.querySelectorAll('.circuit-select').forEach(input => {
+                    input.addEventListener('change', handleCircuitChange);
+                });
+                return row;
+            }
 
             // 設計値（DB）
             const designTotal = (circuit.lighting || 0) + (circuit.outlet || 0) + (circuit.fc || 0) + (circuit.oa || 0) + (circuit.feeder || 0);
@@ -2157,6 +2211,7 @@
                     </select>
                 </td>
                 <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="circuit_no" value="${circuit.symbol === '分岐' ? '' : (circuit.circuit_no || '')}" ${circuit.symbol === '分岐' ? 'disabled style="background-color:#f5f5f5;"' : ''} /></td>
+                <td></td>
                 <td>
                     ${isLighting
                         ? `<input type="text" class="circuit-input" data-id="${circuit.id}" data-field="phase" value="${autoPhase}" readonly style="background-color:#e3f2fd;min-width:70px;text-align:center;font-weight:bold;" title="電灯回路の相は自動計算（奇数=L1/偶数=L2、分岐=L1-L2）" />`
@@ -2173,7 +2228,7 @@
                         <option value="MCCB3P" ${circuit.breaker === 'MCCB3P' ? 'selected' : ''}>MCCB3P</option>
                         <option value="ELCB3P" ${circuit.breaker === 'ELCB3P' ? 'selected' : ''}>ELCB3P</option>
                         <option value="RR2P2E" ${circuit.breaker === 'RR2P2E' ? 'selected' : ''}>RR2P2E</option>
-                        <option value="RR2P11E" ${circuit.breaker === 'RR2P11E' ? 'selected' : ''}>RR2P11E</option>
+                        <option value="RR2P1E" ${circuit.breaker === 'RR2P1E' || circuit.breaker === 'RR2P11E' ? 'selected' : ''}>RR2P1E</option>
                     </select>
                 </td>
                 <td>
@@ -2467,12 +2522,12 @@
             const filterValue = document.getElementById('circuitsPanelFilter').value;
             const panelName = filterValue || (allPanels.length > 0 ? allPanels[0].name : '');
 
-            // 直前の回路を取得して値を引き継ぐ
+            // 直前の回路を取得して値を引き継ぐ（RC行は除外）
             // フィルタがある場合はその盤の最後の回路、なければ全体の最後の回路
             let prevCircuit = null;
-            const candidates = filterValue
+            const candidates = (filterValue
                 ? allCircuits.filter(c => c.panel_name === filterValue)
-                : allCircuits;
+                : allCircuits).filter(c => c.type !== 'RC');
             if (candidates.length > 0) {
                 // sort_order昇順でソートして最後を取得
                 const sorted = [...candidates].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
@@ -2578,8 +2633,8 @@
                         panel_name: mCircuit.panel_name,
                         type: 'RC',
                         symbol: mCircuit.symbol,
-                        circuit_no: `R${groupNo}-${subNo}`,
-                        parent_no: mCircuit.circuit_no,
+                        circuit_no: mCircuit.circuit_no,
+                        parent_no: `R${groupNo}-${subNo}`,
                         phase: mCircuit.phase,
                         breaker: 'RR2P2E',
                         af: 20,
