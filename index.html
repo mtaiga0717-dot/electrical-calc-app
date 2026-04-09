@@ -513,6 +513,7 @@
         }
         .panel-filter-summary .pfs-badge.ok { background: #c8e6c9; color: #1b5e20; }
         .panel-filter-summary .pfs-badge.ng { background: #ffcdd2; color: #b71c1c; }
+        .panel-filter-summary.pfs-hidden { display: none !important; }
 
         .btn-action {
             background-color: #42a5f5;
@@ -1326,7 +1327,7 @@
                     <button class="btn-action btn-danger" id="btnRemconDelete">RC全削除</button>
                     <button class="btn-action" id="btnCsvExport">CSV出力</button>
                 </div>
-                <div id="panelFilterSummary" class="panel-filter-summary" style="display:none;"></div>
+                <div id="panelFilterSummary" class="panel-filter-summary pfs-hidden"></div>
                 <div class="circuits-table-wrapper" id="circuitsTableWrapper">
                     <table class="circuits-table" id="circuitsTable">
                         <thead>
@@ -2731,19 +2732,19 @@
         function renderPanelFilterSummary(panelName) {
             const box = document.getElementById('panelFilterSummary');
             if (!box) return;
-            if (!panelName) {
-                box.style.display = 'none';
-                box.innerHTML = '';
+            const hide = () => { box.classList.add('pfs-hidden'); box.innerHTML = ''; };
+            if (!panelName) { hide(); return; }
+            const panel = (allPanels || []).find(p => p.name === panelName);
+            if (!panel) { hide(); return; }
+            let s;
+            try {
+                const panelCircuits = (allCircuits || []).filter(c => c.panel_name === panelName);
+                s = calculatePanelSummaries(panelName, panelCircuits);
+            } catch (e) {
+                console.error('renderPanelFilterSummary calc error:', e);
+                hide();
                 return;
             }
-            const panel = allPanels.find(p => p.name === panelName);
-            if (!panel) {
-                box.style.display = 'none';
-                box.innerHTML = '';
-                return;
-            }
-            const panelCircuits = allCircuits.filter(c => c.panel_name === panelName);
-            const s = calculatePanelSummaries(panelName, panelCircuits);
             const isThreePhase = panel.elec_type === '3φ3W';
             const panelAT = panel.at || 0;
             const atOK = panelAT > 0 && panelAT >= s.current;
@@ -2815,7 +2816,7 @@
                 </span>
                 ${balanceHtml}
             `;
-            box.style.display = 'flex';
+            box.classList.remove('pfs-hidden');
         }
 
         async function renderCircuits() {
