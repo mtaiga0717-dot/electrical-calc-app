@@ -502,6 +502,20 @@
             .circuits-help dd { margin-bottom: 0.5rem; }
         }
 
+        /* 画面上に固定表示される列ヘッダー（ページ下スクロール時） */
+        .circuits-floating-header {
+            position: fixed;
+            top: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            z-index: 30;
+            background: #1a1a2e;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            scrollbar-width: none;
+        }
+        .circuits-floating-header::-webkit-scrollbar { display: none; }
+        .circuits-floating-header table { margin: 0; }
+
         /* 画面下に常時表示される横スクロールバー（プロキシ） */
         .circuits-scroll-proxy {
             position: sticky;
@@ -1206,6 +1220,11 @@
                     </table>
                 </div>
                 <div class="circuits-scroll-proxy" id="circuitsScrollProxy"><div class="circuits-scroll-proxy-inner" id="circuitsScrollProxyInner"></div></div>
+                <div class="circuits-floating-header" id="circuitsFloatingHeader" style="display:none;">
+                    <table class="circuits-table" id="circuitsFloatingHeaderTable">
+                        <thead id="circuitsFloatingHeaderThead"></thead>
+                    </table>
+                </div>
 
                 <div class="circuits-help">
                     <h3>📖 回路DBの使い方</h3>
@@ -1241,7 +1260,23 @@
                         <dd>見出し行と、左側の # / 盤名称 / 種別 / 区分 / 記号 / 回路No の6列はスクロールしても固定表示されます。横スクロールバーは画面下に常時表示されます。</dd>
 
                         <dt>AT判定</dt>
-                        <dd>回路の電流値が遮断器 AT を超えると「NG」、範囲内なら「OK」と表示されます。</dd>
+                        <dd>
+                            回路の電流値と遮断器 AT（トリップ値）を比較して自動判定します。<br>
+                            <b>判定ロジック</b>：
+                            <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
+                                <li>電流＝0A のとき → 「<b>-</b>」（未使用扱い）</li>
+                                <li>AT ＜ 電流 のとき → 「<b>NG</b>」（容量オーバー）</li>
+                                <li>電灯回路で AT ＜ 電流×1.25 のとき → 「<b>NG</b>」</li>
+                                <li>上記以外 → 「<b>OK</b>」</li>
+                            </ul>
+                            <b>電流の算式</b>：
+                            <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
+                                <li>単相（1φ）：<code>I = VA ÷ V</code></li>
+                                <li>三相（3φ）：<code>I = VA ÷ (√3 × V)</code></li>
+                            </ul>
+                            <b>電灯回路で×1.25 する根拠</b>：内線規程 <b>3605-3条</b>（分岐回路の過電流遮断器は連続使用負荷電流の 125% 以上の定格とすること）に基づき、電灯・コンセント系統は安全率 1.25 倍した値で判定します。動力回路は始動時の突入電流を見込むため、この 1.25 倍補正は適用しません。<br>
+                            <b>補足</b>：NG の場合は AT セルにカーソルを合わせると、不足理由（例：<code>AT(20) &lt; 電流×1.25(22.5A) [3605-3条]</code>）がツールチップで表示されます。
+                        </dd>
                     </dl>
                 </div>
             </div>
@@ -1907,6 +1942,9 @@
             setupScrollProxy();
             window.addEventListener('resize', syncScrollProxyWidth);
 
+            // 画面上に浮かせるヘッダー（縦スクロール時も列名が残る）
+            setupFloatingHeader();
+
             // 設計/実/両方 ビュー切替
             document.querySelectorAll('.btn-view-mode').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -2252,6 +2290,76 @@
             inner.style.width = table.scrollWidth + 'px';
         }
 
+        // 画面上に浮かせるヘッダー（ページを下にスクロールしても列名が消えないように）
+        let _floatingHeaderSyncing = false;
+        function setupFloatingHeader() {
+            const wrapper = document.getElementById('circuitsTableWrapper');
+            const floatContainer = document.getElementById('circuitsFloatingHeader');
+            if (!wrapper || !floatContainer) return;
+            // 横スクロール同期（クリック&ドラッグでヘッダー側も動かせるように）
+            floatContainer.addEventListener('scroll', () => {
+                if (_floatingHeaderSyncing) return;
+                _floatingHeaderSyncing = true;
+                wrapper.scrollLeft = floatContainer.scrollLeft;
+                _floatingHeaderSyncing = false;
+            });
+            wrapper.addEventListener('scroll', () => {
+                if (_floatingHeaderSyncing) return;
+                _floatingHeaderSyncing = true;
+                floatContainer.scrollLeft = wrapper.scrollLeft;
+                _floatingHeaderSyncing = false;
+            });
+            window.addEventListener('scroll', updateFloatingHeader, { passive: true });
+            window.addEventListener('resize', updateFloatingHeader);
+        }
+
+        function updateFloatingHeader() {
+            const wrapper = document.getElementById('circuitsTableWrapper');
+            const realTable = document.getElementById('circuitsTable');
+            const floatContainer = document.getElementById('circuitsFloatingHeader');
+            const floatTable = document.getElementById('circuitsFloatingHeaderTable');
+            const floatThead = document.getElementById('circuitsFloatingHeaderThead');
+            if (!wrapper || !realTable || !floatContainer || !floatThead) return;
+            const realThead = realTable.querySelector('thead');
+            if (!realThead) return;
+
+            const wrapperRect = wrapper.getBoundingClientRect();
+            const theadRect = realThead.getBoundingClientRect();
+
+            // 本物のヘッダーがまだ画面に見えている、または表自体が画面外 → 非表示
+            if (theadRect.bottom > 0 || wrapperRect.bottom < 50) {
+                floatContainer.style.display = 'none';
+                return;
+            }
+
+            // 内容（innerHTML）を同期
+            if (floatThead.innerHTML !== realThead.innerHTML) {
+                floatThead.innerHTML = realThead.innerHTML;
+            }
+            floatTable.style.minWidth = realTable.scrollWidth + 'px';
+            floatTable.style.tableLayout = 'fixed';
+            // 実テーブルの列幅をコピー（auto-layout ズレを防ぐ）
+            const realThs = realThead.querySelectorAll('th');
+            const floatThs = floatThead.querySelectorAll('th');
+            if (realThs.length === floatThs.length) {
+                realThs.forEach((th, i) => {
+                    const w = th.getBoundingClientRect().width;
+                    floatThs[i].style.width = w + 'px';
+                    floatThs[i].style.minWidth = w + 'px';
+                    floatThs[i].style.maxWidth = w + 'px';
+                });
+            }
+            floatContainer.style.display = 'block';
+            floatContainer.style.left = wrapperRect.left + 'px';
+            floatContainer.style.width = wrapperRect.width + 'px';
+            // 横スクロール位置をミラー
+            if (!_floatingHeaderSyncing) {
+                _floatingHeaderSyncing = true;
+                floatContainer.scrollLeft = wrapper.scrollLeft;
+                _floatingHeaderSyncing = false;
+            }
+        }
+
         // 矢印キーでセル間を移動（← → ↑ ↓）
         function handleArrowNav(e) {
             const target = e.target;
@@ -2370,8 +2478,14 @@
                     tbody.appendChild(row);
                 });
             }
-            // 描画後にスクロールプロキシの幅を再同期
-            requestAnimationFrame(syncScrollProxyWidth);
+            // 描画後にスクロールプロキシの幅と浮かせヘッダーを再同期
+            requestAnimationFrame(() => {
+                syncScrollProxyWidth();
+                // 浮かせヘッダーの innerHTML 再取込を強制（列名更新に対応）
+                const floatThead = document.getElementById('circuitsFloatingHeaderThead');
+                if (floatThead) floatThead.innerHTML = '';
+                updateFloatingHeader();
+            });
         }
 
         function createCircuitRow(circuit, rowNumber) {
@@ -2417,7 +2531,7 @@
                     <td><button class="btn-delete-circuit" onclick="deleteCircuit(${circuit.id})">削除</button></td>
                 `;
                 row.querySelectorAll('.circuit-input').forEach(input => {
-                    input.addEventListener('blur', handleCircuitChange);
+                    input.addEventListener('change', handleCircuitChange);
                 });
                 row.querySelectorAll('.circuit-select').forEach(input => {
                     input.addEventListener('change', handleCircuitChange);
@@ -2488,8 +2602,8 @@
                         <option value="◎" ${(circuit.symbol || '◎') === '◎' ? 'selected' : ''}>◎</option>
                         <option value="○" ${circuit.symbol === '○' ? 'selected' : ''}>○</option>
                         <option value="◇" ${circuit.symbol === '◇' ? 'selected' : ''}>◇</option>
-                        <option value="□" ${circuit.symbol === '□' ? 'selected' : ''}>□</option>
-                        <option value="□□" ${circuit.symbol === '□□' || circuit.symbol === '■' ? 'selected' : ''}>□□</option>
+                        <option value="[]" ${circuit.symbol === '[]' || circuit.symbol === '□' ? 'selected' : ''}>[]</option>
+                        <option value="[][]" ${circuit.symbol === '[][]' || circuit.symbol === '□□' || circuit.symbol === '■' ? 'selected' : ''}>[][]</option>
                         <option value="分岐" ${circuit.symbol === '分岐' ? 'selected' : ''}>分岐</option>
                     </select>
                 </td>
@@ -2524,7 +2638,7 @@
                         ${AT_VALUES.map(val => `<option value="${val}" ${circuit.at === val ? 'selected' : ''}>${val}</option>`).join('')}
                     </select>
                 </td>
-                <td><input type="number" class="circuit-input" data-id="${circuit.id}" data-field="voltage" value="${getVoltageForPhase(circuit.symbol, autoPhase)}" readonly style="background-color:#e3f2fd;" /></td>
+                <td><input type="number" class="circuit-input" data-id="${circuit.id}" data-field="voltage" value="${getVoltageForPhase(circuit.symbol, autoPhase)}" readonly style="background-color:${isLighting && getVoltageForPhase(circuit.symbol, autoPhase) === 200 ? '#ffe0b2' : '#e3f2fd'};color:${isLighting && getVoltageForPhase(circuit.symbol, autoPhase) === 200 ? '#c62828' : '#000'};font-weight:${isLighting && getVoltageForPhase(circuit.symbol, autoPhase) === 200 ? 'bold' : 'normal'};" /></td>
                 ${(() => {
                     if (circuitViewMode === 'both') {
                         // 両方モード: 比較サマリーを表示（内訳列は非表示、VA表示）
@@ -2567,7 +2681,7 @@
             `;
 
             row.querySelectorAll('.circuit-input').forEach(input => {
-                input.addEventListener('blur', handleCircuitChange);
+                input.addEventListener('change', handleCircuitChange);
             });
             row.querySelectorAll('.circuit-select, .panel-select').forEach(input => {
                 input.addEventListener('change', handleCircuitChange);
@@ -2579,9 +2693,11 @@
         // 記号→回路自動設定マッピング
         const SYMBOL_DEFAULTS = {
             '◎': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: '電灯 AC1Φ200V' },
+            '[][]': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ AC1Φ200V' },
             '□□': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ AC1Φ200V' },
             '■': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ AC1Φ200V' },
             '○': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: '電灯 1Φ100V' },
+            '[]': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ 1Φ100V' },
             '□': { category: '電灯', voltage: 100, phase: 'L1', breaker: 'MCCB2P2E', description: 'ｺﾝｾﾝﾄ 1Φ100V' },
             '◇': { category: '動力', voltage: 200, phase: 'RST', breaker: 'MCCB3P', description: '動力 3Φ3W AC200V' },
             '分岐': { category: '電灯', voltage: 200, phase: 'L1', breaker: 'MCCB2P2E', description: '幹線分岐' }
