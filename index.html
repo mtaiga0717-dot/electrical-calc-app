@@ -2292,6 +2292,29 @@
             const merged = Object.assign(cur, patch);
             localStorage.setItem(`elecCalc:motorMeta:${circuitId}`, JSON.stringify(merged));
         }
+        // 実負荷用モータメタ（設計と独立）
+        function getActualMotorMeta(circuitId) {
+            try {
+                const raw = localStorage.getItem(`elecCalc:actualMotorMeta:${circuitId}`);
+                if (!raw) {
+                    // 未設定なら設計値をデフォルトに
+                    return getMotorMeta(circuitId);
+                }
+                const v = JSON.parse(raw);
+                return {
+                    kw: Number(v.kw) || 0,
+                    count: Number(v.count) || 1,
+                    startMethod: v.startMethod || 'direct'
+                };
+            } catch (e) {
+                return { kw: 0, count: 1, startMethod: 'direct' };
+            }
+        }
+        function setActualMotorMeta(circuitId, patch) {
+            const cur = getActualMotorMeta(circuitId);
+            const merged = Object.assign(cur, patch);
+            localStorage.setItem(`elecCalc:actualMotorMeta:${circuitId}`, JSON.stringify(merged));
+        }
         // 3705-1表から kW ≤ の最小行を選び、Im/推奨分岐AT/最小CVを返す
         function lookupMotor3705_1(kw) {
             if (!kw || kw <= 0) return null;
@@ -3105,12 +3128,16 @@
         // 再描画前にフォーカス位置を覚えておき、描画後に復元する
         function captureCircuitFocusState() {
             const el = document.activeElement;
-            if (!el || !el.dataset || !el.dataset.id || !el.dataset.field) return null;
+            if (!el || !el.dataset || !el.dataset.id) return null;
+            const dataField = el.dataset.field || null;
+            const motorField = el.dataset.motorField || null;
+            if (!dataField && !motorField) return null;
             // circuits テーブル内の要素だけを対象に
             if (!el.closest('#circuitsTable')) return null;
             const state = {
                 dataId: el.dataset.id,
-                dataField: el.dataset.field,
+                dataField: dataField,
+                motorField: motorField,
                 tagName: el.tagName,
             };
             if (el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'search' || el.type === 'tel' || el.type === 'url' || el.type === 'password')) {
@@ -3121,7 +3148,9 @@
         }
         function restoreCircuitFocusState(state) {
             if (!state) return;
-            const selector = `#circuitsTable [data-id="${state.dataId}"][data-field="${state.dataField}"]`;
+            const selector = state.motorField
+                ? `#circuitsTable [data-id="${state.dataId}"][data-motor-field="${state.motorField}"]`
+                : `#circuitsTable [data-id="${state.dataId}"][data-field="${state.dataField}"]`;
             const el = document.querySelector(selector);
             if (!el) return;
             try { el.focus({ preventScroll: true }); } catch (_) { el.focus(); }
@@ -3213,38 +3242,73 @@
                     </span>`;
             }
 
-            // 内線規程 3705 動力幹線ガイダンス（区分=動力モード時のみ表示）
-            let motor3705Html = '';
+            // 現在のカテゴリタブ
             const currentCatFilter = (document.getElementById('circuitCategoryFilter') || {}).value;
-            if (currentCatFilter === '動力') {
+            const isMotorTab = (currentCatFilter === '動力');
+
+            // ── 動力モード専用サマリーを描画して早期リターン ──
+            if (isMotorTab) {
                 const motorCircuits = (allCircuits || []).filter(c => c.panel_name === panelName && c.category === '動力');
                 let sumKw = 0;
                 let maxKw = 0;
                 let sumImCalc = 0;
+                let sumKvaMotor = 0;
                 motorCircuits.forEach(c => {
-                    const m = getMotorMeta(c.id);
+                    // ビューモードに応じて設計/実負荷のメタを使用
+                    const m = (circuitViewMode === 'actual')
+                        ? getActualMotorMeta(c.id)
+                        : getMotorMeta(c.id);
                     const kw = Number(m.kw) || 0;
                     const cnt = Number(m.count) || 1;
                     const entry = lookupMotor3705_1(kw);
                     if (entry && kw > 0) {
                         sumKw += kw * cnt;
                         sumImCalc += entry.current * cnt;
+                        sumKvaMotor += Math.sqrt(3) * 200 * entry.current * cnt / 1000;
                         if (kw > maxKw) maxKw = kw;
+                    } else if (circuitViewMode === 'actual') {
+                        // 実負荷モード: actualCircuit.feeder にフォールバック
+                        const a = getActualCircuit(c.id);
+                        sumKvaMotor += (a.feeder || 0);
+                    } else {
+                        // kW未入力でもfeeder kVAがあれば集計対象に含める
+                        sumKvaMotor += (c.feeder || 0);
                     }
                 });
+                // 3φ3W の幹線電流
+                const motorCurrent = sumKvaMotor > 0 ? (sumKvaMotor * 1000) / (Math.sqrt(3) * 200) : 0;
+                const dMotorKva = sumKvaMotor * rateFactor;
+                const dMotorCurrent = motorCurrent * rateFactor;
+                const atOKMotor = panelAT > 0 && panelAT >= motorCurrent;
+                const atOKMotorD = panelAT > 0 && panelAT >= dMotorCurrent;
+                const atBadgeMotor = panelAT === 0
+                    ? '<span class="pfs-badge">-</span>'
+                    : `<span class="pfs-badge ${atOKMotor ? 'ok' : 'ng'}">${atOKMotor ? 'OK' : '×'}</span>`;
+                const atBadgeMotorD = panelAT === 0
+                    ? '<span class="pfs-badge">-</span>'
+                    : `<span class="pfs-badge ${atOKMotorD ? 'ok' : 'ng'}">${atOKMotorD ? 'OK' : '×'}</span>`;
+
+                // 3705-3条 必要幹線許容電流
+                let feederGuidanceHtml = '';
                 if (sumKw > 0) {
-                    // 3705-3表で幹線ブレーカを選定（200V 3φ）
                     const feederPick = lookupMotorFeederBreaker200V(sumKw, maxKw);
-                    // 3705-3条の係数: ΣIm≤50A→1.25, >50A→1.1
                     const k = sumImCalc <= 50 ? 1.25 : 1.1;
                     const requiredIw = sumImCalc * k;
                     const atPickOk = feederPick && panelAT >= feederPick.breakerAT;
                     const iwOk = panelAT > 0 && panelAT >= requiredIw;
-                    motor3705Html = `
+                    feederGuidanceHtml = `
                         <span class="pfs-group-break"></span>
                         <span class="pfs-item" title="内線規程 3705-3条: 複数電動機幹線の許容電流は ΣIm×k (ΣIm≤50A→k=1.25, >50A→k=1.1)">
-                            <span class="pfs-label">動力 3705-3 ΣIm</span>
-                            <span class="pfs-value">${sumImCalc.toFixed(1)} A (ΣkW=${sumKw.toFixed(1)})</span>
+                            <span class="pfs-label">ΣIm (3705-3)</span>
+                            <span class="pfs-value">${sumImCalc.toFixed(1)} A</span>
+                        </span>
+                        <span class="pfs-item">
+                            <span class="pfs-label">ΣkW</span>
+                            <span class="pfs-value">${sumKw.toFixed(1)} kW</span>
+                        </span>
+                        <span class="pfs-item">
+                            <span class="pfs-label">最大電動機</span>
+                            <span class="pfs-value">${maxKw} kW</span>
                         </span>
                         <span class="pfs-item">
                             <span class="pfs-label">必要幹線許容電流 (×${k})</span>
@@ -3255,13 +3319,106 @@
                             <span class="pfs-label">3705-3表 推奨幹線AT</span>
                             <span class="pfs-value">${feederPick.breakerAT} AT <span class="pfs-badge ${atPickOk ? 'ok' : 'ng'}" style="font-size:0.7rem;padding:0.05rem 0.35rem;">${atPickOk ? 'OK' : '×'}</span></span>
                         </span>` : ''}
-                        <span class="pfs-item">
-                            <span class="pfs-label">最大電動機</span>
-                            <span class="pfs-value">${maxKw} kW</span>
-                        </span>
                     `;
                 }
+
+                // 3φ3W 設備不平衡率は動力負荷を RST 三相均等と仮定するため原則0%
+                // （明示的にR/S/T線間に単相負荷を登録している場合のみ意味を持つ）
+                let motorBalanceHtml = '';
+                if (isThreePhase && s.balance !== null && s.balance > 0) {
+                    const bOK = s.balance <= 30;
+                    motorBalanceHtml = `
+                        <span class="pfs-item">
+                            <span class="pfs-label">設備不平衡率 (≤30%)</span>
+                            <span class="pfs-value">${s.balance.toFixed(1)}% <span class="pfs-badge ${bOK ? 'ok' : 'ng'}" style="font-size:0.7rem;padding:0.05rem 0.35rem;">${bOK ? 'OK' : '×'}</span></span>
+                        </span>`;
+                }
+
+                const viewLabel = circuitViewMode === 'actual' ? '実負荷' : circuitViewMode === 'both' ? '設計+実' : '設計';
+                const viewBg = circuitViewMode === 'actual' ? '#fff8e1' : circuitViewMode === 'both' ? '#f3e5f5' : '#e3f2fd';
+                box.innerHTML = `
+                    <span class="pfs-panel-name">⚙ ${panel.name}</span>
+                    <span class="pfs-item" style="background:${viewBg};border-radius:4px;padding:0.15rem 0.4rem;">
+                        <span class="pfs-label">表示</span>
+                        <span class="pfs-value" style="font-weight:bold;">${viewLabel}</span>
+                    </span>
+                    <span class="pfs-item">
+                        <span class="pfs-label">電気種別</span>
+                        <span class="pfs-value">${panel.elec_type || '-'}</span>
+                    </span>
+                    <span class="pfs-item">
+                        <span class="pfs-label">主遮断器</span>
+                        <span class="pfs-value">${panel.main_breaker || '-'} AF${panel.af || '-'}/AT${panel.at || '-'}</span>
+                    </span>
+                    <span class="pfs-demand">
+                        <span class="pfs-label">需要率 (1305節参考)</span>
+                        <span class="pfs-demand-row">
+                            <select id="pfsDemandPreset" title="用途別需要率プリセット">${presetOptions}</select>
+                            <input type="number" id="pfsDemandCustom" value="${rate}" min="0" max="200" step="1" title="需要率 %" />
+                            <span style="font-weight:bold;color:#e65100;">%</span>
+                        </span>
+                    </span>
+                    <span class="pfs-group-break"></span>
+                    <span class="pfs-item">
+                        <span class="pfs-label">動力回路数</span>
+                        <span class="pfs-value">${motorCircuits.length}</span>
+                    </span>
+                    <span class="pfs-item">
+                        <span class="pfs-label">動力 設備容量</span>
+                        <span class="pfs-value pfs-total">${sumKvaMotor.toFixed(2)} kVA</span>
+                    </span>
+                    <span class="pfs-item">
+                        <span class="pfs-label">動力 幹線電流 (100%)</span>
+                        <span class="pfs-value">${motorCurrent.toFixed(1)} A</span>
+                    </span>
+                    <span class="pfs-item">
+                        <span class="pfs-label">AT判定 (100%)</span>
+                        <span class="pfs-value">${atBadgeMotor}</span>
+                    </span>
+                    <span class="pfs-group-break"></span>
+                    <span class="pfs-item pfs-after-demand">
+                        <span class="pfs-label">最大需要電力 (×${rate}%)</span>
+                        <span class="pfs-value pfs-total">${dMotorKva.toFixed(2)} kVA</span>
+                    </span>
+                    <span class="pfs-item pfs-after-demand">
+                        <span class="pfs-label">想定幹線電流</span>
+                        <span class="pfs-value">${dMotorCurrent.toFixed(1)} A</span>
+                    </span>
+                    <span class="pfs-item pfs-after-demand">
+                        <span class="pfs-label">AT判定 (需要後)</span>
+                        <span class="pfs-value">${atBadgeMotorD}</span>
+                    </span>
+                    ${feederGuidanceHtml}
+                    ${motorBalanceHtml}
+                `;
+                box.classList.remove('pfs-hidden');
+
+                // 需要率コントロールのイベント（動力モードも同一ハンドラ）
+                const presetSelM = document.getElementById('pfsDemandPreset');
+                const customInpM = document.getElementById('pfsDemandCustom');
+                if (presetSelM) {
+                    presetSelM.addEventListener('change', (e) => {
+                        const v = e.target.value;
+                        if (v === 'custom') { customInpM.focus(); return; }
+                        const n = Number(v);
+                        if (!isNaN(n)) { setDemandRate(panelName, n); renderPanelFilterSummary(panelName); }
+                    });
+                }
+                if (customInpM) {
+                    customInpM.addEventListener('change', (e) => {
+                        const n = Number(e.target.value);
+                        if (!isNaN(n)) { setDemandRate(panelName, n); renderPanelFilterSummary(panelName); }
+                    });
+                    customInpM.addEventListener('input', (e) => {
+                        const n = Number(e.target.value);
+                        if (!isNaN(n) && n >= 0 && n <= 200) setDemandRate(panelName, n);
+                    });
+                }
+                return;
             }
+
+            // 以下は電灯モード（従来表示）
+            let motor3705Html = '';
 
             // L1/L2 内訳（1φ3W のみ）
             let phaseRowHtml = '';
@@ -3561,10 +3718,13 @@
 
             // 動力回路 3705-1表参照（kWから推奨分岐ブレーカ／定格電流を取得）
             const motorMeta = getMotorMeta(circuit.id);
+            const actualMotorMeta = getActualMotorMeta(circuit.id);
             const isMotor = (category === '動力');
-            const motor3705 = isMotor ? lookupMotor3705_1(motorMeta.kw) : null;
+            // AT判定は現在のビューモードのメタを使用
+            const motorMetaForJudge = (circuitViewMode === 'actual') ? actualMotorMeta : motorMeta;
+            const motor3705 = isMotor ? lookupMotor3705_1(motorMetaForJudge.kw) : null;
             const motorSingleIm = motor3705 ? motor3705.current : 0;
-            const motorTotalIm = motorSingleIm * (motorMeta.count || 1);
+            const motorTotalIm = motorSingleIm * (motorMetaForJudge.count || 1);
             const motorRecommendAT = motor3705 ? motor3705.breaker : 0;
 
             // 自動相計算（電灯回路のみ）
@@ -3584,7 +3744,7 @@
             } else if (isMotor && motor3705 && at < motorRecommendAT) {
                 // 3705-1表: kWに対応する分岐ブレーカ最小値に満たない
                 atStatus = 'NG';
-                atNgReason = `AT(${at}) < 3705-1表推奨${motorRecommendAT}AT (${motorMeta.kw}kW, Im=${motorSingleIm}A)`;
+                atNgReason = `AT(${at}) < 3705-1表推奨${motorRecommendAT}AT (${motorMetaForJudge.kw}kW, Im=${motorSingleIm}A)`;
             } else if (isMotor && motor3705 && at > motorSingleIm * 3) {
                 // 3705-2条: 分岐回路の過電流遮断器は電動機定格電流の3倍以下
                 atStatus = 'NG';
@@ -3656,12 +3816,33 @@
                 </td>
                 <td><input type="number" class="circuit-input${isLighting && getVoltageForPhase(circuit.symbol, autoPhase) === 200 ? ' voltage-high-lighting' : ''}" data-id="${circuit.id}" data-field="voltage" value="${getVoltageForPhase(circuit.symbol, autoPhase)}" readonly /></td>
                 ${(() => {
+                    const isMotorRow = (category === '動力');
                     if (circuitViewMode === 'both') {
                         // 両方モード: 比較サマリーを表示（内訳列は非表示、VA表示）
                         const designVA = Math.round(designTotal * 1000);
                         const actualVA = Math.round(actualTotal * 1000);
                         const diffVA = actualVA - designVA;
                         const diffPct = designVA > 0 ? (diffVA / designVA * 100) : 0;
+                        // 動力モードはkW併記の比較表示
+                        if (isMotorRow) {
+                            const dKw = (motorMeta.kw || 0) * (motorMeta.count || 1);
+                            const aKw = (actualMotorMeta.kw || 0) * (actualMotorMeta.count || 1);
+                            const dImEntry = lookupMotor3705_1(motorMeta.kw);
+                            const aImEntry = lookupMotor3705_1(actualMotorMeta.kw);
+                            const dIm = dImEntry ? dImEntry.current * (motorMeta.count || 1) : 0;
+                            const aIm = aImEntry ? aImEntry.current * (actualMotorMeta.count || 1) : 0;
+                            return `
+                                <td colspan="5" style="padding:0;">
+                                    <div style="display:flex;gap:2px;font-size:0.72rem;">
+                                        <div style="flex:1;text-align:center;padding:0.3rem;background:#e3f2fd;"><div style="color:#666;">設計</div><div style="font-weight:bold;">${motorMeta.kw||0}kW×${motorMeta.count||1}</div><div style="color:#888;">${dIm.toFixed(1)}A</div></div>
+                                        <div style="flex:1;text-align:center;padding:0.3rem;background:#fff8e1;"><div style="color:#666;">実</div><div style="font-weight:bold;">${actualMotorMeta.kw||0}kW×${actualMotorMeta.count||1}</div><div style="color:#888;">${aIm.toFixed(1)}A</div></div>
+                                        <div style="flex:1;text-align:center;padding:0.3rem;background:${aKw>dKw?'#ffebee':aKw<dKw?'#e8f5e9':'#f5f5f5'};"><div style="color:#666;">差分kW</div><div style="font-weight:bold;">${(aKw-dKw>=0?'+':'')}${(aKw-dKw).toFixed(1)}</div></div>
+                                    </div>
+                                </td>
+                                <td class="auto-calc" style="background:#e3f2fd;"><div style="font-size:0.7rem;color:#666;">設計</div>${designVA}<div style="font-size:0.7rem;color:#666;">${designCurrent.toFixed(1)}A</div></td>
+                                <td class="auto-calc" style="background:#fff8e1;"><div style="font-size:0.7rem;color:#666;">実</div>${actualVA}<div style="font-size:0.7rem;color:#666;">${actualCurrent.toFixed(1)}A</div></td>
+                            `;
+                        }
                         return `
                             <td colspan="5" style="padding:0;">
                                 <div style="display:flex;gap:2px;font-size:0.75rem;">
@@ -3681,32 +3862,34 @@
                     const values = isActual ? actual : circuit;
                     // 動力回路は列13-17を電動機入力に置換（3705-1表参照）
                     // 記号「分岐」(幹線タップ)は電灯カテゴリ扱いなので電灯入力のまま（80%ルールのみ除外）。
-                    const isMotorRow = (category === '動力');
                     if (isMotorRow) {
-                        const mKw = motorMeta.kw || 0;
-                        const mCount = motorMeta.count || 1;
+                        // ビューモードに応じて設計/実のメタを使用
+                        const meta = isActual ? actualMotorMeta : motorMeta;
+                        const mKw = meta.kw || 0;
+                        const mCount = meta.count || 1;
                         const mImEach = motorSingleIm;
                         const mImTotal = motorTotalIm;
                         const m3705Info = motor3705
                             ? `推奨${motorRecommendAT}AT / CV${motor3705.cable}mm²`
                             : '—';
-                        const startOpt = (v, label) => `<option value="${v}" ${motorMeta.startMethod === v ? 'selected' : ''}>${label}</option>`;
+                        const startOpt = (v, label) => `<option value="${v}" ${meta.startMethod === v ? 'selected' : ''}>${label}</option>`;
+                        const cellBg = isActual ? '#fff8e1' : '#fff3e0';
                         // col13=kW, col14=台数, col15=Im[A](auto), col16=始動方式, col17=3705-1表参照
                         return `
-                            <td><input type="number" step="0.1" min="0" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="kw" value="${mKw}" style="width:60px;background:#fff3e0;" title="電動機定格[kW] (3705-1表入力)" /></td>
-                            <td><input type="number" step="1" min="1" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="count" value="${mCount}" style="width:50px;background:#fff3e0;" title="台数" /></td>
-                            <td class="auto-calc" style="background:#fff8e1;">${mImEach ? `${mImEach}A<div style="font-size:0.65rem;color:#888;">×${mCount}=${mImTotal.toFixed(1)}A</div>` : '—'}</td>
+                            <td><input type="number" step="0.1" min="0" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="kw" value="${mKw}" style="width:60px;background:${cellBg};" title="電動機定格[kW] (3705-1表入力) / ${isActual?'実負荷':'設計'}" /></td>
+                            <td><input type="number" step="1" min="1" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="count" value="${mCount}" style="width:50px;background:${cellBg};" title="台数 / ${isActual?'実負荷':'設計'}" /></td>
+                            <td class="auto-calc" style="background:${cellBg};">${mImEach ? `${mImEach}A<div style="font-size:0.65rem;color:#888;">×${mCount}=${mImTotal.toFixed(1)}A</div>` : '—'}</td>
                             <td>
-                                <select class="motor-meta-input" data-id="${circuit.id}" data-motor-field="startMethod" style="background:#fff3e0;font-size:0.72rem;min-width:72px;" title="始動方式">
+                                <select class="motor-meta-input" data-id="${circuit.id}" data-motor-field="startMethod" style="background:${cellBg};font-size:0.72rem;min-width:72px;" title="始動方式 / ${isActual?'実負荷':'設計'}">
                                     ${startOpt('direct', '直入れ')}
                                     ${startOpt('star-delta', 'Y-Δ')}
                                     ${startOpt('inverter', 'インバータ')}
                                     ${startOpt('soft', 'ソフト')}
                                 </select>
                             </td>
-                            <td class="auto-calc" style="background:#fff8e1;font-size:0.7rem;line-height:1.2;">${m3705Info}</td>
-                            <td class="auto-calc">${Math.round(total * 1000)}</td>
-                            <td class="auto-calc">${current.toFixed(2)}</td>
+                            <td class="auto-calc" style="background:${cellBg};font-size:0.7rem;line-height:1.2;">${m3705Info}</td>
+                            <td class="auto-calc" style="${bgColor}">${Math.round(total * 1000)}</td>
+                            <td class="auto-calc" style="${bgColor}">${current.toFixed(2)}</td>
                         `;
                     }
                     const mkCell = (field, val) => {
@@ -3754,33 +3937,50 @@
             let value = input.value;
             if (field === 'kw' || field === 'count') value = parseFloat(value) || 0;
 
-            setMotorMeta(circuitId, { [field]: value });
+            // 再描画でフォーカスが失われないよう位置を記憶
+            const focusState = captureCircuitFocusState();
 
-            // kWまたはtaskCount変更時は VAを再計算して circuit.feeder (kVA) にDB反映
+            // ビューモードによって保存先を分岐
+            if (circuitViewMode === 'actual') {
+                setActualMotorMeta(circuitId, { [field]: value });
+            } else {
+                setMotorMeta(circuitId, { [field]: value });
+            }
+
+            // kWまたは台数変更時は VAを再計算
             if (field === 'kw' || field === 'count') {
-                const meta = getMotorMeta(circuitId);
-                const entry = lookupMotor3705_1(meta.kw);
-                let kvaTotal = 0;
-                if (entry && meta.kw > 0) {
-                    // 3705-1表のImを使用: VA = √3 × 200 × Im × 台数
-                    const imTotal = entry.current * (meta.count || 1);
-                    kvaTotal = Math.sqrt(3) * 200 * imTotal / 1000;
-                }
-                try {
-                    // 動力は feederスロットにまとめて保存
-                    const { error } = await db
-                        .from('circuits')
-                        .update({ lighting: 0, outlet: 0, fc: 0, oa: 0, feeder: kvaTotal })
-                        .eq('id', circuitId);
-                    if (error) throw error;
-                    await loadCircuits();
-                } catch (err) {
-                    console.error('motor VA update error:', err);
+                const calcKva = (m) => {
+                    const entry = lookupMotor3705_1(m.kw);
+                    if (!entry || !m.kw || m.kw <= 0) return 0;
+                    const imTotal = entry.current * (m.count || 1);
+                    return Math.sqrt(3) * 200 * imTotal / 1000;
+                };
+                if (circuitViewMode === 'actual') {
+                    // 実負荷モード: localStorage の actualCircuit.feeder に保存
+                    const actMeta = getActualMotorMeta(circuitId);
+                    const actKva = calcKva(actMeta);
+                    setActualCircuit(circuitId, { lighting: 0, outlet: 0, fc: 0, oa: 0, feeder: actKva });
+                } else {
+                    // 設計モード: DB の circuits.feeder に保存
+                    const meta = getMotorMeta(circuitId);
+                    const kvaTotal = calcKva(meta);
+                    try {
+                        const { error } = await db
+                            .from('circuits')
+                            .update({ lighting: 0, outlet: 0, fc: 0, oa: 0, feeder: kvaTotal })
+                            .eq('id', circuitId);
+                        if (error) throw error;
+                        await loadCircuits();
+                    } catch (err) {
+                        console.error('motor VA update error:', err);
+                    }
                 }
             }
             isRendering = true;
             await renderCircuits();
             isRendering = false;
+            // 描画後にフォーカスを復元
+            restoreCircuitFocusState(focusState);
         }
 
         // 記号→回路自動設定マッピング
