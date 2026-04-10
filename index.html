@@ -775,6 +775,44 @@
             position: static !important;
             left: auto !important;
         }
+
+        /* ── 動力モード: 電灯専用カラムを完全非表示 ──
+           hide: 7=ﾘﾓｺﾝ, 13=照明VA, 14=ｺﾝｾﾝﾄVA, 15=FC, 16=OA, 17=幹線分岐VA, 22=RC数
+           ※ 区分(4)は切替の文脈維持のため表示のまま
+        */
+        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(7),
+        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(7),
+        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(13),
+        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(13),
+        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(14),
+        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(14),
+        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(15),
+        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(15),
+        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(16),
+        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(16),
+        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(17),
+        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(17),
+        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(22),
+        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(22) {
+            display: none !important;
+        }
+        /* 浮かせヘッダも同期 */
+        .circuits-floating-header.mode-motor .circuits-table th:nth-child(7),
+        .circuits-floating-header.mode-motor .circuits-table th:nth-child(13),
+        .circuits-floating-header.mode-motor .circuits-table th:nth-child(14),
+        .circuits-floating-header.mode-motor .circuits-table th:nth-child(15),
+        .circuits-floating-header.mode-motor .circuits-table th:nth-child(16),
+        .circuits-floating-header.mode-motor .circuits-table th:nth-child(17),
+        .circuits-floating-header.mode-motor .circuits-table th:nth-child(22) {
+            display: none !important;
+        }
+        /* モード別の表全体の縁取り色（視覚的な強調） */
+        .circuits-table-wrapper.mode-lighting {
+            border-top: 3px solid #1976d2;
+        }
+        .circuits-table-wrapper.mode-motor {
+            border-top: 3px solid #e65100;
+        }
         .circuits-table th:nth-child(7),
         .circuits-table td:nth-child(7) { min-width: 75px; }
         .circuits-table th:nth-child(8),
@@ -1414,15 +1452,13 @@
                     <select id="circuitsPanelFilter" class="circuits-filter">
                         <option value="">全ての盤</option>
                     </select>
-                    <!-- 区分切替（タブ風ボタン）: 電灯 / 動力 / 全て。初期値=電灯 -->
+                    <!-- 区分切替（タブ風ボタン）: 電灯 / 動力 の二択のみ。混在表示は廃止 -->
                     <div class="category-switch" style="display:inline-flex;gap:0;border:1px solid #4a5568;border-radius:6px;overflow:hidden;">
-                        <button type="button" class="btn-cat-mode active" data-cat="電灯" style="padding:0.45rem 0.9rem;border:none;background:#1976d2;color:white;cursor:pointer;font-weight:bold;">⚡ 電灯</button>
-                        <button type="button" class="btn-cat-mode" data-cat="動力" style="padding:0.45rem 0.9rem;border:none;background:#e0e0e0;color:#333;cursor:pointer;font-weight:bold;">⚙ 動力</button>
-                        <button type="button" class="btn-cat-mode" data-cat="" style="padding:0.45rem 0.9rem;border:none;background:#e0e0e0;color:#333;cursor:pointer;font-weight:bold;">全て</button>
+                        <button type="button" class="btn-cat-mode active" data-cat="電灯" style="padding:0.45rem 1.2rem;border:none;background:#1976d2;color:white;cursor:pointer;font-weight:bold;font-size:0.95rem;">⚡ 電灯回路</button>
+                        <button type="button" class="btn-cat-mode" data-cat="動力" style="padding:0.45rem 1.2rem;border:none;background:#e0e0e0;color:#333;cursor:pointer;font-weight:bold;font-size:0.95rem;">⚙ 動力回路</button>
                     </div>
-                    <!-- 後方互換のため非表示selectで値保持 -->
+                    <!-- 後方互換のため非表示selectで値保持（全ては廃止） -->
                     <select id="circuitCategoryFilter" class="circuits-filter" style="display:none;">
-                        <option value="">全て</option>
                         <option value="電灯" selected>電灯回路</option>
                         <option value="動力">動力回路</option>
                     </select>
@@ -1479,8 +1515,30 @@
                 <div class="circuits-help">
                     <h3>📖 回路DBの使い方</h3>
                     <dl>
-                        <dt>盤フィルタ / 区分フィルタ</dt>
-                        <dd>左上のドロップダウンで、表示する盤や区分（電灯／動力）を絞り込めます。</dd>
+                        <dt>盤フィルタ / 区分切替</dt>
+                        <dd>左上のドロップダウンで表示する盤を絞り込み、タブ風ボタンで<b>⚡ 電灯回路</b>と<b>⚙ 動力回路</b>を切り替えます。混在表示（全て）は廃止し、必ず片方のみを表示するため、入力列が絞り込まれて編集ミスを防げます。</dd>
+
+                        <dt>⚡ 電灯回路の計算根拠</dt>
+                        <dd>
+                            電灯・コンセント系統（記号 ◎ / ○ / □ / □□ / 分岐）の回路で使用します。<br>
+                            <b>入力項目</b>：照明[VA] / コンセント[VA] / FC[VA] / OA[VA] / 幹線分岐[VA]（5系統を区別して管理）、リモコン RC 数。<br>
+                            <b>電流の算式</b>：<code>I [A] = 合計VA ÷ V</code>（単相）。100V系は回路NOの奇偶で L1/L2 に自動配分、200V系は L1-L2 間（共用）扱い。<br>
+                            <b>AT判定の 80% ルール</b>：内線規程 <b>3605-3条</b>「<b>連続負荷を有する分岐回路の負荷容量は、その分岐回路を保護する過電流遮断器の定格電流の 80% を超えないこと</b>」に基づき、<code>AT ≧ 負荷電流 × 1.25</code>（＝ AT × 0.8 ≧ 負荷電流）で判定します。電灯・コンセントは連続使用されうる負荷として扱うためこの補正を適用します。<br>
+                            <b>1φ3W 設備不平衡率の対象</b>：L1単独／L2単独／L1-L2間の3区分に自動振り分けされ、内線規程 <b>1305-2条</b>の <b>40% 以下</b>を満たすか自動判定します。<br>
+                            <b>需要率</b>：用途別の参考値（事務所 70% 等、1305-1 参考資料）を適用し、<code>需要後電流 = 幹線電流 × 需要率</code>で主幹 AT の妥当性を再判定します。<br>
+                            <b>記号「分岐」の特例</b>：記号「分岐」(＝幹線タップ) は幹線扱いのため 80% ルールを<b>適用せず</b>、内線規程 <b>1310節</b>により <code>AT ≧ 設計電流</code> のみで判定します。容量[VA]の入力は通常の電灯行と同様に可能です。
+                        </dd>
+
+                        <dt>⚙ 動力回路の計算根拠</dt>
+                        <dd>
+                            三相誘導電動機などの動力負荷（記号 ◇）の回路で使用します。電灯専用列（リモコン／照明／コンセント／FC／OA／幹線分岐／RC数）は動力モードでは非表示となり、容量は合計[VA] 欄に直接入力します。<br>
+                            <b>電流の算式</b>：<code>I [A] = VA ÷ (√3 × V)</code>（3φ3W、V は回路電圧 200/210/220V）。本アプリは<b>力率を乗じない VA ベース</b>で集計（始動時・安全側評価）。<br>
+                            <b>80% ルール不適用</b>：動力回路は連続負荷ではなく、電動機の始動時突入電流は別途電動機用遮断器の選定（内線規程 <b>3705-1表</b>の定格電流換算・電動機保護協約規格）で扱うため、AT判定は <code>AT ≧ 設計電流</code> のみで実施します。<br>
+                            <b>3φ3W 設備不平衡率</b>：内線規程 <b>1305-3条</b>により、各線間の単相負荷の最大・最小の差を総負荷の 1/3 で割り、<b>30% 以下</b>となるかを自動判定します。<br>
+                            <code>不平衡率[%] = (最大線間単相負荷 − 最小線間単相負荷) ÷ (総負荷 × 1/3) × 100</code><br>
+                            <b>需要率</b>：電動機系統は用途別参考値（工場 80% 等、1305-1 参考資料）を適用。複数台運転や間欠負荷の実態に応じて<b>カスタム数値</b>を直接入力でき、盤ごとに保存されます。<br>
+                            <b>幹線</b>：内線規程 <b>1310節・3705節</b>に基づき <code>主幹AT ≧ 需要後電流</code> で判定します。電動機専用幹線の場合は別途 3705-3表（電動機の定格電流合計に基づく幹線許容電流）での確認も推奨します。
+                        </dd>
 
                         <dt>設計 / 実 / 両方</dt>
                         <dd>表示モードの切り替え。設計値（計算用）と実負荷値（ローカル保存）を並べて確認できます。</dd>
@@ -2254,19 +2312,24 @@
             document.getElementById('circuitsPanelFilter').addEventListener('change', renderCircuits);
             document.getElementById('circuitCategoryFilter').addEventListener('change', renderCircuits);
 
-            // 区分切替タブボタン (電灯/動力/全て)
+            // 区分切替タブボタン (電灯/動力) — 混在表示は廃止
             document.querySelectorAll('.btn-cat-mode').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const cat = e.currentTarget.dataset.cat || '';
+                    const cat = e.currentTarget.dataset.cat || '電灯';
                     // 非表示selectに値を反映
                     const sel = document.getElementById('circuitCategoryFilter');
                     sel.value = cat;
-                    // ボタンのactive状態を更新
+                    // ボタンのactive状態を更新（電灯=青 / 動力=橙）
                     document.querySelectorAll('.btn-cat-mode').forEach(b => {
                         const isActive = b.dataset.cat === cat;
                         b.classList.toggle('active', isActive);
-                        b.style.background = isActive ? '#1976d2' : '#e0e0e0';
-                        b.style.color = isActive ? 'white' : '#333';
+                        if (isActive) {
+                            b.style.background = b.dataset.cat === '動力' ? '#e65100' : '#1976d2';
+                            b.style.color = 'white';
+                        } else {
+                            b.style.background = '#e0e0e0';
+                            b.style.color = '#333';
+                        }
                     });
                     renderCircuits();
                 });
@@ -3266,7 +3329,12 @@
             // 描画前のフォーカス状態を記憶
             const _savedFocus = captureCircuitFocusState();
             const filterValue = document.getElementById('circuitsPanelFilter').value;
-            const categoryFilter = document.getElementById('circuitCategoryFilter').value;
+            let categoryFilter = document.getElementById('circuitCategoryFilter').value;
+            // 「全て」混在表示は廃止: カテゴリは必ず電灯か動力のどちらかに確定させる
+            if (categoryFilter !== '電灯' && categoryFilter !== '動力') {
+                categoryFilter = '電灯';
+                document.getElementById('circuitCategoryFilter').value = '電灯';
+            }
             let filtered = allCircuits;
 
             if (filterValue) {
@@ -3276,56 +3344,29 @@
             // 盤フィルタ適用時は合計容量サマリーを表示
             renderPanelFilterSummary(filterValue);
 
-            if (categoryFilter) {
-                filtered = filtered.filter(c => (c.category || '電灯') === categoryFilter);
-            }
-
+            filtered = filtered.filter(c => (c.category || '電灯') === categoryFilter);
             filtered.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+            // 表全体に現在モードのクラスを付与し、電灯専用列をCSSで非表示にする
+            const wrapper = document.getElementById('circuitsTableWrapper');
+            const floating = document.getElementById('circuitsFloatingHeader');
+            if (wrapper) {
+                wrapper.classList.remove('mode-lighting', 'mode-motor');
+                wrapper.classList.add(categoryFilter === '動力' ? 'mode-motor' : 'mode-lighting');
+            }
+            if (floating) {
+                floating.classList.remove('mode-lighting', 'mode-motor');
+                floating.classList.add(categoryFilter === '動力' ? 'mode-motor' : 'mode-lighting');
+            }
 
             const tbody = document.getElementById('circuitsTableBody');
             tbody.innerHTML = '';
 
-            if (!categoryFilter) {
-                // 電灯回路 / 動力回路 に分けて描画（グループ見出し付き）
-                const lightingCircuits = filtered.filter(c => (c.category || '電灯') === '電灯');
-                const motorCircuits = filtered.filter(c => c.category === '動力');
-
-                if (lightingCircuits.length > 0) {
-                    const headerRow = document.createElement('tr');
-                    headerRow.className = 'category-header-row';
-                    headerRow.innerHTML = `<td colspan="23" style="background:linear-gradient(90deg,#1976d2 0%,#42a5f5 100%);color:white;font-weight:bold;padding:0.8rem 1rem;font-size:1rem;letter-spacing:0.05em;border-bottom:3px solid #0d47a1;">⚡ 電灯回路 (${lightingCircuits.length}件)</td>`;
-                    tbody.appendChild(headerRow);
-                    lightingCircuits.forEach((circuit, index) => {
-                        const row = createCircuitRow(circuit, index + 1);
-                        if (circuit.type === 'RC') row.classList.add('row-rc');
-                        tbody.appendChild(row);
-                    });
-                }
-
-                if (motorCircuits.length > 0) {
-                    // 電灯との間にスペーサー行を挿入してグループ境界を明確化
-                    if (lightingCircuits.length > 0) {
-                        const spacer = document.createElement('tr');
-                        spacer.innerHTML = `<td colspan="23" style="height:1.2rem;background:#f5f5f5;border:none;padding:0;"></td>`;
-                        tbody.appendChild(spacer);
-                    }
-                    const headerRow = document.createElement('tr');
-                    headerRow.className = 'category-header-row';
-                    headerRow.innerHTML = `<td colspan="23" style="background:linear-gradient(90deg,#e65100 0%,#ff9800 100%);color:white;font-weight:bold;padding:0.8rem 1rem;font-size:1rem;letter-spacing:0.05em;border-bottom:3px solid #bf360c;">⚙ 動力回路 (${motorCircuits.length}件)</td>`;
-                    tbody.appendChild(headerRow);
-                    motorCircuits.forEach((circuit, index) => {
-                        const row = createCircuitRow(circuit, index + 1);
-                        if (circuit.type === 'RC') row.classList.add('row-rc');
-                        tbody.appendChild(row);
-                    });
-                }
-            } else {
-                filtered.forEach((circuit, index) => {
-                    const row = createCircuitRow(circuit, index + 1);
-                    if (circuit.type === 'RC') row.classList.add('row-rc');
-                    tbody.appendChild(row);
-                });
-            }
+            filtered.forEach((circuit, index) => {
+                const row = createCircuitRow(circuit, index + 1);
+                if (circuit.type === 'RC') row.classList.add('row-rc');
+                tbody.appendChild(row);
+            });
             // 描画後にスクロールプロキシの幅と浮かせヘッダーを再同期
             requestAnimationFrame(() => {
                 syncScrollProxyWidth();
@@ -3517,11 +3558,11 @@
                     const bgColor = isActual ? 'background-color:#fff8e1;' : '';
                     const prefix = isActual ? 'actual_' : '';
                     const values = isActual ? actual : circuit;
-                    // 動力回路では電灯系VA列(照明/コンセント/FC/OA/幹線分岐)は入力不可・グレーアウト
-                    // データはDBに残すため valueは保持するが readonly + 背景グレー + 値非表示
-                    const disabledCellStyle = 'background-color:#eeeeee;color:#bdbdbd;cursor:not-allowed;';
+                    // 動力回路でのみ電灯系VA列(照明/コンセント/FC/OA/幹線分岐)は入力不可・グレーアウト。
+                    // 記号「分岐」(幹線タップ)は電灯カテゴリ扱いなので入力可能にする（80%ルールのみ除外）。
+                    const isMotorRow = (category === '動力');
                     const mkCell = (field, val) => {
-                        if (!isLighting) {
+                        if (isMotorRow) {
                             return `<td style="background:#eeeeee;text-align:center;color:#bdbdbd;">—</td>`;
                         }
                         return `<td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}${field}" value="${Math.round((val || 0) * 1000)}" style="${bgColor}" /></td>`;
