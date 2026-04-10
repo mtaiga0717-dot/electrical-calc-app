@@ -1414,9 +1414,16 @@
                     <select id="circuitsPanelFilter" class="circuits-filter">
                         <option value="">全ての盤</option>
                     </select>
-                    <select id="circuitCategoryFilter" class="circuits-filter">
+                    <!-- 区分切替（タブ風ボタン）: 電灯 / 動力 / 全て。初期値=電灯 -->
+                    <div class="category-switch" style="display:inline-flex;gap:0;border:1px solid #4a5568;border-radius:6px;overflow:hidden;">
+                        <button type="button" class="btn-cat-mode active" data-cat="電灯" style="padding:0.45rem 0.9rem;border:none;background:#1976d2;color:white;cursor:pointer;font-weight:bold;">⚡ 電灯</button>
+                        <button type="button" class="btn-cat-mode" data-cat="動力" style="padding:0.45rem 0.9rem;border:none;background:#e0e0e0;color:#333;cursor:pointer;font-weight:bold;">⚙ 動力</button>
+                        <button type="button" class="btn-cat-mode" data-cat="" style="padding:0.45rem 0.9rem;border:none;background:#e0e0e0;color:#333;cursor:pointer;font-weight:bold;">全て</button>
+                    </div>
+                    <!-- 後方互換のため非表示selectで値保持 -->
+                    <select id="circuitCategoryFilter" class="circuits-filter" style="display:none;">
                         <option value="">全て</option>
-                        <option value="電灯">電灯回路</option>
+                        <option value="電灯" selected>電灯回路</option>
                         <option value="動力">動力回路</option>
                     </select>
                     <div class="view-mode-switch" style="display:inline-flex;gap:0;margin-left:0.5rem;border:1px solid #4a5568;border-radius:6px;overflow:hidden;">
@@ -2246,6 +2253,24 @@
 
             document.getElementById('circuitsPanelFilter').addEventListener('change', renderCircuits);
             document.getElementById('circuitCategoryFilter').addEventListener('change', renderCircuits);
+
+            // 区分切替タブボタン (電灯/動力/全て)
+            document.querySelectorAll('.btn-cat-mode').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const cat = e.currentTarget.dataset.cat || '';
+                    // 非表示selectに値を反映
+                    const sel = document.getElementById('circuitCategoryFilter');
+                    sel.value = cat;
+                    // ボタンのactive状態を更新
+                    document.querySelectorAll('.btn-cat-mode').forEach(b => {
+                        const isActive = b.dataset.cat === cat;
+                        b.classList.toggle('active', isActive);
+                        b.style.background = isActive ? '#1976d2' : '#e0e0e0';
+                        b.style.color = isActive ? 'white' : '#333';
+                    });
+                    renderCircuits();
+                });
+            });
             document.getElementById('btnAddCircuit').addEventListener('click', addCircuitRow);
             document.getElementById('btnRemconExpand').addEventListener('click', expandRemcon);
             document.getElementById('btnRemconDelete').addEventListener('click', deleteAllRemcon);
@@ -3261,14 +3286,14 @@
             tbody.innerHTML = '';
 
             if (!categoryFilter) {
-                // 電灯回路
+                // 電灯回路 / 動力回路 に分けて描画（グループ見出し付き）
                 const lightingCircuits = filtered.filter(c => (c.category || '電灯') === '電灯');
                 const motorCircuits = filtered.filter(c => c.category === '動力');
 
                 if (lightingCircuits.length > 0) {
                     const headerRow = document.createElement('tr');
                     headerRow.className = 'category-header-row';
-                    headerRow.innerHTML = `<td colspan="23" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯回路</td>`;
+                    headerRow.innerHTML = `<td colspan="23" style="background:linear-gradient(90deg,#1976d2 0%,#42a5f5 100%);color:white;font-weight:bold;padding:0.8rem 1rem;font-size:1rem;letter-spacing:0.05em;border-bottom:3px solid #0d47a1;">⚡ 電灯回路 (${lightingCircuits.length}件)</td>`;
                     tbody.appendChild(headerRow);
                     lightingCircuits.forEach((circuit, index) => {
                         const row = createCircuitRow(circuit, index + 1);
@@ -3278,9 +3303,15 @@
                 }
 
                 if (motorCircuits.length > 0) {
+                    // 電灯との間にスペーサー行を挿入してグループ境界を明確化
+                    if (lightingCircuits.length > 0) {
+                        const spacer = document.createElement('tr');
+                        spacer.innerHTML = `<td colspan="23" style="height:1.2rem;background:#f5f5f5;border:none;padding:0;"></td>`;
+                        tbody.appendChild(spacer);
+                    }
                     const headerRow = document.createElement('tr');
                     headerRow.className = 'category-header-row';
-                    headerRow.innerHTML = `<td colspan="23" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力回路</td>`;
+                    headerRow.innerHTML = `<td colspan="23" style="background:linear-gradient(90deg,#e65100 0%,#ff9800 100%);color:white;font-weight:bold;padding:0.8rem 1rem;font-size:1rem;letter-spacing:0.05em;border-bottom:3px solid #bf360c;">⚙ 動力回路 (${motorCircuits.length}件)</td>`;
                     tbody.appendChild(headerRow);
                     motorCircuits.forEach((circuit, index) => {
                         const row = createCircuitRow(circuit, index + 1);
@@ -3486,20 +3517,31 @@
                     const bgColor = isActual ? 'background-color:#fff8e1;' : '';
                     const prefix = isActual ? 'actual_' : '';
                     const values = isActual ? actual : circuit;
-                    // VA表示用（DBはkVA保存なので×1000）
+                    // 動力回路では電灯系VA列(照明/コンセント/FC/OA/幹線分岐)は入力不可・グレーアウト
+                    // データはDBに残すため valueは保持するが readonly + 背景グレー + 値非表示
+                    const disabledCellStyle = 'background-color:#eeeeee;color:#bdbdbd;cursor:not-allowed;';
+                    const mkCell = (field, val) => {
+                        if (!isLighting) {
+                            return `<td style="background:#eeeeee;text-align:center;color:#bdbdbd;">—</td>`;
+                        }
+                        return `<td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}${field}" value="${Math.round((val || 0) * 1000)}" style="${bgColor}" /></td>`;
+                    };
                     return `
-                        <td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}lighting" value="${Math.round((values.lighting || 0) * 1000)}" style="${bgColor}" /></td>
-                        <td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}outlet" value="${Math.round((values.outlet || 0) * 1000)}" style="${bgColor}" /></td>
-                        <td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}fc" value="${Math.round((values.fc || 0) * 1000)}" style="${bgColor}" /></td>
-                        <td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}oa" value="${Math.round((values.oa || 0) * 1000)}" style="${bgColor}" /></td>
-                        <td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}feeder" value="${Math.round((values.feeder || 0) * 1000)}" style="${bgColor}" /></td>
+                        ${mkCell('lighting', values.lighting)}
+                        ${mkCell('outlet', values.outlet)}
+                        ${mkCell('fc', values.fc)}
+                        ${mkCell('oa', values.oa)}
+                        ${mkCell('feeder', values.feeder)}
                         <td class="auto-calc">${Math.round(total * 1000)}</td>
                         <td class="auto-calc">${current.toFixed(2)}</td>
                     `;
                 })()}
                 <td><strong><span class="badge ${atStatus === 'OK' || atStatus === '-' ? 'badge-ok' : 'badge-ng'}" ${atNgReason ? `title="${atNgReason}"` : ''}>${atStatus}${atNgReason ? ' ⚠' : ''}</span></strong>${atNgReason ? `<div style="font-size:0.65rem;color:#d32f2f;white-space:nowrap;">${atNgReason}</div>` : ''}</td>
                 <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="load_name" value="${circuit.load_name || ''}" /></td>
-                <td><input type="number" min="0" class="circuit-input" data-id="${circuit.id}" data-field="remocon" value="${circuit.remocon || 0}" style="width:50px;" /></td>
+                <td>${isLighting
+                    ? `<input type="number" min="0" class="circuit-input" data-id="${circuit.id}" data-field="remocon" value="${circuit.remocon || 0}" style="width:50px;" />`
+                    : `<span style="color:#bdbdbd;">—</span>`
+                }</td>
                 <td><button class="btn-delete-circuit" onclick="deleteCircuit(${circuit.id})">削除</button></td>
             `;
 
@@ -3805,30 +3847,19 @@
             const newSortOrder = maxSort + 1000;
 
             // 回路NO自動採番:
-            //  - 候補の中で「最大の数値circuit_no」を基準にする（sort_order最後の行とは限らない）
-            //  - 最大NOの行の記号が 2P系(200V単相)なら +2、3P系(3φ3W)なら +3、それ以外は +1
-            //    物理的な分電盤のスロット数に合わせる
+            //  - 候補の中で「最大の数値circuit_no」を基準にして +1（通し番号）
+            //  - 電灯盤も動力盤も、回路NOは物理スロット位置ではなく通し番号として扱うのが実務慣行
+            //    （2P/3Pであっても回路NOは連番で振る）
             let nextCircuitNo = '';
-            const POLE_3P_SYMBOLS = new Set(['◇']);
-            const POLE_2P_SYMBOLS = new Set(['◎', '□□', '[][]', '■', '分岐']);
-            const stepForSymbol = (sym) => {
-                if (POLE_3P_SYMBOLS.has(sym)) return 3;
-                if (POLE_2P_SYMBOLS.has(sym)) return 2;
-                return 1;
-            };
-            // 数値circuit_noを持つ候補から最大を探す
-            let maxNoCircuit = null;
             let maxNoVal = -Infinity;
             candidates.forEach(c => {
                 const n = parseInt(c.circuit_no, 10);
                 if (!isNaN(n) && n > maxNoVal) {
                     maxNoVal = n;
-                    maxNoCircuit = c;
                 }
             });
-            if (maxNoCircuit) {
-                const step = stepForSymbol(maxNoCircuit.symbol);
-                nextCircuitNo = String(maxNoVal + step);
+            if (maxNoVal > -Infinity) {
+                nextCircuitNo = String(maxNoVal + 1);
             } else if (prevCircuit) {
                 nextCircuitNo = '1';
             }
