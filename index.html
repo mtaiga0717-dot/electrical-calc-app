@@ -776,33 +776,18 @@
             left: auto !important;
         }
 
-        /* ── 動力モード: 電灯専用カラムを完全非表示 ──
-           hide: 7=ﾘﾓｺﾝ, 13=照明VA, 14=ｺﾝｾﾝﾄVA, 15=FC, 16=OA, 17=幹線分岐VA, 22=RC数
-           ※ 区分(4)は切替の文脈維持のため表示のまま
+        /* ── 動力モード: 電灯専用カラムのみ非表示 ──
+           hide: 7=ﾘﾓｺﾝ, 22=RC数
+           列13-17は動力入力(kW/台数/Im/始動方式/3705-1)として再利用するため表示
         */
         .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(7),
         .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(7),
-        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(13),
-        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(13),
-        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(14),
-        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(14),
-        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(15),
-        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(15),
-        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(16),
-        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(16),
-        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(17),
-        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(17),
         .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(22),
         .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(22) {
             display: none !important;
         }
         /* 浮かせヘッダも同期 */
         .circuits-floating-header.mode-motor .circuits-table th:nth-child(7),
-        .circuits-floating-header.mode-motor .circuits-table th:nth-child(13),
-        .circuits-floating-header.mode-motor .circuits-table th:nth-child(14),
-        .circuits-floating-header.mode-motor .circuits-table th:nth-child(15),
-        .circuits-floating-header.mode-motor .circuits-table th:nth-child(16),
-        .circuits-floating-header.mode-motor .circuits-table th:nth-child(17),
         .circuits-floating-header.mode-motor .circuits-table th:nth-child(22) {
             display: none !important;
         }
@@ -1529,15 +1514,37 @@
                             <b>記号「分岐」の特例</b>：記号「分岐」(＝幹線タップ) は幹線扱いのため 80% ルールを<b>適用せず</b>、内線規程 <b>1310節</b>により <code>AT ≧ 設計電流</code> のみで判定します。容量[VA]の入力は通常の電灯行と同様に可能です。
                         </dd>
 
-                        <dt>⚙ 動力回路の計算根拠</dt>
+                        <dt>⚙ 動力回路の計算根拠（内線規程 3705 準拠）</dt>
                         <dd>
-                            三相誘導電動機などの動力負荷（記号 ◇）の回路で使用します。電灯専用列（リモコン／照明／コンセント／FC／OA／幹線分岐／RC数）は動力モードでは非表示となり、容量は合計[VA] 欄に直接入力します。<br>
-                            <b>電流の算式</b>：<code>I [A] = VA ÷ (√3 × V)</code>（3φ3W、V は回路電圧 200/210/220V）。本アプリは<b>力率を乗じない VA ベース</b>で集計（始動時・安全側評価）。<br>
-                            <b>80% ルール不適用</b>：動力回路は連続負荷ではなく、電動機の始動時突入電流は別途電動機用遮断器の選定（内線規程 <b>3705-1表</b>の定格電流換算・電動機保護協約規格）で扱うため、AT判定は <code>AT ≧ 設計電流</code> のみで実施します。<br>
-                            <b>3φ3W 設備不平衡率</b>：内線規程 <b>1305-3条</b>により、各線間の単相負荷の最大・最小の差を総負荷の 1/3 で割り、<b>30% 以下</b>となるかを自動判定します。<br>
+                            三相誘導電動機などの動力負荷（記号 ◇）の回路で使用します。動力モードでは列 13〜17 が電動機データ入力に差し替わります：<br>
+                            <b>入力項目</b>：<b>kW</b>（電動機定格出力）／<b>台数</b>／<b>始動方式</b>（直入れ／Y-Δ／インバータ／ソフトスタータ）。<br>
+                            <b>Im 自動参照</b>：kW を入力すると内線規程 <b>3705-1表（200V 3φ単一電動機）</b>から定格電流 Im を自動取得し、<code>Im × 台数</code> で表示。同時に<br>
+                            <code>容量[VA] = √3 × 200 × Im × 台数</code><br>
+                            として合計[VA]／電流[A]／需要率計算に反映されます（力率は乗じない安全側評価）。<br>
+
+                            <b>AT判定ロジック</b>（動力回路）：
+                            <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
+                                <li><code>AT ≧ 設計電流</code>（基本）</li>
+                                <li><code>AT ≧ 3705-1表の推奨分岐AT</code>（kWに対する最小値、下回ると NG）</li>
+                                <li><code>AT ≦ Im × 3</code>（内線規程 <b>3705-2条</b>：分岐回路の過電流遮断器は電動機定格電流の3倍以下、超えると NG）</li>
+                                <li>80% ルール（3605-3条）は動力には<b>適用しない</b>（連続負荷ではなく、始動時突入電流は別途 3705-1表で扱うため）</li>
+                            </ul>
+
+                            <b>盤サマリーバー 動力モード 3705-3 ガイダンス</b>：動力モードで盤フィルタを選択すると、その盤の動力回路を集約した以下を表示します。
+                            <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
+                                <li><b>ΣIm</b>：全動力回路の定格電流合計（<code>Σ(3705-1表のIm × 台数)</code>）</li>
+                                <li><b>必要幹線許容電流 Iw</b>：内線規程 <b>3705-3条</b>に基づく<br>
+                                    &nbsp;&nbsp;<code>ΣIm ≤ 50A → Iw ≧ ΣIm × 1.25</code><br>
+                                    &nbsp;&nbsp;<code>ΣIm &gt; 50A → Iw ≧ ΣIm × 1.10</code><br>
+                                    主幹ATと比較し OK/NG を自動判定</li>
+                                <li><b>3705-3表 推奨幹線AT</b>：ΣkW と最大電動機kWから同表の200V 3φ幹線ブレーカ定格を自動選定し、主幹ATと比較</li>
+                                <li><b>最大電動機</b>：始動時電流の評価基準となる最大kWを表示</li>
+                            </ul>
+
+                            <b>3φ3W 設備不平衡率</b>：内線規程 <b>1305-3条</b>により各線間単相負荷の最大・最小の差を総負荷の 1/3 で割り、<b>30% 以下</b>を自動判定。<br>
                             <code>不平衡率[%] = (最大線間単相負荷 − 最小線間単相負荷) ÷ (総負荷 × 1/3) × 100</code><br>
-                            <b>需要率</b>：電動機系統は用途別参考値（工場 80% 等、1305-1 参考資料）を適用。複数台運転や間欠負荷の実態に応じて<b>カスタム数値</b>を直接入力でき、盤ごとに保存されます。<br>
-                            <b>幹線</b>：内線規程 <b>1310節・3705節</b>に基づき <code>主幹AT ≧ 需要後電流</code> で判定します。電動機専用幹線の場合は別途 3705-3表（電動機の定格電流合計に基づく幹線許容電流）での確認も推奨します。
+
+                            <b>需要率</b>：電動機系統は用途別参考値（工場 80% 等、1305-1 参考資料）を適用。複数台運転・間欠負荷の実態に応じて<b>カスタム値</b>を直接入力可。盤ごとに localStorage に保存され、盤一覧タブと同期。
                         </dd>
 
                         <dt>設計 / 実 / 両方</dt>
@@ -2262,6 +2269,34 @@
             const cur = getActualCircuit(circuitId);
             cur[field] = value;
             localStorage.setItem(`actual_circuit_${circuitId}`, JSON.stringify(cur));
+        }
+
+        // 動力回路メタデータ（内線規程 3705 判定用）
+        // kW=定格出力、count=台数、startMethod=始動方式(direct/star-delta/inverter/soft)
+        function getMotorMeta(circuitId) {
+            try {
+                const raw = localStorage.getItem(`elecCalc:motorMeta:${circuitId}`);
+                if (!raw) return { kw: 0, count: 1, startMethod: 'direct' };
+                const v = JSON.parse(raw);
+                return {
+                    kw: Number(v.kw) || 0,
+                    count: Number(v.count) || 1,
+                    startMethod: v.startMethod || 'direct'
+                };
+            } catch (e) {
+                return { kw: 0, count: 1, startMethod: 'direct' };
+            }
+        }
+        function setMotorMeta(circuitId, patch) {
+            const cur = getMotorMeta(circuitId);
+            const merged = Object.assign(cur, patch);
+            localStorage.setItem(`elecCalc:motorMeta:${circuitId}`, JSON.stringify(merged));
+        }
+        // 3705-1表から kW ≤ の最小行を選び、Im/推奨分岐AT/最小CVを返す
+        function lookupMotor3705_1(kw) {
+            if (!kw || kw <= 0) return null;
+            const entry = MOTOR_TABLE_3705_1.find(m => m.kw >= kw);
+            return entry || MOTOR_TABLE_3705_1[MOTOR_TABLE_3705_1.length - 1];
         }
 
         // Authentication
@@ -3168,12 +3203,64 @@
 
             let balanceHtml = '';
             if (s.balance !== null) {
-                const bOK = s.balance <= 40;
+                // 1φ3W=40%以下、3φ3W=30%以下 (内線規程 1305-2/1305-3)
+                const limit = isThreePhase ? 30 : 40;
+                const bOK = s.balance <= limit;
                 balanceHtml = `
                     <span class="pfs-item">
-                        <span class="pfs-label">設備不平衡率</span>
+                        <span class="pfs-label">設備不平衡率 (≤${limit}%)</span>
                         <span class="pfs-value">${s.balance.toFixed(1)}% <span class="pfs-badge ${bOK ? 'ok' : 'ng'}" style="font-size:0.7rem;padding:0.05rem 0.35rem;">${bOK ? 'OK' : '×'}</span></span>
                     </span>`;
+            }
+
+            // 内線規程 3705 動力幹線ガイダンス（区分=動力モード時のみ表示）
+            let motor3705Html = '';
+            const currentCatFilter = (document.getElementById('circuitCategoryFilter') || {}).value;
+            if (currentCatFilter === '動力') {
+                const motorCircuits = (allCircuits || []).filter(c => c.panel_name === panelName && c.category === '動力');
+                let sumKw = 0;
+                let maxKw = 0;
+                let sumImCalc = 0;
+                motorCircuits.forEach(c => {
+                    const m = getMotorMeta(c.id);
+                    const kw = Number(m.kw) || 0;
+                    const cnt = Number(m.count) || 1;
+                    const entry = lookupMotor3705_1(kw);
+                    if (entry && kw > 0) {
+                        sumKw += kw * cnt;
+                        sumImCalc += entry.current * cnt;
+                        if (kw > maxKw) maxKw = kw;
+                    }
+                });
+                if (sumKw > 0) {
+                    // 3705-3表で幹線ブレーカを選定（200V 3φ）
+                    const feederPick = lookupMotorFeederBreaker200V(sumKw, maxKw);
+                    // 3705-3条の係数: ΣIm≤50A→1.25, >50A→1.1
+                    const k = sumImCalc <= 50 ? 1.25 : 1.1;
+                    const requiredIw = sumImCalc * k;
+                    const atPickOk = feederPick && panelAT >= feederPick.breakerAT;
+                    const iwOk = panelAT > 0 && panelAT >= requiredIw;
+                    motor3705Html = `
+                        <span class="pfs-group-break"></span>
+                        <span class="pfs-item" title="内線規程 3705-3条: 複数電動機幹線の許容電流は ΣIm×k (ΣIm≤50A→k=1.25, >50A→k=1.1)">
+                            <span class="pfs-label">動力 3705-3 ΣIm</span>
+                            <span class="pfs-value">${sumImCalc.toFixed(1)} A (ΣkW=${sumKw.toFixed(1)})</span>
+                        </span>
+                        <span class="pfs-item">
+                            <span class="pfs-label">必要幹線許容電流 (×${k})</span>
+                            <span class="pfs-value">${requiredIw.toFixed(1)} A <span class="pfs-badge ${iwOk ? 'ok' : 'ng'}" style="font-size:0.7rem;padding:0.05rem 0.35rem;">${iwOk ? 'OK' : '×'}</span></span>
+                        </span>
+                        ${feederPick ? `
+                        <span class="pfs-item" title="内線規程 3705-3表: ΣkW=${sumKw.toFixed(1)}, 最大電動機=${maxKw}kW から推奨される動力幹線ブレーカ定格">
+                            <span class="pfs-label">3705-3表 推奨幹線AT</span>
+                            <span class="pfs-value">${feederPick.breakerAT} AT <span class="pfs-badge ${atPickOk ? 'ok' : 'ng'}" style="font-size:0.7rem;padding:0.05rem 0.35rem;">${atPickOk ? 'OK' : '×'}</span></span>
+                        </span>` : ''}
+                        <span class="pfs-item">
+                            <span class="pfs-label">最大電動機</span>
+                            <span class="pfs-value">${maxKw} kW</span>
+                        </span>
+                    `;
+                }
             }
 
             // L1/L2 内訳（1φ3W のみ）
@@ -3287,6 +3374,7 @@
                     <span class="pfs-value">${atBadge}</span>
                 </span>
                 ${balanceHtml}
+                ${motor3705Html}
             `;
             box.classList.remove('pfs-hidden');
 
@@ -3357,6 +3445,23 @@
             if (floating) {
                 floating.classList.remove('mode-lighting', 'mode-motor');
                 floating.classList.add(categoryFilter === '動力' ? 'mode-motor' : 'mode-lighting');
+            }
+            // thead のラベルをモードで切替（列13-17を動力用に差し替える）
+            const ths = document.querySelectorAll('#circuitsTable thead tr th');
+            if (ths && ths.length >= 17) {
+                if (categoryFilter === '動力') {
+                    ths[12].textContent = 'kW';
+                    ths[13].textContent = '台数';
+                    ths[14].textContent = 'Im[A]';
+                    ths[15].textContent = '始動方式';
+                    ths[16].textContent = '3705-1表';
+                } else {
+                    ths[12].textContent = '照明[VA]';
+                    ths[13].textContent = 'ｺﾝｾﾝﾄ[VA]';
+                    ths[14].textContent = 'FC[VA]';
+                    ths[15].textContent = 'OA[VA]';
+                    ths[16].textContent = '幹線分岐[VA]';
+                }
             }
 
             const tbody = document.getElementById('circuitsTableBody');
@@ -3454,13 +3559,21 @@
             const isLighting = (category === '電灯') && !isFeederTap;
             const requiredAT = isLighting ? current * 1.25 : current;
 
+            // 動力回路 3705-1表参照（kWから推奨分岐ブレーカ／定格電流を取得）
+            const motorMeta = getMotorMeta(circuit.id);
+            const isMotor = (category === '動力');
+            const motor3705 = isMotor ? lookupMotor3705_1(motorMeta.kw) : null;
+            const motorSingleIm = motor3705 ? motor3705.current : 0;
+            const motorTotalIm = motorSingleIm * (motorMeta.count || 1);
+            const motorRecommendAT = motor3705 ? motor3705.breaker : 0;
+
             // 自動相計算（電灯回路のみ）
             const panelObjForPhase = allPanels.find(p => p.name === circuit.panel_name);
             const panelTypeForPhase = panelObjForPhase ? panelObjForPhase.elec_type : '1φ3W';
             const autoPhase = computeAutoPhase(category, circuit.symbol, circuit.circuit_no, panelTypeForPhase, circuit.phase);
             let atStatus = '';
             let atNgReason = '';
-            if (current === 0) {
+            if (current === 0 && !(isMotor && motorTotalIm > 0)) {
                 atStatus = '-';
             } else if (at < current) {
                 atStatus = 'NG';
@@ -3468,6 +3581,14 @@
             } else if (isLighting && at < requiredAT) {
                 atStatus = 'NG';
                 atNgReason = `AT(${at}) < 電流×1.25(${requiredAT.toFixed(1)}A) [内線規程3605-3条 80%ルール]`;
+            } else if (isMotor && motor3705 && at < motorRecommendAT) {
+                // 3705-1表: kWに対応する分岐ブレーカ最小値に満たない
+                atStatus = 'NG';
+                atNgReason = `AT(${at}) < 3705-1表推奨${motorRecommendAT}AT (${motorMeta.kw}kW, Im=${motorSingleIm}A)`;
+            } else if (isMotor && motor3705 && at > motorSingleIm * 3) {
+                // 3705-2条: 分岐回路の過電流遮断器は電動機定格電流の3倍以下
+                atStatus = 'NG';
+                atNgReason = `AT(${at}) > Im×3(${(motorSingleIm*3).toFixed(0)}A) [3705-2条 分岐MCCB上限]`;
             } else {
                 atStatus = 'OK';
             }
@@ -3558,13 +3679,37 @@
                     const bgColor = isActual ? 'background-color:#fff8e1;' : '';
                     const prefix = isActual ? 'actual_' : '';
                     const values = isActual ? actual : circuit;
-                    // 動力回路でのみ電灯系VA列(照明/コンセント/FC/OA/幹線分岐)は入力不可・グレーアウト。
-                    // 記号「分岐」(幹線タップ)は電灯カテゴリ扱いなので入力可能にする（80%ルールのみ除外）。
+                    // 動力回路は列13-17を電動機入力に置換（3705-1表参照）
+                    // 記号「分岐」(幹線タップ)は電灯カテゴリ扱いなので電灯入力のまま（80%ルールのみ除外）。
                     const isMotorRow = (category === '動力');
+                    if (isMotorRow) {
+                        const mKw = motorMeta.kw || 0;
+                        const mCount = motorMeta.count || 1;
+                        const mImEach = motorSingleIm;
+                        const mImTotal = motorTotalIm;
+                        const m3705Info = motor3705
+                            ? `推奨${motorRecommendAT}AT / CV${motor3705.cable}mm²`
+                            : '—';
+                        const startOpt = (v, label) => `<option value="${v}" ${motorMeta.startMethod === v ? 'selected' : ''}>${label}</option>`;
+                        // col13=kW, col14=台数, col15=Im[A](auto), col16=始動方式, col17=3705-1表参照
+                        return `
+                            <td><input type="number" step="0.1" min="0" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="kw" value="${mKw}" style="width:60px;background:#fff3e0;" title="電動機定格[kW] (3705-1表入力)" /></td>
+                            <td><input type="number" step="1" min="1" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="count" value="${mCount}" style="width:50px;background:#fff3e0;" title="台数" /></td>
+                            <td class="auto-calc" style="background:#fff8e1;">${mImEach ? `${mImEach}A<div style="font-size:0.65rem;color:#888;">×${mCount}=${mImTotal.toFixed(1)}A</div>` : '—'}</td>
+                            <td>
+                                <select class="motor-meta-input" data-id="${circuit.id}" data-motor-field="startMethod" style="background:#fff3e0;font-size:0.72rem;min-width:72px;" title="始動方式">
+                                    ${startOpt('direct', '直入れ')}
+                                    ${startOpt('star-delta', 'Y-Δ')}
+                                    ${startOpt('inverter', 'インバータ')}
+                                    ${startOpt('soft', 'ソフト')}
+                                </select>
+                            </td>
+                            <td class="auto-calc" style="background:#fff8e1;font-size:0.7rem;line-height:1.2;">${m3705Info}</td>
+                            <td class="auto-calc">${Math.round(total * 1000)}</td>
+                            <td class="auto-calc">${current.toFixed(2)}</td>
+                        `;
+                    }
                     const mkCell = (field, val) => {
-                        if (isMotorRow) {
-                            return `<td style="background:#eeeeee;text-align:center;color:#bdbdbd;">—</td>`;
-                        }
                         return `<td><input type="number" step="1" class="circuit-input" data-id="${circuit.id}" data-field="${prefix}${field}" value="${Math.round((val || 0) * 1000)}" style="${bgColor}" /></td>`;
                     };
                     return `
@@ -3592,8 +3737,50 @@
             row.querySelectorAll('.circuit-select, .panel-select').forEach(input => {
                 input.addEventListener('change', handleCircuitChange);
             });
+            // 動力メタ入力(kW/台数/始動方式)のハンドラ
+            row.querySelectorAll('.motor-meta-input').forEach(input => {
+                input.addEventListener('change', handleMotorMetaChange);
+            });
 
             return row;
+        }
+
+        // 動力メタ変更→localStorageへ保存→3705-1表参照→VAを計算しcircuit.feederへ反映
+        async function handleMotorMetaChange(e) {
+            if (isRendering) return;
+            const input = e.target;
+            const circuitId = parseInt(input.dataset.id);
+            const field = input.dataset.motorField;
+            let value = input.value;
+            if (field === 'kw' || field === 'count') value = parseFloat(value) || 0;
+
+            setMotorMeta(circuitId, { [field]: value });
+
+            // kWまたはtaskCount変更時は VAを再計算して circuit.feeder (kVA) にDB反映
+            if (field === 'kw' || field === 'count') {
+                const meta = getMotorMeta(circuitId);
+                const entry = lookupMotor3705_1(meta.kw);
+                let kvaTotal = 0;
+                if (entry && meta.kw > 0) {
+                    // 3705-1表のImを使用: VA = √3 × 200 × Im × 台数
+                    const imTotal = entry.current * (meta.count || 1);
+                    kvaTotal = Math.sqrt(3) * 200 * imTotal / 1000;
+                }
+                try {
+                    // 動力は feederスロットにまとめて保存
+                    const { error } = await db
+                        .from('circuits')
+                        .update({ lighting: 0, outlet: 0, fc: 0, oa: 0, feeder: kvaTotal })
+                        .eq('id', circuitId);
+                    if (error) throw error;
+                    await loadCircuits();
+                } catch (err) {
+                    console.error('motor VA update error:', err);
+                }
+            }
+            isRendering = true;
+            await renderCircuits();
+            isRendering = false;
         }
 
         // 記号→回路自動設定マッピング
@@ -3870,15 +4057,19 @@
         async function addCircuitRow() {
             const filterValue = document.getElementById('circuitsPanelFilter').value;
             const panelName = filterValue || (allPanels.length > 0 ? allPanels[0].name : '');
+            // 現在表示中のカテゴリ(電灯/動力)を必ず尊重する
+            let activeCategory = document.getElementById('circuitCategoryFilter').value;
+            if (activeCategory !== '電灯' && activeCategory !== '動力') activeCategory = '電灯';
 
-            // 直前の回路を取得して値を引き継ぐ（RC行は除外）
-            // フィルタがある場合はその盤の最後の回路、なければ全体の最後の回路
+            // 直前の回路を取得して値を引き継ぐ（RC行は除外、かつ同カテゴリのみ）
+            // フィルタがある場合はその盤 + カテゴリでの最後の回路
             let prevCircuit = null;
             const candidates = (filterValue
                 ? allCircuits.filter(c => c.panel_name === filterValue)
-                : allCircuits).filter(c => c.type !== 'RC');
+                : allCircuits)
+                .filter(c => c.type !== 'RC')
+                .filter(c => (c.category || '電灯') === activeCategory);
             if (candidates.length > 0) {
-                // sort_order昇順でソートして最後を取得
                 const sorted = [...candidates].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
                 prevCircuit = sorted[sorted.length - 1];
             }
@@ -3887,52 +4078,51 @@
             const maxSort = allCircuits.reduce((m, c) => Math.max(m, c.sort_order || 0), 0);
             const newSortOrder = maxSort + 1000;
 
-            // 回路NO自動採番:
-            //  - 候補の中で「最大の数値circuit_no」を基準にして +1（通し番号）
-            //  - 電灯盤も動力盤も、回路NOは物理スロット位置ではなく通し番号として扱うのが実務慣行
-            //    （2P/3Pであっても回路NOは連番で振る）
+            // 回路NO自動採番: 同カテゴリ候補の中で最大数値+1
             let nextCircuitNo = '';
             let maxNoVal = -Infinity;
             candidates.forEach(c => {
                 const n = parseInt(c.circuit_no, 10);
-                if (!isNaN(n) && n > maxNoVal) {
-                    maxNoVal = n;
-                }
+                if (!isNaN(n) && n > maxNoVal) maxNoVal = n;
             });
             if (maxNoVal > -Infinity) {
                 nextCircuitNo = String(maxNoVal + 1);
-            } else if (prevCircuit) {
+            } else {
                 nextCircuitNo = '1';
             }
 
-            const newCircuit = prevCircuit ? {
-                panel_name: prevCircuit.panel_name || panelName,
-                type: prevCircuit.type || 'M',
-                symbol: prevCircuit.symbol || '◎',
-                circuit_no: nextCircuitNo,
-                phase: prevCircuit.phase || 'L1',
-                breaker: prevCircuit.breaker || 'MCCB2P2E',
-                af: prevCircuit.af || 30,
-                at: prevCircuit.at || 20,
-                voltage: prevCircuit.voltage || 200,
-                lighting: 0,
-                outlet: 0,
-                fc: 0,
-                oa: 0,
-                feeder: 0,
-                load_name: '',
-                remocon: 0,
-                sort_order: newSortOrder
-            } : {
-                panel_name: panelName,
+            // カテゴリ別のデフォルト値
+            const motorDefaults = {
+                type: 'M',
+                symbol: '◇',
+                phase: 'RST',
+                breaker: 'MCCB3P',
+                af: 30,
+                at: 20,
+                voltage: 200
+            };
+            const lightingDefaults = {
                 type: 'M',
                 symbol: '◎',
-                circuit_no: '1',
                 phase: 'L1',
                 breaker: 'MCCB2P2E',
                 af: 30,
                 at: 20,
-                voltage: 200,
+                voltage: 200
+            };
+            // 同カテゴリの直前回路があればその値を継承、なければカテゴリ別デフォルト
+            const baseDefaults = activeCategory === '動力' ? motorDefaults : lightingDefaults;
+            const src = prevCircuit || {};
+            const newCircuit = {
+                panel_name: src.panel_name || panelName,
+                type: src.type || baseDefaults.type,
+                symbol: src.symbol || baseDefaults.symbol,
+                circuit_no: nextCircuitNo,
+                phase: src.phase || baseDefaults.phase,
+                breaker: src.breaker || baseDefaults.breaker,
+                af: src.af || baseDefaults.af,
+                at: src.at || baseDefaults.at,
+                voltage: src.voltage || baseDefaults.voltage,
                 lighting: 0,
                 outlet: 0,
                 fc: 0,
@@ -3950,12 +4140,12 @@
                     .select();
 
                 if (error) throw error;
-                // categoryはDBにないのでlocalCircuitDataに保存（直前の回路のカテゴリを引き継ぐ）
+                // categoryはDBにないのでlocalCircuitDataに保存。
+                // 現在表示中のカテゴリを強制的に付与する（電灯タブなら電灯、動力タブなら動力）
                 if (data && data[0]) {
-                    const inheritedCategory = prevCircuit
-                        ? (localCircuitData[prevCircuit.id]?.category || prevCircuit.category || '電灯')
-                        : '電灯';
-                    localCircuitData[data[0].id] = { category: inheritedCategory };
+                    localCircuitData[data[0].id] = { category: activeCategory };
+                    // allCircuitsにも即反映（loadCircuitsでもマージされるが先に反映）
+                    data[0].category = activeCategory;
                 }
                 await loadCircuits();
                 await renderCircuits();
