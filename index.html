@@ -1717,6 +1717,7 @@
                         <option value="動力">動力幹線</option>
                     </select>
                     <button class="btn-action" id="btnAddFeeder">+ 幹線追加</button>
+                    <button class="btn-action" id="btnAutoSyncFeeders" style="background:#00897b;color:#fff;" title="盤一覧の各盤を幹線として、分岐回路から給電される盤を子幹線として自動反映します">🔄 盤一覧・回路DBから自動反映</button>
                     <button class="btn-action" id="btnFeedersExport">CSV出力</button>
                     <button class="btn-action" id="btnShowSystemDiagram" style="background:#6a1b9a;color:#fff;">🌳 系統図プレビュー</button>
                 </div>
@@ -1950,6 +1951,70 @@
                             <div class="summary-value" id="recommendedValue" style="font-size:1.2rem;">-</div>
                         </div>
                         <input type="hidden" id="overallDemandFactor" value="100">
+                    </div>
+
+                    <!-- ⑥ トランス登録（エンティティ管理） -->
+                    <div class="summary-section" style="margin-top:2rem;border-top:3px solid #1a1a2e;padding-top:1.5rem;">
+                        <div class="summary-title">⑥ トランス登録（実機管理・短絡電流計算準備）</div>
+                        <p style="font-size:0.85rem;color:#555;margin-bottom:0.8rem;">
+                            国交省 建築設備設計基準（電気設備工事編）準拠。ここで登録したトランスは、幹線計算書の<strong>「自」</strong>欄で選択できます。%Z を入力すれば、将来の短絡電流（Isc = In × 100/%Z）計算に利用されます。
+                        </p>
+                        <div style="margin-bottom:1rem;">
+                            <button class="btn-action" id="btnAddTransformer" style="background:#1a1a2e;color:#fff;">+ トランスを登録</button>
+                            <button class="btn-action" id="btnImportTransformerFromEs" style="background:#43a047;color:#fff;margin-left:0.5rem;">⬆ ④ Es から単相/三相分割で自動登録</button>
+                        </div>
+                        <table id="transformerListTable" style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                            <thead>
+                                <tr style="background-color:#1a1a2e;color:#fff;">
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">名称</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">相</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">結線</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">容量[kVA]</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">1次[V]</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">2次[V]</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">%Z</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">In[A]</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">Isc[kA]</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">用途</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transformerListBody">
+                                <!-- Rendered by renderTransformerList() -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transformer Add/Edit Modal -->
+            <div id="transformerEditModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;justify-content:center;align-items:center;">
+                <div style="background:#fff;border-radius:8px;padding:1.5rem;max-width:640px;width:92%;max-height:90vh;overflow-y:auto;">
+                    <h3 style="color:#1a1a2e;margin-bottom:1rem;" id="transformerEditTitle">トランス登録</h3>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;font-size:0.9rem;">
+                        <label>名称 <input type="text" id="trName" placeholder="T1" style="width:100%;"></label>
+                        <label>形式 <select id="trType" style="width:100%;"><option value="モールド">モールド</option><option value="油入">油入</option><option value="ガス絶縁">ガス絶縁</option></select></label>
+                        <label>相 <select id="trPhase" style="width:100%;"><option value="三相3W">三相3W</option><option value="単相2W">単相2W</option><option value="単相3W">単相3W</option></select></label>
+                        <label>結線 <select id="trConnection" style="width:100%;"><option>Δ-Y</option><option>Δ-Δ</option><option>Y-Y</option><option>Y-Δ</option><option>V-V</option><option>単相（結線なし）</option></select></label>
+                        <label>定格容量[kVA] <select id="trKva" style="width:100%;"></select></label>
+                        <label>1次電圧[V] <input type="number" id="trV1" value="6600" style="width:100%;"></label>
+                        <label>2次電圧[V] <input type="number" id="trV2" value="210" style="width:100%;"></label>
+                        <label>周波数[Hz] <select id="trFreq" style="width:100%;"><option>50</option><option>60</option></select></label>
+                        <label>%Z (%) <input type="number" step="0.01" id="trPercentZ" value="5.0" style="width:100%;"></label>
+                        <label>%R (%) <input type="number" step="0.01" id="trPercentR" value="1.0" style="width:100%;"></label>
+                        <label>%X (%) <input type="number" step="0.01" id="trPercentX" value="4.9" style="width:100%;"></label>
+                        <label>用途 <select id="trUsage" style="width:100%;"><option value="電灯">電灯</option><option value="動力">動力</option><option value="共用">共用</option></select></label>
+                        <label>据付場所 <input type="text" id="trLocation" placeholder="B1F 電気室" style="width:100%;"></label>
+                        <label>メーカー <input type="text" id="trMaker" placeholder="" style="width:100%;"></label>
+                        <label style="grid-column:1/3;">型式 <input type="text" id="trModel" placeholder="" style="width:100%;"></label>
+                        <label style="grid-column:1/3;">備考 <input type="text" id="trNote" placeholder="" style="width:100%;"></label>
+                    </div>
+                    <div id="trPreview" style="margin-top:1rem;padding:0.8rem;background:#f5f5f5;border-radius:4px;font-size:0.85rem;">
+                        In ＝ - A　　Isc (2次端) ＝ - kA
+                    </div>
+                    <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
+                        <button class="btn-action" id="btnTransformerEditCancel" style="background:#999;color:#fff;">キャンセル</button>
+                        <button class="btn-action" id="btnTransformerEditSave" style="background:#1a1a2e;color:#fff;">保存</button>
                     </div>
                 </div>
             </div>
@@ -2317,6 +2382,75 @@
             } catch (e) { console.error('saveLocalFeederData:', e); }
         }
         const localFeederData = loadLocalFeederData();  // { [feederId]: { source_type, source_circuit_id, ... } }
+
+        // ===== トランス登録（エンティティ管理） =====
+        // 国交省「建築設備設計基準（電気設備工事編 令和7年版）」準拠の標準容量
+        // 将来の短絡電流計算（Isc = In × 100/%Z）に備え %Z/%R/%X を保持
+        const TRANSFORMER_STANDARD_KVA_1PHASE = [5,10,15,20,30,50,75,100,150,200,300,500];
+        const TRANSFORMER_STANDARD_KVA_3PHASE = [20,30,50,75,100,150,200,300,500,750,1000,1500,2000];
+        // 標準%Z（モールド変圧器目安・実値はメーカーカタログで上書き）
+        const TRANSFORMER_DEFAULT_PERCENT_Z = {
+            '三相3W': { 20:5.0, 30:5.0, 50:5.0, 75:5.5, 100:5.5, 150:5.5, 200:6.0, 300:6.0, 500:6.5, 750:6.5, 1000:7.0, 1500:7.0, 2000:7.0 },
+            '単相2W': { 5:3.0, 10:3.0, 15:3.0, 20:3.5, 30:3.5, 50:4.0, 75:4.0, 100:4.5, 150:4.5, 200:5.0, 300:5.0, 500:5.0 },
+            '単相3W': { 5:3.0, 10:3.0, 15:3.0, 20:3.5, 30:3.5, 50:4.0, 75:4.0, 100:4.5, 150:4.5, 200:5.0, 300:5.0, 500:5.0 }
+        };
+
+        const LOCAL_TRANSFORMERS_KEY = 'elecCalc:transformers';
+        function loadTransformers() {
+            try {
+                const raw = localStorage.getItem(LOCAL_TRANSFORMERS_KEY);
+                return raw ? JSON.parse(raw) : [];
+            } catch (e) { return []; }
+        }
+        function saveTransformers() {
+            try {
+                localStorage.setItem(LOCAL_TRANSFORMERS_KEY, JSON.stringify(transformers));
+            } catch (e) { console.error('saveTransformers:', e); }
+        }
+        let transformers = loadTransformers();  // [{ id, name, type, phase, connection, rated_kva, primary_voltage, secondary_voltage, percent_z, percent_r, percent_x, frequency, usage, location, manufacturer, model, note }]
+
+        function newTransformerId() {
+            return 'tr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        }
+        function getTransformerById(id) {
+            return transformers.find(t => t.id === id) || null;
+        }
+        function addTransformer(data) {
+            const tr = Object.assign({ id: newTransformerId() }, data);
+            transformers.push(tr);
+            saveTransformers();
+            return tr;
+        }
+        function updateTransformer(id, patch) {
+            const idx = transformers.findIndex(t => t.id === id);
+            if (idx < 0) return null;
+            transformers[idx] = Object.assign({}, transformers[idx], patch);
+            saveTransformers();
+            return transformers[idx];
+        }
+        function deleteTransformer(id) {
+            transformers = transformers.filter(t => t.id !== id);
+            saveTransformers();
+        }
+
+        // 定格電流（2次側）: In = kVA*1000 / (√3 * V2)   三相
+        //                   In = kVA*1000 / V2          単相2W
+        //                   In = kVA*1000 / V2          単相3W（相電圧×2が線間のケースは適宜）
+        function calcTransformerRatedCurrent(tr) {
+            const kva = Number(tr.rated_kva) || 0;
+            const v2 = Number(tr.secondary_voltage) || 0;
+            if (!kva || !v2) return 0;
+            if (tr.phase === '三相3W') return (kva * 1000) / (Math.sqrt(3) * v2);
+            return (kva * 1000) / v2;
+        }
+        // 短絡電流（2次端）: Isc = In × 100/%Z  [A] → kAへ
+        function calcIscAtSecondary(tr) {
+            const In = calcTransformerRatedCurrent(tr);
+            const pz = Number(tr.percent_z) || 0;
+            if (!In || !pz) return 0;
+            return (In * 100 / pz) / 1000;  // kA
+        }
+
         // 回路用クライアント専用データ（category等、Supabaseに無いフィールド）
         // localStorageへ永続化しページリロード後も復元する
         const LOCAL_CIRCUIT_DATA_KEY = 'elecCalc:localCircuitData';
@@ -2555,6 +2689,7 @@
             });
 
             document.getElementById('btnAddFeeder').addEventListener('click', addFeederRow);
+            document.getElementById('btnAutoSyncFeeders').addEventListener('click', autoSyncFeedersFromPanelsAndCircuits);
             document.getElementById('btnFeedersExport').addEventListener('click', exportFeedersCsv);
             document.getElementById('btnShowSystemDiagram').addEventListener('click', showSystemDiagram);
             document.getElementById('btnCloseSystemDiagram').addEventListener('click', () => {
@@ -2571,6 +2706,9 @@
             document.getElementById('motorPb').addEventListener('input', updateTransformerCalculation);
             document.getElementById('motorPc').addEventListener('input', updateTransformerCalculation);
             document.getElementById('highVoltageMotor').addEventListener('input', updateTransformerCalculation);
+
+            // トランス登録 UI 初期化
+            initTransformerRegistryUI();
         }
 
         function switchTab(tabName) {
@@ -2590,6 +2728,7 @@
                 renderFeeders();
             } else if (tabName === 'transformer') {
                 renderTransformerCalculation();
+                renderTransformerList();
             } else if (tabName === 'diagram') {
                 renderSystemDiagram();
             } else if (tabName === 'master') {
@@ -4987,7 +5126,8 @@
             const l = localFeederData[feederId] || {};
             return {
                 type: l.source_type || 'cubicle',
-                circuitId: l.source_circuit_id || null
+                circuitId: l.source_circuit_id || null,
+                transformerId: l.source_transformer_id || null
             };
         }
         // 分岐回路から引かれている子幹線を探す（1対1想定）
@@ -5237,6 +5377,116 @@
             modal.style.display = 'block';
         }
 
+        // 幹線の親パネル名を取得（source=branchの場合、分岐回路が属する盤名）
+        function getFeederParentPanelName(feeder) {
+            const s = getFeederSource(feeder.id);
+            if (s.type !== 'branch' || !s.circuitId) return null;
+            const parent = allCircuits.find(c => c.id === s.circuitId);
+            return parent ? parent.panel_name : null;
+        }
+        // 親子ツリーを構築: root幹線→子幹線→孫幹線… をDFSで配置
+        function buildFeederTreeOrder(feederList) {
+            // 親盤名 → その盤をトップに持つ子幹線リスト
+            const childrenByParentPanel = new Map();
+            const roots = [];
+            feederList.forEach(f => {
+                const parentPanel = getFeederParentPanelName(f);
+                if (parentPanel) {
+                    if (!childrenByParentPanel.has(parentPanel)) childrenByParentPanel.set(parentPanel, []);
+                    childrenByParentPanel.get(parentPanel).push(f);
+                } else {
+                    roots.push(f);
+                }
+            });
+            // DFSで ordered list を作る
+            const ordered = [];
+            const visited = new Set();
+            function walk(feeder, depth, isLast, ancestorHasMore) {
+                if (visited.has(feeder.id)) return;  // 循環ガード
+                visited.add(feeder.id);
+                ordered.push({ feeder, depth, isLast, ancestorHasMore: [...ancestorHasMore] });
+                const children = childrenByParentPanel.get(feeder.load_name) || [];
+                const nextAncestor = [...ancestorHasMore, !isLast];
+                children.forEach((child, i) => {
+                    walk(child, depth + 1, i === children.length - 1, nextAncestor);
+                });
+            }
+            roots.forEach((r, i) => walk(r, 0, i === roots.length - 1, []));
+            // 親が未選択等で到達しなかった幹線は末尾にroot扱いで追加
+            feederList.forEach(f => {
+                if (!visited.has(f.id)) walk(f, 0, true, []);
+            });
+            return ordered;
+        }
+
+        // 盤一覧＋回路DBから幹線計算書へ自動反映
+        // 1) 各盤に対し、load_name=盤名の幹線が無ければ作成
+        // 2) 各分岐回路 (symbol='分岐') に対し、その分岐の load_name（行先）に一致する盤の幹線を子幹線として自動リンク
+        async function autoSyncFeedersFromPanelsAndCircuits() {
+            if (!confirm('盤一覧と回路DBから幹線計算書に自動反映します。\n\n・盤一覧の各盤 → 幹線行を自動作成（既に存在する盤はスキップ）\n・分岐回路(記号=分岐)の行先盤 → その盤の幹線を子幹線として親分岐にリンク\n\n実行しますか？')) return;
+            let createdCount = 0;
+            let linkedCount = 0;
+            try {
+                // 1) 各盤の幹線行を保証
+                for (const panel of allPanels) {
+                    if (!panel.name) continue;
+                    const existing = allFeeders.find(f => f.load_name === panel.name);
+                    if (existing) continue;
+                    // 盤電気種別から相・電圧を推定
+                    const elecType = panel.elec_type || panel.type || '1φ2W';
+                    let phase = '1φ2W', voltage = 100;
+                    if (elecType === '1φ3W') { phase = '1φ3W'; voltage = 200; }
+                    else if (elecType === '3φ3W') { phase = '3φ3W'; voltage = 200; }
+                    const { data, error } = await db.from('feeders').insert({
+                        load_name: panel.name,
+                        load_type: 'panel',
+                        voltage: voltage,
+                        phase_type: phase,
+                        demand_factor: 100,
+                        cable_type: 'CV',
+                        cable_length: 0
+                    }).select().single();
+                    if (error) { console.error('autoSync create feeder:', error); continue; }
+                    // 動力盤なら feeder_category='動力'
+                    if (data) {
+                        if (!localFeederData[data.id]) localFeederData[data.id] = {};
+                        localFeederData[data.id].feeder_category = (phase === '3φ3W') ? '動力' : '電灯';
+                        createdCount++;
+                    }
+                }
+                saveLocalFeederData();
+                await loadFeeders();
+
+                // 2) 分岐回路と子幹線のリンク
+                for (const circuit of allCircuits) {
+                    if (circuit.symbol !== '分岐') continue;
+                    const downstreamName = (circuit.load_name || '').trim();
+                    if (!downstreamName) continue;
+                    // 行先が盤名と一致するか
+                    const downstreamPanel = allPanels.find(p => p.name === downstreamName);
+                    if (!downstreamPanel) continue;
+                    const childFeeder = allFeeders.find(f => f.load_name === downstreamName);
+                    if (!childFeeder) continue;
+                    // 既に別の親にリンク済みならスキップ（上書き回避）
+                    const currentSrc = getFeederSource(childFeeder.id);
+                    if (currentSrc.type === 'branch' && currentSrc.circuitId === circuit.id) continue;
+                    if (!localFeederData[childFeeder.id]) localFeederData[childFeeder.id] = {};
+                    localFeederData[childFeeder.id].source_type = 'branch';
+                    localFeederData[childFeeder.id].source_circuit_id = circuit.id;
+                    linkedCount++;
+                }
+                saveLocalFeederData();
+                // 親分岐回路のfeeder[VA]を再集計
+                if (typeof syncAllBranchFeeders === 'function') await syncAllBranchFeeders();
+                await loadFeeders();
+                await renderFeeders();
+                alert(`自動反映が完了しました。\n\n・新規幹線作成: ${createdCount} 件\n・親分岐リンク: ${linkedCount} 件`);
+            } catch (e) {
+                console.error('autoSyncFeedersFromPanelsAndCircuits:', e);
+                alert('自動反映中にエラーが発生しました: ' + (e.message || e));
+            }
+        }
+
         async function renderFeeders() {
             const tbody = document.getElementById('feedersTableBody');
             tbody.innerHTML = '';
@@ -5255,6 +5505,15 @@
                 filtered = filtered.filter(f => (f.feeder_category || '電灯') === categoryFilter);
             }
 
+            const renderTreeGroup = (list) => {
+                const ordered = buildFeederTreeOrder(list);
+                let counter = 0;
+                ordered.forEach(({ feeder, depth, isLast, ancestorHasMore }) => {
+                    counter++;
+                    tbody.appendChild(createFeederRow(feeder, counter, { depth, isLast, ancestorHasMore }));
+                });
+            };
+
             if (!categoryFilter) {
                 const lightingFeeders = filtered.filter(f => (f.feeder_category || '電灯') === '電灯');
                 const motorFeeders = filtered.filter(f => f.feeder_category === '動力');
@@ -5262,32 +5521,43 @@
                 if (lightingFeeders.length > 0 || motorFeeders.length > 0 || filtered.length === 0) {
                     if (lightingFeeders.length > 0 || (motorFeeders.length === 0 && filtered.length === 0)) {
                         const headerRow1 = document.createElement('tr');
-                        headerRow1.innerHTML = `<td colspan="26" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯幹線</td>`;
+                        headerRow1.innerHTML = `<td colspan="26" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯幹線（親→子をツリー表示）</td>`;
                         tbody.appendChild(headerRow1);
-                        lightingFeeders.forEach((feeder, index) => {
-                            tbody.appendChild(createFeederRow(feeder, index + 1));
-                        });
+                        renderTreeGroup(lightingFeeders);
                     }
 
                     if (motorFeeders.length > 0) {
                         const headerRow2 = document.createElement('tr');
-                        headerRow2.innerHTML = `<td colspan="26" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力幹線</td>`;
+                        headerRow2.innerHTML = `<td colspan="26" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力幹線（親→子をツリー表示）</td>`;
                         tbody.appendChild(headerRow2);
-                        motorFeeders.forEach((feeder, index) => {
-                            tbody.appendChild(createFeederRow(feeder, motorFeeders.indexOf(feeder) + 1));
-                        });
+                        renderTreeGroup(motorFeeders);
                     }
                 }
             } else {
-                filtered.forEach((feeder, index) => {
-                    tbody.appendChild(createFeederRow(feeder, index + 1));
-                });
+                renderTreeGroup(filtered);
             }
         }
 
-        function createFeederRow(feeder, rowNumber) {
+        function createFeederRow(feeder, rowNumber, treeInfo) {
             const row = document.createElement('tr');
             row.id = `feeder-${feeder.id}`;
+            const depth = treeInfo?.depth || 0;
+            const isLast = treeInfo?.isLast || false;
+            const ancestorHasMore = treeInfo?.ancestorHasMore || [];
+            // ツリー罫線プレフィックス（親子階層を視覚化）
+            let treePrefix = '';
+            if (depth > 0) {
+                for (let i = 0; i < depth - 1; i++) {
+                    treePrefix += ancestorHasMore[i] ? '<span style="color:#888;">│&nbsp;&nbsp;</span>' : '<span>&nbsp;&nbsp;&nbsp;</span>';
+                }
+                treePrefix += isLast
+                    ? '<span style="color:#1976d2;">└─&nbsp;</span>'
+                    : '<span style="color:#1976d2;">├─&nbsp;</span>';
+            }
+            // 階層に応じた背景色（子幹線は薄いオレンジで強調）
+            if (depth > 0) {
+                row.style.background = depth === 1 ? '#fff8e1' : (depth === 2 ? '#fff3e0' : '#ffebee');
+            }
 
             // Get local field values (stored client-side only)
             const feederNo = localFeederData[feeder.id]?.feeder_no || '';
@@ -5401,8 +5671,8 @@
             }
 
             row.innerHTML = `
-                <td>
-                    <input type="text" class="feeder-local" data-id="${feeder.id}" data-field="feeder_no" value="${feederNo}" style="width:50px;" />
+                <td style="white-space:nowrap;">
+                    ${treePrefix}<input type="text" class="feeder-local" data-id="${feeder.id}" data-field="feeder_no" value="${feederNo}" style="width:50px;" />
                 </td>
                 <td>
                     <select class="feeder-local" data-id="${feeder.id}" data-field="feeder_category">
@@ -5411,8 +5681,9 @@
                     </select>
                 </td>
                 <td style="min-width:180px;">
-                    <select class="feeder-local" data-id="${feeder.id}" data-field="source_type" style="width:100%;font-size:0.72rem;${feederSource.type==='branch'?'background:#fff3e0;':'background:#e8f5e9;'}">
+                    <select class="feeder-local" data-id="${feeder.id}" data-field="source_type" style="width:100%;font-size:0.72rem;${feederSource.type==='branch'?'background:#fff3e0;':(feederSource.type==='transformer'?'background:#e3f2fd;':'background:#e8f5e9;')}">
                         <option value="cubicle" ${feederSource.type==='cubicle'?'selected':''}>⚡ キュービクル（主母線）</option>
+                        <option value="transformer" ${feederSource.type==='transformer'?'selected':''}>🔌 トランス2次（登録済）</option>
                         <option value="branch" ${feederSource.type==='branch'?'selected':''}>🔀 幹線分岐（他盤タップ）</option>
                     </select>
                     ${feederSource.type==='branch' ? `
@@ -5421,6 +5692,19 @@
                             ${branchCircuits.map(b => `<option value="${b.id}" ${feederSource.circuitId===b.id?'selected':''}>${b.label}</option>`).join('')}
                         </select>
                         ${sourceWarning ? `<div style="font-size:0.62rem;color:#d32f2f;margin-top:1px;" title="${sourceWarningTitle}">⚠ ${sourceWarning}</div>` : ''}
+                    ` : ''}
+                    ${feederSource.type==='transformer' ? `
+                        <select class="feeder-local" data-id="${feeder.id}" data-field="source_transformer_id" style="width:100%;font-size:0.68rem;margin-top:2px;background:#fff;" title="2次側から給電するトランスを選択">
+                            <option value="">— トランスを選択 —</option>
+                            ${transformers.map(t => `<option value="${t.id}" ${(localFeederData[feeder.id]?.source_transformer_id)===t.id?'selected':''}>${t.name} / ${t.phase} ${Number(t.rated_kva||0)}kVA (${t.secondary_voltage}V)</option>`).join('')}
+                        </select>
+                        ${(() => {
+                            const tid = localFeederData[feeder.id]?.source_transformer_id;
+                            const tr = tid ? getTransformerById(tid) : null;
+                            if (!tr) return '';
+                            const Isc = calcIscAtSecondary(tr);
+                            return `<div style="font-size:0.62rem;color:#1565c0;margin-top:1px;">Isc≈${Isc.toFixed(2)}kA</div>`;
+                        })()}
                     ` : ''}
                 </td>
                 <td>
@@ -5538,7 +5822,7 @@
             let value = element.value;
 
             // Local-only fields - don't send to DB
-            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw', 'source_type', 'source_circuit_id'];
+            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw', 'source_type', 'source_circuit_id', 'source_transformer_id'];
 
             if (LOCAL_ONLY_FIELDS.includes(field)) {
                 if (!localFeederData[feederId]) localFeederData[feederId] = {};
@@ -5553,6 +5837,8 @@
                     localFeederData[feederId][field] = value ? parseFloat(value) : null;
                 } else if (field === 'source_circuit_id') {
                     localFeederData[feederId][field] = value ? parseInt(value) : null;
+                } else if (field === 'source_transformer_id') {
+                    localFeederData[feederId][field] = value || null;
                 } else {
                     localFeederData[feederId][field] = value;
                 }
@@ -5626,7 +5912,7 @@
             } else {
                 // For string fields like feeder_no, feeder_category, source_type store as-is
                 // For numeric fields like motor_total_kw, motor_max_kw, source_circuit_id parse as number
-                if (field === 'feeder_no' || field === 'feeder_category' || field === 'source_type') {
+                if (field === 'feeder_no' || field === 'feeder_category' || field === 'source_type' || field === 'source_transformer_id') {
                     localFeederData[feederId][field] = value;
                 } else if (field === 'source_circuit_id') {
                     localFeederData[feederId][field] = parseInt(value) || null;
@@ -5884,6 +6170,185 @@
             if (!oaEl.dataset.manual) oaEl.value = sumOA.toFixed(2);
 
             updateTransformerCalculation();
+        }
+
+        // ===== トランス登録 UI =====
+        function renderTransformerList() {
+            const tbody = document.getElementById('transformerListBody');
+            if (!tbody) return;
+            if (transformers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" style="border:1px solid #ddd;padding:1rem;text-align:center;color:#888;">登録されたトランスはありません。「＋ トランスを登録」から追加してください。</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = transformers.map(tr => {
+                const In = calcTransformerRatedCurrent(tr);
+                const Isc = calcIscAtSecondary(tr);
+                return `<tr>
+                    <td style="border:1px solid #ddd;padding:0.4rem;"><strong>${tr.name || '-'}</strong><br><small style="color:#888;">${tr.type || ''}</small></td>
+                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:center;">${tr.phase || '-'}</td>
+                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:center;">${tr.connection || '-'}</td>
+                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:right;">${Number(tr.rated_kva || 0).toFixed(0)}</td>
+                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:right;">${tr.primary_voltage || '-'}</td>
+                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:right;">${tr.secondary_voltage || '-'}</td>
+                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:right;">${Number(tr.percent_z || 0).toFixed(2)}</td>
+                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:right;">${In.toFixed(1)}</td>
+                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:right;background:#fff3e0;"><strong>${Isc.toFixed(2)}</strong></td>
+                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:center;">${tr.usage || '-'}</td>
+                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:center;white-space:nowrap;">
+                        <button class="btn-action" style="background:#1976d2;color:#fff;padding:0.2rem 0.5rem;font-size:0.75rem;" onclick="openTransformerEditModal('${tr.id}')">編集</button>
+                        <button class="btn-action" style="background:#d32f2f;color:#fff;padding:0.2rem 0.5rem;font-size:0.75rem;" onclick="handleDeleteTransformer('${tr.id}')">削除</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        let _editingTransformerId = null;
+        function populateTransformerKvaOptions(phase) {
+            const sel = document.getElementById('trKva');
+            if (!sel) return;
+            const arr = (phase === '三相3W') ? TRANSFORMER_STANDARD_KVA_3PHASE : TRANSFORMER_STANDARD_KVA_1PHASE;
+            const prev = sel.value;
+            sel.innerHTML = arr.map(v => `<option value="${v}">${v}</option>`).join('');
+            if (arr.map(String).includes(prev)) sel.value = prev;
+        }
+        function updateTransformerPreview() {
+            const draft = readTransformerForm();
+            const In = calcTransformerRatedCurrent(draft);
+            const Isc = calcIscAtSecondary(draft);
+            const el = document.getElementById('trPreview');
+            if (el) el.innerHTML = `In ＝ <strong>${In.toFixed(1)} A</strong>　　Isc (2次端) ＝ <strong>${Isc.toFixed(2)} kA</strong>　　<small style="color:#666;">(Isc = In × 100/%Z)</small>`;
+        }
+        function readTransformerForm() {
+            return {
+                name: document.getElementById('trName').value.trim(),
+                type: document.getElementById('trType').value,
+                phase: document.getElementById('trPhase').value,
+                connection: document.getElementById('trConnection').value,
+                rated_kva: parseFloat(document.getElementById('trKva').value) || 0,
+                primary_voltage: parseFloat(document.getElementById('trV1').value) || 0,
+                secondary_voltage: parseFloat(document.getElementById('trV2').value) || 0,
+                frequency: parseFloat(document.getElementById('trFreq').value) || 60,
+                percent_z: parseFloat(document.getElementById('trPercentZ').value) || 0,
+                percent_r: parseFloat(document.getElementById('trPercentR').value) || 0,
+                percent_x: parseFloat(document.getElementById('trPercentX').value) || 0,
+                usage: document.getElementById('trUsage').value,
+                location: document.getElementById('trLocation').value.trim(),
+                manufacturer: document.getElementById('trMaker').value.trim(),
+                model: document.getElementById('trModel').value.trim(),
+                note: document.getElementById('trNote').value.trim()
+            };
+        }
+        function writeTransformerForm(tr) {
+            document.getElementById('trName').value = tr.name || '';
+            document.getElementById('trType').value = tr.type || 'モールド';
+            document.getElementById('trPhase').value = tr.phase || '三相3W';
+            document.getElementById('trConnection').value = tr.connection || 'Δ-Y';
+            populateTransformerKvaOptions(tr.phase || '三相3W');
+            document.getElementById('trKva').value = tr.rated_kva || ((tr.phase === '三相3W') ? 200 : 50);
+            document.getElementById('trV1').value = tr.primary_voltage || 6600;
+            document.getElementById('trV2').value = tr.secondary_voltage || ((tr.phase === '三相3W') ? 210 : 210);
+            document.getElementById('trFreq').value = tr.frequency || 60;
+            document.getElementById('trPercentZ').value = tr.percent_z || 5.0;
+            document.getElementById('trPercentR').value = tr.percent_r || 1.0;
+            document.getElementById('trPercentX').value = tr.percent_x || 4.9;
+            document.getElementById('trUsage').value = tr.usage || '共用';
+            document.getElementById('trLocation').value = tr.location || '';
+            document.getElementById('trMaker').value = tr.manufacturer || '';
+            document.getElementById('trModel').value = tr.model || '';
+            document.getElementById('trNote').value = tr.note || '';
+        }
+        function autoFillDefaultPercentZ() {
+            const phase = document.getElementById('trPhase').value;
+            const kva = parseFloat(document.getElementById('trKva').value) || 0;
+            const tbl = TRANSFORMER_DEFAULT_PERCENT_Z[phase] || {};
+            if (tbl[kva] != null) {
+                document.getElementById('trPercentZ').value = tbl[kva];
+                const pz = tbl[kva];
+                // R:X = 約1:4.9 の目安（モールド）で分配
+                const pr = +(pz * 0.2).toFixed(2);
+                const px = +(Math.sqrt(Math.max(pz*pz - pr*pr, 0))).toFixed(2);
+                document.getElementById('trPercentR').value = pr;
+                document.getElementById('trPercentX').value = px;
+            }
+            updateTransformerPreview();
+        }
+        function openTransformerEditModal(id) {
+            _editingTransformerId = id || null;
+            const tr = id ? getTransformerById(id) : {};
+            if (!tr) return;
+            document.getElementById('transformerEditTitle').textContent = id ? 'トランス編集' : 'トランス登録';
+            writeTransformerForm(tr || {});
+            updateTransformerPreview();
+            document.getElementById('transformerEditModal').style.display = 'flex';
+        }
+        function closeTransformerEditModal() {
+            document.getElementById('transformerEditModal').style.display = 'none';
+            _editingTransformerId = null;
+        }
+        function handleDeleteTransformer(id) {
+            const tr = getTransformerById(id);
+            if (!tr) return;
+            if (!confirm(`トランス「${tr.name}」を削除しますか？この操作は取り消せません。`)) return;
+            deleteTransformer(id);
+            renderTransformerList();
+            // 幹線側の参照もクリア
+            let dirty = false;
+            for (const fid in localFeederData) {
+                if (localFeederData[fid].source_type === 'transformer' && localFeederData[fid].source_transformer_id === id) {
+                    localFeederData[fid].source_type = 'cubicle';
+                    localFeederData[fid].source_transformer_id = null;
+                    dirty = true;
+                }
+            }
+            if (dirty) { saveLocalFeederData(); if (typeof renderFeeders === 'function') renderFeeders(); }
+        }
+        window.openTransformerEditModal = openTransformerEditModal;
+        window.handleDeleteTransformer = handleDeleteTransformer;
+
+        function initTransformerRegistryUI() {
+            const btnAdd = document.getElementById('btnAddTransformer');
+            if (btnAdd) btnAdd.addEventListener('click', () => openTransformerEditModal(null));
+            const btnCancel = document.getElementById('btnTransformerEditCancel');
+            if (btnCancel) btnCancel.addEventListener('click', closeTransformerEditModal);
+            const btnSave = document.getElementById('btnTransformerEditSave');
+            if (btnSave) btnSave.addEventListener('click', () => {
+                const data = readTransformerForm();
+                if (!data.name) { alert('名称を入力してください'); return; }
+                if (!data.rated_kva) { alert('定格容量を選択してください'); return; }
+                if (_editingTransformerId) updateTransformer(_editingTransformerId, data);
+                else addTransformer(data);
+                closeTransformerEditModal();
+                renderTransformerList();
+                if (typeof renderFeeders === 'function') renderFeeders();
+            });
+            const btnImport = document.getElementById('btnImportTransformerFromEs');
+            if (btnImport) btnImport.addEventListener('click', () => {
+                const esVal = parseFloat(document.getElementById('totalEsValue')?.textContent) || 0;
+                if (!esVal) { alert('先に Es（受変電設備容量）を算出してください'); return; }
+                // 直近の標準容量を選定（三相）
+                const std = TRANSFORMER_STANDARD_KVA_3PHASE.find(v => v >= esVal) || TRANSFORMER_STANDARD_KVA_3PHASE.slice(-1)[0];
+                openTransformerEditModal(null);
+                document.getElementById('trName').value = 'T' + (transformers.length + 1);
+                document.getElementById('trPhase').value = '三相3W';
+                populateTransformerKvaOptions('三相3W');
+                document.getElementById('trKva').value = std;
+                document.getElementById('trUsage').value = '共用';
+                autoFillDefaultPercentZ();
+            });
+            // ライブプレビュー
+            ['trName','trType','trPhase','trConnection','trKva','trV1','trV2','trFreq','trPercentZ','trPercentR','trPercentX','trUsage','trLocation','trMaker','trModel','trNote'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', updateTransformerPreview);
+            });
+            const phaseSel = document.getElementById('trPhase');
+            if (phaseSel) phaseSel.addEventListener('change', () => {
+                populateTransformerKvaOptions(phaseSel.value);
+                autoFillDefaultPercentZ();
+            });
+            const kvaSel = document.getElementById('trKva');
+            if (kvaSel) kvaSel.addEventListener('change', autoFillDefaultPercentZ);
+            populateTransformerKvaOptions('三相3W');
+            renderTransformerList();
         }
 
         function updateTransformerCalculation() {
