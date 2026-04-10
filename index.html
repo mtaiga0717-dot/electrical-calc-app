@@ -1517,15 +1517,26 @@
                         <dt>⚙ 動力回路の計算根拠（内線規程 3705 準拠）</dt>
                         <dd>
                             三相誘導電動機などの動力負荷（記号 ◇）の回路で使用します。動力モードでは列 13〜17 が電動機データ入力に差し替わります：<br>
-                            <b>入力項目</b>：<b>kW</b>（電動機定格出力）／<b>台数</b>／<b>始動方式</b>（直入れ／Y-Δ／インバータ／ソフトスタータ）。<br>
-                            <b>Im 自動参照</b>：kW を入力すると内線規程 <b>3705-1表（200V 3φ単一電動機）</b>から定格電流 Im を自動取得し、<code>Im × 台数</code> で表示。同時に<br>
-                            <code>容量[VA] = √3 × 200 × Im × 台数</code><br>
-                            として合計[VA]／電流[A]／需要率計算に反映されます（力率は乗じない安全側評価）。<br>
+                            <b>入力項目</b>：<b>kW</b>（電動機定格出力）／<b>台数</b>／<b>Im[A]</b>（銘板値 optional）／<b>始動方式</b>（直入れ／Y-Δ／インバータ／ソフトスタータ）。<br>
+
+                            <b>Im 決定ロジック（銘板値優先）</b>：
+                            <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
+                                <li><b>Im[A] 欄に銘板値を入力した場合 → その値を優先使用</b>（バッジ <span style="background:#ff6f00;color:#fff;padding:1px 4px;border-radius:2px;font-size:0.7em;">銘</span>）</li>
+                                <li>Im[A] 欄が空の場合 → kW から <b>3705-1表（200V 3φ単一電動機）</b>を参照して Im を自動取得（バッジ <span style="background:#1976d2;color:#fff;padding:1px 4px;border-radius:2px;font-size:0.7em;">表</span>）</li>
+                            </ul>
+                            <b>なぜ銘板値優先か（根拠）</b>：内線規程 JEAC 8001 <b>3705-1表 備考</b>には「電動機の定格電流は銘板値による」と明記されています。3705-1表は JIS C 4212/4213 の<b>標準定格電動機</b>を対象にした代表値で、効率η・力率cosφを一定と仮定して算出されており、設計段階で電動機が未確定のときの<b>目安</b>として使うのが本来の趣旨です。したがって：
+                            <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
+                                <li>2.3kW のような<b>JIS非標準kW</b>を入力すると、表は直近上位（3.7kW → Im=16.8A）まで跳ねてしまい過大評価になります。実機が決まっていて銘板Imが分かるなら銘板値を入れるのが正確です。</li>
+                                <li>小容量(~0.75kW)は効率・力率が悪く kW→Im 比率が高い（表で 0.4kW→3.2A, 比率 8.0）ため、表値は安全側評価として機能します。</li>
+                                <li>11kW 以上は比率が約 4.1〜4.5 に収束し、計算式 <code>Im ≈ P×1000 / (√3×200×cosφ×η)</code> とほぼ一致します。</li>
+                            </ul>
+                            <b>容量換算</b>：<code>容量[VA] = √3 × 200 × Im実効 × 台数</code>（Im実効 = 銘板値 or 表値）。合計[VA]／電流[A]／需要率計算に反映されます（力率は乗じない安全側評価）。<br>
 
                             <b>AT判定ロジック</b>（動力回路）：
                             <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
                                 <li><code>AT ≧ 設計電流</code>（基本）</li>
-                                <li><code>AT ≧ 3705-1表の推奨分岐AT</code>（kWに対する最小値、下回ると NG）</li>
+                                <li><code>AT ≧ Im</code>（銘板値 or 表値、下回ると NG）</li>
+                                <li><code>AT ≧ 3705-1表の推奨分岐AT</code>（<b>表参照時のみ</b>適用。銘板値使用時は技術者判断として本チェックをスキップ）</li>
                                 <li><code>AT ≦ Im × 3</code>（内線規程 <b>3705-2条</b>：分岐回路の過電流遮断器は電動機定格電流の3倍以下、超えると NG）</li>
                                 <li>80% ルール（3605-3条）は動力には<b>適用しない</b>（連続負荷ではなく、始動時突入電流は別途 3705-1表で扱うため）</li>
                             </ul>
@@ -2290,15 +2301,16 @@
         function getMotorMeta(circuitId) {
             try {
                 const raw = localStorage.getItem(`elecCalc:motorMeta:${circuitId}`);
-                if (!raw) return { kw: 0, count: 1, startMethod: 'direct' };
+                if (!raw) return { kw: 0, count: 1, startMethod: 'direct', imOverride: 0 };
                 const v = JSON.parse(raw);
                 return {
                     kw: Number(v.kw) || 0,
                     count: Number(v.count) || 1,
-                    startMethod: v.startMethod || 'direct'
+                    startMethod: v.startMethod || 'direct',
+                    imOverride: Number(v.imOverride) || 0
                 };
             } catch (e) {
-                return { kw: 0, count: 1, startMethod: 'direct' };
+                return { kw: 0, count: 1, startMethod: 'direct', imOverride: 0 };
             }
         }
         function setMotorMeta(circuitId, patch) {
@@ -2318,10 +2330,11 @@
                 return {
                     kw: Number(v.kw) || 0,
                     count: Number(v.count) || 1,
-                    startMethod: v.startMethod || 'direct'
+                    startMethod: v.startMethod || 'direct',
+                    imOverride: Number(v.imOverride) || 0
                 };
             } catch (e) {
-                return { kw: 0, count: 1, startMethod: 'direct' };
+                return { kw: 0, count: 1, startMethod: 'direct', imOverride: 0 };
             }
         }
         function setActualMotorMeta(circuitId, patch) {
@@ -2334,6 +2347,19 @@
             if (!kw || kw <= 0) return null;
             const entry = MOTOR_TABLE_3705_1.find(m => m.kw >= kw);
             return entry || MOTOR_TABLE_3705_1[MOTOR_TABLE_3705_1.length - 1];
+        }
+        // 実効Im（単機）を決定する
+        // 根拠: 内線規程 JEAC 8001 3705-1表 備考 — 「電動機の定格電流は銘板値による」。
+        // 表は JIS標準定格(η・cosφ一定仮定)の代表値であり、実電動機の銘板Imが分かる場合は
+        // 銘板値を優先する。表は設計段階で電動機未確定時の目安として用いる。
+        function resolveMotorIm(meta) {
+            if (!meta) return { im: 0, source: 'none' };
+            if (meta.imOverride && meta.imOverride > 0) {
+                return { im: Number(meta.imOverride), source: 'nameplate' };
+            }
+            const entry = lookupMotor3705_1(meta.kw);
+            if (entry) return { im: entry.current, source: 'table' };
+            return { im: 0, source: 'none' };
         }
 
         // Authentication
@@ -3293,18 +3319,19 @@
                         : getMotorMeta(c.id);
                     const kw = Number(m.kw) || 0;
                     const cnt = Number(m.count) || 1;
-                    const entry = lookupMotor3705_1(kw);
-                    if (entry && kw > 0) {
-                        sumKw += kw * cnt;
-                        sumImCalc += entry.current * cnt;
-                        sumKvaMotor += Math.sqrt(3) * 200 * entry.current * cnt / 1000;
+                    // 実効Im = 銘板override > 表参照
+                    const r = resolveMotorIm(m);
+                    if (r.im > 0) {
+                        if (kw > 0) sumKw += kw * cnt;
+                        sumImCalc += r.im * cnt;
+                        sumKvaMotor += Math.sqrt(3) * 200 * r.im * cnt / 1000;
                         if (kw > maxKw) maxKw = kw;
                     } else if (circuitViewMode === 'actual') {
                         // 実負荷モード: actualCircuit.feeder にフォールバック
                         const a = getActualCircuit(c.id);
                         sumKvaMotor += (a.feeder || 0);
                     } else {
-                        // kW未入力でもfeeder kVAがあれば集計対象に含める
+                        // kW/Im未入力でもfeeder kVAがあれば集計対象に含める
                         sumKvaMotor += (c.feeder || 0);
                     }
                 });
@@ -3756,7 +3783,10 @@
             // AT判定は現在のビューモードのメタを使用
             const motorMetaForJudge = (circuitViewMode === 'actual') ? actualMotorMeta : motorMeta;
             const motor3705 = isMotor ? lookupMotor3705_1(motorMetaForJudge.kw) : null;
-            const motorSingleIm = motor3705 ? motor3705.current : 0;
+            // 実効Im: 銘板override > 表参照
+            const motorImResolved = isMotor ? resolveMotorIm(motorMetaForJudge) : { im: 0, source: 'none' };
+            const motorSingleIm = motorImResolved.im;
+            const motorImSource = motorImResolved.source; // 'nameplate' | 'table' | 'none'
             const motorTotalIm = motorSingleIm * (motorMetaForJudge.count || 1);
             const motorRecommendAT = motor3705 ? motor3705.breaker : 0;
 
@@ -3774,11 +3804,15 @@
             } else if (isLighting && at < requiredAT) {
                 atStatus = 'NG';
                 atNgReason = `AT(${at}) < 電流×1.25(${requiredAT.toFixed(1)}A) [内線規程3605-3条 80%ルール]`;
-            } else if (isMotor && motor3705 && at < motorRecommendAT) {
-                // 3705-1表: kWに対応する分岐ブレーカ最小値に満たない
+            } else if (isMotor && motorImSource === 'table' && motor3705 && at < motorRecommendAT) {
+                // 3705-1表: kWに対応する分岐ブレーカ最小値に満たない（表参照時のみ）
                 atStatus = 'NG';
                 atNgReason = `AT(${at}) < 3705-1表推奨${motorRecommendAT}AT (${motorMetaForJudge.kw}kW, Im=${motorSingleIm}A)`;
-            } else if (isMotor && motor3705 && at > motorSingleIm * 3) {
+            } else if (isMotor && motorSingleIm > 0 && at < motorSingleIm) {
+                // 銘板Im使用時も AT ≧ Im は必須
+                atStatus = 'NG';
+                atNgReason = `AT(${at}) < Im(${motorSingleIm}A) [銘板値基準]`;
+            } else if (isMotor && motorSingleIm > 0 && at > motorSingleIm * 3) {
                 // 3705-2条: 分岐回路の過電流遮断器は電動機定格電流の3倍以下
                 atStatus = 'NG';
                 atNgReason = `AT(${at}) > Im×3(${(motorSingleIm*3).toFixed(0)}A) [3705-2条 分岐MCCB上限]`;
@@ -3860,10 +3894,11 @@
                         if (isMotorRow) {
                             const dKw = (motorMeta.kw || 0) * (motorMeta.count || 1);
                             const aKw = (actualMotorMeta.kw || 0) * (actualMotorMeta.count || 1);
-                            const dImEntry = lookupMotor3705_1(motorMeta.kw);
-                            const aImEntry = lookupMotor3705_1(actualMotorMeta.kw);
-                            const dIm = dImEntry ? dImEntry.current * (motorMeta.count || 1) : 0;
-                            const aIm = aImEntry ? aImEntry.current * (actualMotorMeta.count || 1) : 0;
+                            // 実効Im (銘板 > 表)
+                            const dImResolved = resolveMotorIm(motorMeta);
+                            const aImResolved = resolveMotorIm(actualMotorMeta);
+                            const dIm = dImResolved.im * (motorMeta.count || 1);
+                            const aIm = aImResolved.im * (actualMotorMeta.count || 1);
                             return `
                                 <td colspan="5" style="padding:0;">
                                     <div style="display:flex;gap:2px;font-size:0.72rem;">
@@ -3900,18 +3935,39 @@
                         const meta = isActual ? actualMotorMeta : motorMeta;
                         const mKw = meta.kw || 0;
                         const mCount = meta.count || 1;
+                        const mImOverride = Number(meta.imOverride) || 0;
                         const mImEach = motorSingleIm;
                         const mImTotal = motorTotalIm;
+                        // 表参照Im（override無視、kWのみから）
+                        const tableEntry = lookupMotor3705_1(mKw);
+                        const tableIm = tableEntry ? tableEntry.current : 0;
                         const m3705Info = motor3705
                             ? `推奨${motorRecommendAT}AT / CV${motor3705.cable}mm²`
                             : '—';
                         const startOpt = (v, label) => `<option value="${v}" ${meta.startMethod === v ? 'selected' : ''}>${label}</option>`;
                         const cellBg = isActual ? '#fff8e1' : '#fff3e0';
-                        // col13=kW, col14=台数, col15=Im[A](auto), col16=始動方式, col17=3705-1表参照
+                        // Im欄の表示: override優先, 空欄時は表値をプレースホルダ
+                        const imBadge = motorImSource === 'nameplate'
+                            ? '<span style="display:inline-block;font-size:0.6rem;background:#ff6f00;color:#fff;padding:1px 4px;border-radius:2px;margin-left:2px;" title="銘板値を優先使用中">銘</span>'
+                            : motorImSource === 'table'
+                            ? '<span style="display:inline-block;font-size:0.6rem;background:#1976d2;color:#fff;padding:1px 4px;border-radius:2px;margin-left:2px;" title="3705-1表からの参照値">表</span>'
+                            : '';
+                        const imTitle = `電動機定格電流 Im [A]\n` +
+                            `根拠: 内線規程 3705-1表 備考「電動機の定格電流は銘板値による」\n` +
+                            `・空欄→3705-1表からkW直近上位の値を参照（${tableIm || '—'}A）\n` +
+                            `・銘板値がある場合はここに入力（表値より優先）\n` +
+                            `・表はJIS標準定格(η·cosφ一定仮定)の代表値のため、実機銘板があればそちらが正確`;
+                        // col13=kW, col14=台数, col15=Im[A](銘板override可), col16=始動方式, col17=3705-1表参照
                         return `
                             <td><input type="number" step="0.1" min="0" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="kw" value="${mKw}" style="width:60px;background:${cellBg};" title="電動機定格[kW] (3705-1表入力) / ${isActual?'実負荷':'設計'}" /></td>
                             <td><input type="number" step="1" min="1" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="count" value="${mCount}" style="width:50px;background:${cellBg};" title="台数 / ${isActual?'実負荷':'設計'}" /></td>
-                            <td class="auto-calc" style="background:${cellBg};">${mImEach ? `${mImEach}A<div style="font-size:0.65rem;color:#888;">×${mCount}=${mImTotal.toFixed(1)}A</div>` : '—'}</td>
+                            <td style="background:${cellBg};padding:0.15rem 0.25rem;">
+                                <div style="display:flex;align-items:center;gap:2px;">
+                                    <input type="number" step="0.1" min="0" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="imOverride" value="${mImOverride || ''}" placeholder="${tableIm || '—'}" style="width:52px;background:#fff;font-size:0.78rem;text-align:right;" title="${imTitle}" />
+                                    <span style="font-size:0.65rem;color:#666;">A</span>${imBadge}
+                                </div>
+                                <div style="font-size:0.62rem;color:#888;margin-top:1px;">使用値 ${mImEach || 0}A×${mCount}=${mImTotal.toFixed(1)}A</div>
+                            </td>
                             <td>
                                 <select class="motor-meta-input" data-id="${circuit.id}" data-motor-field="startMethod" style="background:${cellBg};font-size:0.72rem;min-width:72px;" title="始動方式 / ${isActual?'実負荷':'設計'}">
                                     ${startOpt('direct', '直入れ')}
@@ -3968,7 +4024,7 @@
             const circuitId = parseInt(input.dataset.id);
             const field = input.dataset.motorField;
             let value = input.value;
-            if (field === 'kw' || field === 'count') value = parseFloat(value) || 0;
+            if (field === 'kw' || field === 'count' || field === 'imOverride') value = parseFloat(value) || 0;
 
             // 再描画でフォーカスが失われないよう位置を記憶
             const focusState = captureCircuitFocusState();
@@ -3980,12 +4036,13 @@
                 setMotorMeta(circuitId, { [field]: value });
             }
 
-            // kWまたは台数変更時は VAを再計算
-            if (field === 'kw' || field === 'count') {
+            // kW/台数/銘板Im変更時は VAを再計算
+            if (field === 'kw' || field === 'count' || field === 'imOverride') {
                 const calcKva = (m) => {
-                    const entry = lookupMotor3705_1(m.kw);
-                    if (!entry || !m.kw || m.kw <= 0) return 0;
-                    const imTotal = entry.current * (m.count || 1);
+                    // 実効Im = 銘板override > 3705-1表
+                    const r = resolveMotorIm(m);
+                    if (!r.im || r.im <= 0) return 0;
+                    const imTotal = r.im * (m.count || 1);
                     return Math.sqrt(3) * 200 * imTotal / 1000;
                 };
                 if (circuitViewMode === 'actual') {
