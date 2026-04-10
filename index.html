@@ -5899,6 +5899,7 @@
                 await loadFeeders();
 
                 // 2) 分岐回路と子幹線のリンク
+                // 同じ盤名で電灯／動力の2幹線がある場合、親回路のカテゴリに一致する方を選ぶ
                 for (const circuit of allCircuits) {
                     if (circuit.symbol !== '分岐') continue;
                     const downstreamName = (circuit.load_name || '').trim();
@@ -5906,9 +5907,21 @@
                     // 行先が盤名と一致するか
                     const downstreamPanel = allPanels.find(p => p.name === downstreamName);
                     if (!downstreamPanel) continue;
-                    const childFeeder = allFeeders.find(f => f.load_name === downstreamName);
-                    if (!childFeeder) continue;
-                    // 既に別の親にリンク済みならスキップ（上書き回避）
+                    // 親回路のカテゴリを特定（circuit.category があれば優先、無ければ所属盤の相から推定）
+                    let parentCategory = circuit.category || '';
+                    if (!parentCategory) {
+                        const parentPanel = allPanels.find(p => p.name === circuit.panel_name);
+                        const pElec = parentPanel?.elec_type || '';
+                        parentCategory = (pElec === '3φ3W') ? '動力' : '電灯';
+                    }
+                    // 候補子幹線: 同じ load_name の全feeder
+                    const candidates = allFeeders.filter(f => f.load_name === downstreamName);
+                    if (candidates.length === 0) continue;
+                    // カテゴリ一致を優先
+                    const getCategory = (f) => (localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯');
+                    let childFeeder = candidates.find(f => getCategory(f) === parentCategory);
+                    if (!childFeeder) childFeeder = candidates[0];
+                    // 既にこの親にリンク済みならスキップ
                     const currentSrc = getFeederSource(childFeeder.id);
                     if (currentSrc.type === 'branch' && currentSrc.circuitId === circuit.id) continue;
                     if (!localFeederData[childFeeder.id]) localFeederData[childFeeder.id] = {};
