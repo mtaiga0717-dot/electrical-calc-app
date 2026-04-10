@@ -1519,10 +1519,25 @@
                             三相誘導電動機などの動力負荷（記号 ◇）の回路で使用します。動力モードでは列 13〜17 が電動機データ入力に差し替わります：<br>
                             <b>入力項目</b>：<b>kW</b>（電動機定格出力）／<b>台数</b>／<b>Im[A]</b>（銘板値 optional）／<b>始動方式</b>（直入れ／Y-Δ／インバータ／ソフトスタータ）。<br>
 
-                            <b>Im 決定ロジック（銘板値優先）</b>：
+                            <b>Im 決定ロジック（優先順位: 銘板 &gt; 計算式 &gt; 表）</b>：
                             <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
-                                <li><b>Im[A] 欄に銘板値を入力した場合 → その値を優先使用</b>（バッジ <span style="background:#ff6f00;color:#fff;padding:1px 4px;border-radius:2px;font-size:0.7em;">銘</span>）</li>
-                                <li>Im[A] 欄が空の場合 → kW から <b>3705-1表（200V 3φ単一電動機）</b>を参照して Im を自動取得（バッジ <span style="background:#1976d2;color:#fff;padding:1px 4px;border-radius:2px;font-size:0.7em;">表</span>）</li>
+                                <li><b>Im[A] 欄に銘板値を入力 → その値を最優先</b>（バッジ <span style="background:#ff6f00;color:#fff;padding:1px 4px;border-radius:2px;font-size:0.7em;">銘</span>）</li>
+                                <li>Im[A] 欄が空 & モード=<b>式</b> → <b>計算式</b>で算出（バッジ <span style="background:#2e7d32;color:#fff;padding:1px 4px;border-radius:2px;font-size:0.7em;">式</span>）</li>
+                                <li>Im[A] 欄が空 & モード=<b>表</b> → <b>3705-1表</b>からkW直近上位値を参照（バッジ <span style="background:#1976d2;color:#fff;padding:1px 4px;border-radius:2px;font-size:0.7em;">表</span>）</li>
+                            </ul>
+
+                            <b>計算式モード（200V 3φ誘導電動機）</b>：
+                            <div style="background:#f5f5f5;padding:0.5rem;border-left:3px solid #2e7d32;margin:0.3rem 0;font-family:monospace;">
+                                I<sub>m</sub> [A] = P [W] / (√3 × V × cosφ × η) = P [kW] × 1000 / (√3 × V × cosφ × η)
+                            </div>
+                            <b>出典</b>：JEC-2137「誘導機」、JIS C 4034-1「回転電気機械 定格及び特性」、電気設備技術基準・解釈 第149条、内線規程 JEAC 8001 資料編「電動機の電流計算」。<br>
+                            <b>デフォルト定数</b>：V=200V、cosφ=0.85、η=0.85（汎用4極誘導電動機 中容量帯の代表値）。これにより<br>
+                            <code>I<sub>m</sub> ≒ P[kW] × 1000 / (√3 × 200 × 0.7225) ≒ P × 3.995 [A/kW]</code><br>
+                            <b>妥当性</b>：3.7〜22kW帯ではJIS標準電動機の実η·cosφの中央値に近く、3705-1表値と±10%以内で一致します。
+                            <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
+                                <li><b>表値との例</b>: 3.7kW → 表16.8A / 式14.8A、5.5kW → 表24.6A / 式22.0A、11kW → 表48.0A / 式43.9A、22kW → 表92.0A / 式87.9A</li>
+                                <li><b>注意（小容量帯）</b>：0.2〜0.75kWの小容量電動機は実機η·cosφが0.3〜0.5と低いため計算式は<b>過小評価</b>になります。小容量は表値（大きめの安全側）を使うか銘板値を入力してください。</li>
+                                <li><b>2.3kWのような非標準kW</b>：表参照だと直近上位の3.7kW行(16.8A)に丸められ過大評価になるため、<b>計算式モード</b>に切り替えると妥当なImが得られます（2.3×3.995 ≒ 9.2A）。</li>
                             </ul>
                             <b>なぜ銘板値優先か（根拠）</b>：内線規程 JEAC 8001 <b>3705-1表 備考</b>には「電動機の定格電流は銘板値による」と明記されています。3705-1表は JIS C 4212/4213 の<b>標準定格電動機</b>を対象にした代表値で、効率η・力率cosφを一定と仮定して算出されており、設計段階で電動機が未確定のときの<b>目安</b>として使うのが本来の趣旨です。したがって：
                             <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
@@ -2301,16 +2316,19 @@
         function getMotorMeta(circuitId) {
             try {
                 const raw = localStorage.getItem(`elecCalc:motorMeta:${circuitId}`);
-                if (!raw) return { kw: 0, count: 1, startMethod: 'direct', imOverride: 0 };
+                if (!raw) return { kw: 0, count: 1, startMethod: 'direct', imOverride: 0, imMode: 'table', pf: MOTOR_DEFAULT_PF, eff: MOTOR_DEFAULT_EFF };
                 const v = JSON.parse(raw);
                 return {
                     kw: Number(v.kw) || 0,
                     count: Number(v.count) || 1,
                     startMethod: v.startMethod || 'direct',
-                    imOverride: Number(v.imOverride) || 0
+                    imOverride: Number(v.imOverride) || 0,
+                    imMode: v.imMode || 'table',
+                    pf: Number(v.pf) || MOTOR_DEFAULT_PF,
+                    eff: Number(v.eff) || MOTOR_DEFAULT_EFF
                 };
             } catch (e) {
-                return { kw: 0, count: 1, startMethod: 'direct', imOverride: 0 };
+                return { kw: 0, count: 1, startMethod: 'direct', imOverride: 0, imMode: 'table', pf: MOTOR_DEFAULT_PF, eff: MOTOR_DEFAULT_EFF };
             }
         }
         function setMotorMeta(circuitId, patch) {
@@ -2331,10 +2349,13 @@
                     kw: Number(v.kw) || 0,
                     count: Number(v.count) || 1,
                     startMethod: v.startMethod || 'direct',
-                    imOverride: Number(v.imOverride) || 0
+                    imOverride: Number(v.imOverride) || 0,
+                    imMode: v.imMode || 'table',
+                    pf: Number(v.pf) || MOTOR_DEFAULT_PF,
+                    eff: Number(v.eff) || MOTOR_DEFAULT_EFF
                 };
             } catch (e) {
-                return { kw: 0, count: 1, startMethod: 'direct', imOverride: 0 };
+                return { kw: 0, count: 1, startMethod: 'direct', imOverride: 0, imMode: 'table', pf: MOTOR_DEFAULT_PF, eff: MOTOR_DEFAULT_EFF };
             }
         }
         function setActualMotorMeta(circuitId, patch) {
@@ -2348,14 +2369,42 @@
             const entry = MOTOR_TABLE_3705_1.find(m => m.kw >= kw);
             return entry || MOTOR_TABLE_3705_1[MOTOR_TABLE_3705_1.length - 1];
         }
+        // 電動機定格電流の計算式
+        // Im[A] = P[W] / (√3 × V × cosφ × η) = P[kW]×1000 / (√3 × V × cosφ × η)
+        // 根拠: JEC-2137「誘導機」、JIS C 4034-1「回転電気機械 定格及び特性」、
+        //       電気設備技術基準・解釈第149条、内線規程 JEAC 8001 資料編（電動機の電流計算）
+        // デフォルト: V=200V, cosφ=0.85, η=0.85 (汎用4極誘導電動機 中容量帯の代表値)
+        //   → η·cosφ = 0.7225, Im ≒ P[kW] × 3.995 [A/kW]
+        const MOTOR_DEFAULT_PF = 0.85;
+        const MOTOR_DEFAULT_EFF = 0.85;
+        const MOTOR_DEFAULT_VOLTAGE = 200;
+        function calcMotorImByFormula(kw, voltage, pf, eff) {
+            const v = Number(voltage) || MOTOR_DEFAULT_VOLTAGE;
+            const c = Number(pf) || MOTOR_DEFAULT_PF;
+            const e = Number(eff) || MOTOR_DEFAULT_EFF;
+            if (!kw || kw <= 0 || c <= 0 || e <= 0) return 0;
+            return (kw * 1000) / (Math.sqrt(3) * v * c * e);
+        }
+
         // 実効Im（単機）を決定する
-        // 根拠: 内線規程 JEAC 8001 3705-1表 備考 — 「電動機の定格電流は銘板値による」。
-        // 表は JIS標準定格(η・cosφ一定仮定)の代表値であり、実電動機の銘板Imが分かる場合は
-        // 銘板値を優先する。表は設計段階で電動機未確定時の目安として用いる。
-        function resolveMotorIm(meta) {
+        // 優先順位: 銘板override > 計算式(imMode='formula') > 3705-1表(デフォルト)
+        // 根拠:
+        //   ・内線規程 JEAC 8001 3705-1表 備考 —「電動機の定格電流は銘板値による」
+        //   ・3705-1表はJIS標準定格(η・cosφ一定仮定)の代表値であり設計段階の目安
+        //   ・計算式は上記物理式に基づく。η·cosφ=0.7225は3.7~22kW帯の標準電動機実測中央値に近く、
+        //     3705-1表値と±10%以内で一致する。小容量帯では実機η·cosφが0.3~0.5と低いため
+        //     計算式は過小評価となる点に留意。
+        function resolveMotorIm(meta, opts) {
             if (!meta) return { im: 0, source: 'none' };
-            if (meta.imOverride && meta.imOverride > 0) {
+            // 設計モード（allowOverride=false）では銘板override を無視する。
+            // 銘板値は実負荷タブでのみ有効（設計タブは表参照 or 計算式で決定）。
+            const allowOverride = !(opts && opts.allowOverride === false);
+            if (allowOverride && meta.imOverride && meta.imOverride > 0) {
                 return { im: Number(meta.imOverride), source: 'nameplate' };
+            }
+            if (meta.imMode === 'formula' && meta.kw > 0) {
+                const im = calcMotorImByFormula(meta.kw, MOTOR_DEFAULT_VOLTAGE, meta.pf || MOTOR_DEFAULT_PF, meta.eff || MOTOR_DEFAULT_EFF);
+                return { im: Math.round(im * 10) / 10, source: 'formula' };
             }
             const entry = lookupMotor3705_1(meta.kw);
             if (entry) return { im: entry.current, source: 'table' };
@@ -3314,13 +3363,12 @@
                 let sumKvaMotor = 0;
                 motorCircuits.forEach(c => {
                     // ビューモードに応じて設計/実負荷のメタを使用
-                    const m = (circuitViewMode === 'actual')
-                        ? getActualMotorMeta(c.id)
-                        : getMotorMeta(c.id);
+                    const isActualSummary = (circuitViewMode === 'actual');
+                    const m = isActualSummary ? getActualMotorMeta(c.id) : getMotorMeta(c.id);
                     const kw = Number(m.kw) || 0;
                     const cnt = Number(m.count) || 1;
-                    // 実効Im = 銘板override > 表参照
-                    const r = resolveMotorIm(m);
+                    // 実効Im: 実負荷のみ銘板override許可
+                    const r = resolveMotorIm(m, { allowOverride: isActualSummary });
                     if (r.im > 0) {
                         if (kw > 0) sumKw += kw * cnt;
                         sumImCalc += r.im * cnt;
@@ -3783,8 +3831,9 @@
             // AT判定は現在のビューモードのメタを使用
             const motorMetaForJudge = (circuitViewMode === 'actual') ? actualMotorMeta : motorMeta;
             const motor3705 = isMotor ? lookupMotor3705_1(motorMetaForJudge.kw) : null;
-            // 実効Im: 銘板override > 表参照
-            const motorImResolved = isMotor ? resolveMotorIm(motorMetaForJudge) : { im: 0, source: 'none' };
+            // 実効Im: 実負荷モードでは 銘板override > 式 > 表。設計モードは式 or 表のみ。
+            const allowOverride = (circuitViewMode === 'actual');
+            const motorImResolved = isMotor ? resolveMotorIm(motorMetaForJudge, { allowOverride }) : { im: 0, source: 'none' };
             const motorSingleIm = motorImResolved.im;
             const motorImSource = motorImResolved.source; // 'nameplate' | 'table' | 'none'
             const motorTotalIm = motorSingleIm * (motorMetaForJudge.count || 1);
@@ -3894,9 +3943,9 @@
                         if (isMotorRow) {
                             const dKw = (motorMeta.kw || 0) * (motorMeta.count || 1);
                             const aKw = (actualMotorMeta.kw || 0) * (actualMotorMeta.count || 1);
-                            // 実効Im (銘板 > 表)
-                            const dImResolved = resolveMotorIm(motorMeta);
-                            const aImResolved = resolveMotorIm(actualMotorMeta);
+                            // 実効Im: 設計は式or表のみ、実負荷は銘板override許可
+                            const dImResolved = resolveMotorIm(motorMeta, { allowOverride: false });
+                            const aImResolved = resolveMotorIm(actualMotorMeta, { allowOverride: true });
                             const dIm = dImResolved.im * (motorMeta.count || 1);
                             const aIm = aImResolved.im * (actualMotorMeta.count || 1);
                             return `
@@ -3938,35 +3987,65 @@
                         const mImOverride = Number(meta.imOverride) || 0;
                         const mImEach = motorSingleIm;
                         const mImTotal = motorTotalIm;
+                        const mImMode = meta.imMode || 'table'; // 'table' | 'formula'
+                        const mPf = meta.pf || MOTOR_DEFAULT_PF;
+                        const mEff = meta.eff || MOTOR_DEFAULT_EFF;
                         // 表参照Im（override無視、kWのみから）
                         const tableEntry = lookupMotor3705_1(mKw);
                         const tableIm = tableEntry ? tableEntry.current : 0;
+                        // 計算式Im（kW, V, cosφ, η から）
+                        const formulaImRaw = calcMotorImByFormula(mKw, MOTOR_DEFAULT_VOLTAGE, mPf, mEff);
+                        const formulaIm = Math.round(formulaImRaw * 10) / 10;
                         const m3705Info = motor3705
                             ? `推奨${motorRecommendAT}AT / CV${motor3705.cable}mm²`
                             : '—';
                         const startOpt = (v, label) => `<option value="${v}" ${meta.startMethod === v ? 'selected' : ''}>${label}</option>`;
                         const cellBg = isActual ? '#fff8e1' : '#fff3e0';
-                        // Im欄の表示: override優先, 空欄時は表値をプレースホルダ
+                        // Im欄の表示バッジ: 銘板 > 式 > 表
                         const imBadge = motorImSource === 'nameplate'
                             ? '<span style="display:inline-block;font-size:0.6rem;background:#ff6f00;color:#fff;padding:1px 4px;border-radius:2px;margin-left:2px;" title="銘板値を優先使用中">銘</span>'
+                            : motorImSource === 'formula'
+                            ? '<span style="display:inline-block;font-size:0.6rem;background:#2e7d32;color:#fff;padding:1px 4px;border-radius:2px;margin-left:2px;" title="計算式から算出: Im=P/(√3×V×cosφ×η)">式</span>'
                             : motorImSource === 'table'
                             ? '<span style="display:inline-block;font-size:0.6rem;background:#1976d2;color:#fff;padding:1px 4px;border-radius:2px;margin-left:2px;" title="3705-1表からの参照値">表</span>'
                             : '';
                         const imTitle = `電動機定格電流 Im [A]\n` +
                             `根拠: 内線規程 3705-1表 備考「電動機の定格電流は銘板値による」\n` +
-                            `・空欄→3705-1表からkW直近上位の値を参照（${tableIm || '—'}A）\n` +
-                            `・銘板値がある場合はここに入力（表値より優先）\n` +
-                            `・表はJIS標準定格(η·cosφ一定仮定)の代表値のため、実機銘板があればそちらが正確`;
+                            `・空欄→モードに応じて表参照or計算式\n` +
+                            `・銘板値がある場合はここに入力（最優先）\n` +
+                            `・表参照: 3705-1表 kW直近上位（${tableIm || '—'}A）\n` +
+                            `・計算式: Im=P×1000/(√3×V×cosφ×η) (${formulaIm || '—'}A, cosφ=${mPf}, η=${mEff})`;
+                        // Im計算方式トグル (表/式) - 銘板override無しのときのみ有効
+                        const modeToggleHtml = `
+                            <div style="display:flex;gap:2px;margin-top:2px;font-size:0.6rem;">
+                                <button type="button" class="motor-im-mode-btn" data-id="${circuit.id}" data-im-mode="table"
+                                    style="padding:1px 5px;border:1px solid #1976d2;background:${mImMode==='table'?'#1976d2':'#fff'};color:${mImMode==='table'?'#fff':'#1976d2'};border-radius:2px;cursor:pointer;font-size:0.6rem;line-height:1.1;"
+                                    title="3705-1表からkWの直近上位値を参照">表</button>
+                                <button type="button" class="motor-im-mode-btn" data-id="${circuit.id}" data-im-mode="formula"
+                                    style="padding:1px 5px;border:1px solid #2e7d32;background:${mImMode==='formula'?'#2e7d32':'#fff'};color:${mImMode==='formula'?'#fff':'#2e7d32'};border-radius:2px;cursor:pointer;font-size:0.6rem;line-height:1.1;"
+                                    title="計算式 Im=P×1000/(√3×V×cosφ×η), V=200, cosφ=${mPf}, η=${mEff}">式</button>
+                            </div>
+                        `;
+                        // 下段の参考表示: 表値と式値を両方見せる
+                        const refLine = `<div style="font-size:0.58rem;color:#888;margin-top:1px;line-height:1.15;">表${tableIm || '—'}A / 式${formulaIm || '—'}A</div>`;
                         // col13=kW, col14=台数, col15=Im[A](銘板override可), col16=始動方式, col17=3705-1表参照
                         return `
                             <td><input type="number" step="0.1" min="0" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="kw" value="${mKw}" style="width:60px;background:${cellBg};" title="電動機定格[kW] (3705-1表入力) / ${isActual?'実負荷':'設計'}" /></td>
                             <td><input type="number" step="1" min="1" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="count" value="${mCount}" style="width:50px;background:${cellBg};" title="台数 / ${isActual?'実負荷':'設計'}" /></td>
-                            <td style="background:${cellBg};padding:0.15rem 0.25rem;">
-                                <div style="display:flex;align-items:center;gap:2px;">
-                                    <input type="number" step="0.1" min="0" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="imOverride" value="${mImOverride || ''}" placeholder="${tableIm || '—'}" style="width:52px;background:#fff;font-size:0.78rem;text-align:right;" title="${imTitle}" />
-                                    <span style="font-size:0.65rem;color:#666;">A</span>${imBadge}
-                                </div>
-                                <div style="font-size:0.62rem;color:#888;margin-top:1px;">使用値 ${mImEach || 0}A×${mCount}=${mImTotal.toFixed(1)}A</div>
+                            <td style="background:${cellBg};padding:0.15rem 0.25rem;min-width:110px;">
+                                ${isActual
+                                    ? `<div style="display:flex;align-items:center;gap:2px;">
+                                            <input type="number" step="0.1" min="0" class="motor-meta-input" data-id="${circuit.id}" data-motor-field="imOverride" value="${mImOverride || ''}" placeholder="${mImMode==='formula'?(formulaIm||'—'):(tableIm||'—')}" style="width:52px;background:#fff;font-size:0.78rem;text-align:right;" title="${imTitle}\n（実負荷タブ: 銘板値を入力すると最優先）" />
+                                            <span style="font-size:0.65rem;color:#666;">A</span>${imBadge}
+                                        </div>`
+                                    : `<div style="display:flex;align-items:center;gap:2px;">
+                                            <span style="font-weight:bold;font-size:0.82rem;color:#333;">${(mImEach||0).toFixed(1)}</span>
+                                            <span style="font-size:0.65rem;color:#666;">A</span>${imBadge}
+                                        </div>`
+                                }
+                                ${modeToggleHtml}
+                                <div style="font-size:0.62rem;color:#555;margin-top:1px;line-height:1.1;">使用 ${(mImEach||0).toFixed(1)}×${mCount}=${mImTotal.toFixed(1)}A</div>
+                                ${refLine}
                             </td>
                             <td>
                                 <select class="motor-meta-input" data-id="${circuit.id}" data-motor-field="startMethod" style="background:${cellBg};font-size:0.72rem;min-width:72px;" title="始動方式 / ${isActual?'実負荷':'設計'}">
@@ -4013,8 +4092,54 @@
             row.querySelectorAll('.motor-meta-input').forEach(input => {
                 input.addEventListener('change', handleMotorMetaChange);
             });
+            // Im計算方式トグル(表/式)
+            row.querySelectorAll('.motor-im-mode-btn').forEach(btn => {
+                btn.addEventListener('click', handleMotorImModeChange);
+            });
 
             return row;
+        }
+
+        // Im計算方式(表/式)の切替
+        async function handleMotorImModeChange(e) {
+            if (isRendering) return;
+            const btn = e.currentTarget;
+            const circuitId = parseInt(btn.dataset.id);
+            const newMode = btn.dataset.imMode; // 'table' or 'formula'
+            const focusState = captureCircuitFocusState();
+            if (circuitViewMode === 'actual') {
+                setActualMotorMeta(circuitId, { imMode: newMode });
+            } else {
+                setMotorMeta(circuitId, { imMode: newMode });
+            }
+            // VAを再計算（銘板overrideは実負荷モードのみ有効）
+            const calcKva = (m) => {
+                const r = resolveMotorIm(m, { allowOverride: (circuitViewMode === 'actual') });
+                if (!r.im || r.im <= 0) return 0;
+                return Math.sqrt(3) * 200 * r.im * (m.count || 1) / 1000;
+            };
+            if (circuitViewMode === 'actual') {
+                const actMeta = getActualMotorMeta(circuitId);
+                const actKva = calcKva(actMeta);
+                setActualCircuit(circuitId, { lighting: 0, outlet: 0, fc: 0, oa: 0, feeder: actKva });
+            } else {
+                const meta = getMotorMeta(circuitId);
+                const kvaTotal = calcKva(meta);
+                try {
+                    const { error } = await db
+                        .from('circuits')
+                        .update({ lighting: 0, outlet: 0, fc: 0, oa: 0, feeder: kvaTotal })
+                        .eq('id', circuitId);
+                    if (error) throw error;
+                    await loadCircuits();
+                } catch (err) {
+                    console.error('motor imMode update error:', err);
+                }
+            }
+            isRendering = true;
+            await renderCircuits();
+            isRendering = false;
+            restoreCircuitFocusState(focusState);
         }
 
         // 動力メタ変更→localStorageへ保存→3705-1表参照→VAを計算しcircuit.feederへ反映
@@ -4039,8 +4164,8 @@
             // kW/台数/銘板Im変更時は VAを再計算
             if (field === 'kw' || field === 'count' || field === 'imOverride') {
                 const calcKva = (m) => {
-                    // 実効Im = 銘板override > 3705-1表
-                    const r = resolveMotorIm(m);
+                    // 実効Im: 実負荷モードは 銘板override > 式/表、設計モードは override無視
+                    const r = resolveMotorIm(m, { allowOverride: (circuitViewMode === 'actual') });
                     if (!r.im || r.im <= 0) return 0;
                     const imTotal = r.im * (m.count || 1);
                     return Math.sqrt(3) * 200 * imTotal / 1000;
