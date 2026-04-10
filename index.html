@@ -3416,8 +3416,7 @@
         }
 
         async function loadFeeders() {
-            // sort_order が null の場合でも id で安定ソートする
-            // （demand_factor 等を編集した直後に行が下に飛ぶのを防止）
+            // DBからは id 昇順で取得し、その後クライアント側で幹線No降順ソート
             const { data, error } = await db
                 .from('feeders')
                 .select('*')
@@ -3426,6 +3425,27 @@
 
             if (error) throw error;
             allFeeders = data || [];
+
+            // 幹線No を自然順で降順ソート（"F-10" > "F-9" を正しく扱う）
+            // 幹線Noは localFeederData[id].feeder_no に文字列で保存されている
+            const naturalKey = (s) => {
+                const str = String(s || '');
+                // 数字部分をゼロパディングして辞書順ソートで自然順を実現
+                return str.replace(/\d+/g, (n) => n.padStart(12, '0'));
+            };
+            allFeeders.sort((a, b) => {
+                const aNo = localFeederData[a.id]?.feeder_no || '';
+                const bNo = localFeederData[b.id]?.feeder_no || '';
+                // 両方空なら id 降順（新しい順）にフォールバック
+                if (!aNo && !bNo) return (b.id || 0) - (a.id || 0);
+                // 片方だけ空なら空を末尾へ
+                if (!aNo) return 1;
+                if (!bNo) return -1;
+                const ak = naturalKey(aNo);
+                const bk = naturalKey(bNo);
+                if (ak === bk) return (b.id || 0) - (a.id || 0);
+                return ak < bk ? 1 : -1; // 降順
+            });
         }
 
         function renderPanels() {
