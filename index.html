@@ -2251,7 +2251,21 @@
         let allFeeders = [];
         let editingPanelId = null;
         const localFeederData = {};  // Client-side only data (not in Supabase)
-        const localCircuitData = {};  // Client-side only data for circuits (not in Supabase)
+        // 回路用クライアント専用データ（category等、Supabaseに無いフィールド）
+        // localStorageへ永続化しページリロード後も復元する
+        const LOCAL_CIRCUIT_DATA_KEY = 'elecCalc:localCircuitData';
+        function loadLocalCircuitData() {
+            try {
+                const raw = localStorage.getItem(LOCAL_CIRCUIT_DATA_KEY);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) { return {}; }
+        }
+        function saveLocalCircuitData() {
+            try {
+                localStorage.setItem(LOCAL_CIRCUIT_DATA_KEY, JSON.stringify(localCircuitData));
+            } catch (e) { console.error('saveLocalCircuitData:', e); }
+        }
+        const localCircuitData = loadLocalCircuitData();  // { [circuitId]: { category } }
         let circuitViewMode = 'design'; // 'design' | 'actual' | 'both'
 
         // 実負荷値をlocalStorageから読み込み
@@ -2513,6 +2527,25 @@
                     Object.assign(c, localCircuitData[c.id]);
                 }
             });
+
+            // カテゴリ復元ヒューリスティック:
+            // 過去に入力した回路で localCircuitData に category が無い場合でも
+            // 他の属性から動力らしさを推測して自動分類する
+            let recovered = 0;
+            allCircuits.forEach(c => {
+                if (c.category === '電灯' || c.category === '動力') return;
+                const motorMeta = getMotorMeta(c.id);
+                const has3PhaseBreaker = c.breaker === 'MCCB3P' || c.breaker === 'ELCB3P';
+                const isMotorSymbol = c.symbol === '◇';
+                const isRSTPhase = c.phase && ['R','S','T','R-S','S-T','R-T','RST'].includes(c.phase);
+                const hasMotorKw = motorMeta && motorMeta.kw > 0;
+                const looksLikeMotor = hasMotorKw || isMotorSymbol || (has3PhaseBreaker && isRSTPhase);
+                c.category = looksLikeMotor ? '動力' : '電灯';
+                if (!localCircuitData[c.id]) localCircuitData[c.id] = {};
+                localCircuitData[c.id].category = c.category;
+                recovered++;
+            });
+            if (recovered > 0) saveLocalCircuitData();
 
             // 回路データが更新されたら 盤一覧の集計も再計算
             if (allPanels && allPanels.length > 0) {
@@ -4085,6 +4118,7 @@
             if (field === 'category') {
                 if (!localCircuitData[circuitId]) localCircuitData[circuitId] = {};
                 localCircuitData[circuitId].category = value;
+                saveLocalCircuitData();
                 const circuitObj = allCircuits.find(c => c.id === circuitId);
                 if (circuitObj) circuitObj.category = value;
                 // 電灯に切替時は相を自動計算してDBへ保存
@@ -4166,6 +4200,7 @@
                 // カテゴリはclient-sideなのでlocalCircuitDataに保存
                 if (!localCircuitData[circuitId]) localCircuitData[circuitId] = {};
                 localCircuitData[circuitId].category = defaults.category;
+                saveLocalCircuitData();
 
                 try {
                     const { error } = await db
@@ -4344,6 +4379,7 @@
                 // 現在表示中のカテゴリを強制的に付与する（電灯タブなら電灯、動力タブなら動力）
                 if (data && data[0]) {
                     localCircuitData[data[0].id] = { category: activeCategory };
+                    saveLocalCircuitData();
                     // allCircuitsにも即反映（loadCircuitsでもマージされるが先に反映）
                     data[0].category = activeCategory;
                 }
