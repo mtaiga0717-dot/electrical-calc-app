@@ -887,8 +887,9 @@
         }
 
         .feeders-table-wrapper {
+            max-height: calc(100vh - 240px);
             overflow-x: scroll;   /* 常に横スクロール表示 */
-            overflow-y: visible;
+            overflow-y: auto;     /* 縦スクロール内でthead sticky */
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -921,7 +922,7 @@
         .feeders-scroll-proxy::-webkit-scrollbar-thumb:hover { background: #495057; }
 
         .feeders-table {
-            min-width: 2800px;
+            min-width: 2700px;
             border-collapse: collapse;
             font-size: 0.8rem;
             table-layout: fixed;
@@ -977,21 +978,46 @@
         .feeders-table th:nth-child(24),
         .feeders-table td:nth-child(24) { width: 75px; min-width: 75px; }  /* AT判定 */
         .feeders-table th:nth-child(25),
-        .feeders-table td:nth-child(25) { width: 115px; min-width: 115px; }/* 施設場所 */
+        .feeders-table td:nth-child(25) { width: 75px; min-width: 75px; }  /* Icu */
         .feeders-table th:nth-child(26),
-        .feeders-table td:nth-child(26) { width: 75px; min-width: 75px; }  /* Icu */
+        .feeders-table td:nth-child(26) { width: 200px; min-width: 200px; white-space: normal; }/* 規定チェック */
         .feeders-table th:nth-child(27),
-        .feeders-table td:nth-child(27) { width: 200px; min-width: 200px; white-space: normal; }/* 規定チェック */
+        .feeders-table td:nth-child(27) { width: 85px; min-width: 85px; }  /* 動力合計kW */
         .feeders-table th:nth-child(28),
-        .feeders-table td:nth-child(28) { width: 85px; min-width: 85px; }  /* 動力合計kW */
+        .feeders-table td:nth-child(28) { width: 90px; min-width: 90px; }  /* 最大電動機kW */
         .feeders-table th:nth-child(29),
-        .feeders-table td:nth-child(29) { width: 90px; min-width: 90px; }  /* 最大電動機kW */
+        .feeders-table td:nth-child(29) { width: 90px; min-width: 90px; }  /* 内線規程AT */
         .feeders-table th:nth-child(30),
-        .feeders-table td:nth-child(30) { width: 90px; min-width: 90px; }  /* 内線規程AT */
+        .feeders-table td:nth-child(30) { width: 150px; min-width: 150px; }/* 至（行先） */
         .feeders-table th:nth-child(31),
-        .feeders-table td:nth-child(31) { width: 150px; min-width: 150px; }/* 至（行先） */
-        .feeders-table th:nth-child(32),
-        .feeders-table td:nth-child(32) { width: 70px; min-width: 70px; }  /* 操作 */
+        .feeders-table td:nth-child(31) { width: 70px; min-width: 70px; }  /* 操作 */
+
+        /* ── Feeders 左4列固定（幹線No / 区分 / 自 / 負荷名称） ── */
+        .feeders-table th:nth-child(1),
+        .feeders-table td:nth-child(1),
+        .feeders-table th:nth-child(2),
+        .feeders-table td:nth-child(2),
+        .feeders-table th:nth-child(3),
+        .feeders-table td:nth-child(3),
+        .feeders-table th:nth-child(4),
+        .feeders-table td:nth-child(4) {
+            position: sticky;
+            z-index: 5;
+        }
+        .feeders-table tbody td:nth-child(1) { left: 0; background-color: #fff; }
+        .feeders-table tbody td:nth-child(2) { left: 70px; background-color: #fff; }
+        .feeders-table tbody td:nth-child(3) { left: 130px; background-color: #fff; }
+        .feeders-table tbody td:nth-child(4) { left: 310px; background-color: #fff; border-right: 2px solid #888; }
+        .feeders-table thead th:nth-child(1) { left: 0; z-index: 15; }
+        .feeders-table thead th:nth-child(2) { left: 70px; z-index: 15; }
+        .feeders-table thead th:nth-child(3) { left: 130px; z-index: 15; }
+        .feeders-table thead th:nth-child(4) { left: 310px; z-index: 15; border-right: 2px solid #888; }
+        .feeders-table tbody tr:hover td:nth-child(1),
+        .feeders-table tbody tr:hover td:nth-child(2),
+        .feeders-table tbody tr:hover td:nth-child(3),
+        .feeders-table tbody tr:hover td:nth-child(4) {
+            background-color: #f5f5f5;
+        }
 
         /* 常時横スクロールバーを表示（Webkit） */
         .panels-table-wrapper,
@@ -1610,6 +1636,7 @@
                                 <th>AT判定</th>
                                 <th>負荷名称</th>
                                 <th>RC数</th>
+                                <th title="電技解釈36条・内線規程1375節 ELCB施設要否判定">施設場所</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -1886,9 +1913,8 @@
                                 <th style="min-width:70px;">AF</th>
                                 <th style="min-width:70px;">AT</th>
                                 <th>AT判定</th>
-                                <th title="施設場所（電技解釈36条 ELCB要否）">施設場所</th>
                                 <th title="ブレーカ定格遮断容量 Icu [kA]">Icu[kA]</th>
-                                <th title="内線規程・電技解釈の総合判定">規定チェック</th>
+                                <th title="内線規程（太さ/条数・IC協調・3m/8m緩和）の総合判定">規定チェック</th>
                                 <th>動力合計kW</th>
                                 <th>最大電動機kW</th>
                                 <th>内線規程AT</th>
@@ -3311,10 +3337,13 @@
         }
 
         async function loadFeeders() {
+            // sort_order が null の場合でも id で安定ソートする
+            // （demand_factor 等を編集した直後に行が下に飛ぶのを防止）
             const { data, error } = await db
                 .from('feeders')
                 .select('*')
-                .order('sort_order', { ascending: true });
+                .order('sort_order', { ascending: true, nullsFirst: true })
+                .order('id', { ascending: true });
 
             if (error) throw error;
             allFeeders = data || [];
@@ -4500,6 +4529,7 @@
                     <td></td>
                     <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="load_name" value="${circuit.load_name || ''}" /></td>
                     <td></td>
+                    <td></td>
                     <td><button class="btn-delete-circuit" onclick="deleteCircuit(${circuit.id})">削除</button></td>
                 `;
                 row.querySelectorAll('.circuit-input').forEach(input => {
@@ -4815,6 +4845,32 @@
                     ? `<input type="number" min="0" class="circuit-input" data-id="${circuit.id}" data-field="remocon" value="${circuit.remocon || 0}" style="width:50px;" />`
                     : `<span style="color:#bdbdbd;">—</span>`
                 }</td>
+                <td>${(() => {
+                    // 施設場所 + ELCB施設要否判定（電技解釈36条・内線規程1375節）
+                    const installLoc = localCircuitData[circuit.id]?.install_location || 'indoor';
+                    const circPhase = circuit.phase_type || ((circuit.phase && ['R','S','T','R-S','S-T','R-T','RST'].includes(circuit.phase)) ? '3φ3W' : '1φ2W');
+                    const elcbJudge = judgeElcbRequired(voltage, circPhase, installLoc);
+                    const brType = circuit.breaker || '';
+                    const hasElcb = /ELCB|ELB/i.test(brType);
+                    const needElcb = elcbJudge.required;
+                    const mismatch = needElcb && !hasElcb;
+                    const badge = mismatch
+                        ? `<span class="badge badge-ng" title="${elcbJudge.reason} → ブレーカ種別をELCB系に変更してください">ELCB必要</span>`
+                        : (needElcb
+                            ? `<span class="badge badge-ok" title="${elcbJudge.reason}">ELCB✓</span>`
+                            : '');
+                    return `
+                        <select class="circuit-local" data-id="${circuit.id}" data-field="install_location" style="font-size:0.7rem;width:100%;" title="施設場所 → ELCB要否判定">
+                            <option value="indoor" ${installLoc==='indoor'?'selected':''}>乾燥屋内</option>
+                            <option value="indoor_wet" ${installLoc==='indoor_wet'?'selected':''}>湿気屋内</option>
+                            <option value="outdoor" ${installLoc==='outdoor'?'selected':''}>屋外</option>
+                            <option value="bathroom" ${installLoc==='bathroom'?'selected':''}>浴室等</option>
+                            <option value="waterfront" ${installLoc==='waterfront'?'selected':''}>水気場所</option>
+                            <option value="industrial" ${installLoc==='industrial'?'selected':''}>工場</option>
+                        </select>
+                        ${badge ? `<div style="margin-top:2px;">${badge}</div>` : ''}
+                    `;
+                })()}</td>
                 <td><button class="btn-delete-circuit" onclick="deleteCircuit(${circuit.id})">削除</button></td>
             `;
 
@@ -4823,6 +4879,10 @@
             });
             row.querySelectorAll('.circuit-select, .panel-select').forEach(input => {
                 input.addEventListener('change', handleCircuitChange);
+            });
+            // 回路ローカル項目（install_location 等）のハンドラ
+            row.querySelectorAll('.circuit-local').forEach(input => {
+                input.addEventListener('change', handleCircuitLocalChange);
             });
             // 動力メタ入力(kW/台数/始動方式)のハンドラ
             row.querySelectorAll('.motor-meta-input').forEach(input => {
@@ -5090,6 +5150,22 @@
         }
 
         let isRendering = false;
+        // 回路のクライアント専用フィールド（install_location 等）の変更ハンドラ
+        function handleCircuitLocalChange(e) {
+            const element = e.target;
+            const circuitId = parseInt(element.dataset.id);
+            const field = element.dataset.field;
+            const value = element.value;
+            if (!localCircuitData[circuitId]) localCircuitData[circuitId] = {};
+            localCircuitData[circuitId][field] = value;
+            saveLocalCircuitData();
+            // メモリ側の circuit にも反映
+            const c = allCircuits.find(x => x.id === circuitId);
+            if (c) c[field] = value;
+            // 再描画してELCBバッジ更新
+            renderCircuits();
+        }
+
         async function handleCircuitChange(e) {
             if (isRendering) return;
             const input = e.target;
@@ -5746,7 +5822,14 @@
                     const pPanel = allPanels.find(p => p.name === parent.panel_name);
                     pCat = (pPanel?.elec_type === '3φ3W') ? '動力' : '電灯';
                 }
-                const getCategory = (f) => (localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯');
+                const getCategory = (f) => {
+                    const local = localFeederData[f.id]?.feeder_category;
+                    if (local) return local;
+                    if (f.feeder_category) return f.feeder_category;
+                    const suffix = (f.load_name || '').match(/[(（]\s*(電灯|動力)\s*[)）]\s*$/);
+                    if (suffix) return suffix[1];
+                    return (f.phase_type === '3φ3W') ? '動力' : '電灯';
+                };
                 const matching = linked.find(f => getCategory(f) === pCat);
                 if (matching) return matching;
             }
@@ -6072,13 +6155,19 @@
 
                 // 2) 分岐回路と子幹線のリンク
                 // 同じ盤名で電灯／動力の2幹線がある場合、親回路のカテゴリに一致する方を選ぶ
+                // 盤名末尾の「(電灯)」「(動力)」「（電灯）」「（動力）」は無視して照合（曖昧一致）
+                const stripCatSuffix = (s) => (s || '').trim()
+                    .replace(/[(（]\s*(電灯|動力)\s*[)）]\s*$/, '')
+                    .trim();
                 let unlinkCount = 0;
                 for (const circuit of allCircuits) {
                     if (circuit.symbol !== '分岐') continue;
-                    const downstreamName = (circuit.load_name || '').trim();
-                    if (!downstreamName) continue;
-                    // 行先が盤名と一致するか
-                    const downstreamPanel = allPanels.find(p => p.name === downstreamName);
+                    const downstreamNameRaw = (circuit.load_name || '').trim();
+                    if (!downstreamNameRaw) continue;
+                    const downstreamNorm = stripCatSuffix(downstreamNameRaw);
+                    // 行先が盤名と一致するか（曖昧一致可）
+                    const downstreamPanel = allPanels.find(p => p.name === downstreamNameRaw)
+                        || allPanels.find(p => stripCatSuffix(p.name) === downstreamNorm);
                     if (!downstreamPanel) continue;
                     // 親回路のカテゴリを特定（circuit.category があれば優先、無ければ所属盤の相から推定）
                     let parentCategory = circuit.category || '';
@@ -6087,11 +6176,22 @@
                         const pElec = parentPanel?.elec_type || '';
                         parentCategory = (pElec === '3φ3W') ? '動力' : '電灯';
                     }
-                    // 候補子幹線: 同じ load_name の全feeder
-                    const candidates = allFeeders.filter(f => f.load_name === downstreamName);
+                    // 候補子幹線: load_name が完全一致 or カテゴリ接尾辞を除去した正規化一致
+                    const candidates = allFeeders.filter(f => {
+                        if (f.load_name === downstreamNameRaw) return true;
+                        if (stripCatSuffix(f.load_name) === downstreamNorm) return true;
+                        return false;
+                    });
                     if (candidates.length === 0) continue;
-                    // カテゴリ一致を優先
-                    const getCategory = (f) => (localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯');
+                    // カテゴリ一致を優先（ローカル / DB / 盤名末尾 / 相）
+                    const getCategory = (f) => {
+                        const local = localFeederData[f.id]?.feeder_category;
+                        if (local) return local;
+                        if (f.feeder_category) return f.feeder_category;
+                        const suffix = (f.load_name || '').match(/[(（]\s*(電灯|動力)\s*[)）]\s*$/);
+                        if (suffix) return suffix[1];
+                        return (f.phase_type === '3φ3W') ? '動力' : '電灯';
+                    };
                     let childFeeder = candidates.find(f => getCategory(f) === parentCategory);
                     if (!childFeeder) childFeeder = candidates[0];
                     // この親回路に誤って紐付いている他の feeder を解除（1対1を保証）
@@ -6159,14 +6259,14 @@
                 if (lightingFeeders.length > 0 || motorFeeders.length > 0 || filtered.length === 0) {
                     if (lightingFeeders.length > 0 || (motorFeeders.length === 0 && filtered.length === 0)) {
                         const headerRow1 = document.createElement('tr');
-                        headerRow1.innerHTML = `<td colspan="32" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯幹線（親→子をツリー表示）</td>`;
+                        headerRow1.innerHTML = `<td colspan="31" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯幹線（親→子をツリー表示）</td>`;
                         tbody.appendChild(headerRow1);
                         renderTreeGroup(lightingFeeders);
                     }
 
                     if (motorFeeders.length > 0) {
                         const headerRow2 = document.createElement('tr');
-                        headerRow2.innerHTML = `<td colspan="32" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力幹線（親→子をツリー表示）</td>`;
+                        headerRow2.innerHTML = `<td colspan="31" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力幹線（親→子をツリー表示）</td>`;
                         tbody.appendChild(headerRow2);
                         renderTreeGroup(motorFeeders);
                     }
@@ -6243,12 +6343,17 @@
                 }
             }
 
-            const capacity = getLoadCapacity(feeder);
+            // 負荷容量: 盤/機器自動集計を優先、一致する盤がない (=0) 場合は手動入力値を使用
+            const autoCapacity = getLoadCapacity(feeder);
+            const manualCapacity = Number(localFeederData[feeder.id]?.load_capacity) || 0;
+            const capacity = autoCapacity > 0 ? autoCapacity : manualCapacity;
+            const capacityEditable = autoCapacity === 0; // 自動集計できないときだけ手入力可
             const demandFactor = feeder.demand_factor || getDemandFactor(capacity);
             const demandCapacity = (capacity * demandFactor) / 100;
             const voltage = autoVoltage || feeder.voltage || 100;
             const phase = autoPhase || feeder.phase_type || '1φ2W';
-            const powerFactor = localFeederData[feeder.id]?.power_factor || (feederCategory === '動力' ? 0.8 : 0.85);
+            // 力率デフォルト: 電灯=1.0, 動力=0.8 (内線規程 JEAC8001 / JIS C 8601 準拠)
+            const powerFactor = localFeederData[feeder.id]?.power_factor || (feederCategory === '動力' ? 0.8 : 1.0);
 
             let current = 0;
             if (phase === '3φ3W') {
@@ -6267,7 +6372,11 @@
             // 【規定拡充①】周囲温度・条数補正を考慮したケーブル選定
             const ambientTemp = Number(localFeederData[feeder.id]?.ambient_temp) || 30;
             const groupingCount = Number(localFeederData[feeder.id]?.grouping_count) || 1;
-            const cableSize = selectCableSizeCorrected(current, cableType, ambientTemp, groupingCount);
+            // 計算値（自動）と実選定値（ユーザー指定）を並存させ、採用側を適用する
+            const cableSizeCalc = selectCableSizeCorrected(current, cableType, ambientTemp, groupingCount);
+            const cableSizeManual = Number(feeder.cable_size) || 0;
+            const cableAdopt = localFeederData[feeder.id]?.cable_adopt || 'calc'; // 'calc' | 'manual'
+            const cableSize = (cableAdopt === 'manual' && cableSizeManual > 0) ? cableSizeManual : cableSizeCalc;
             const length = feeder.cable_length || 0;
 
             const voltageDrop = calculateVoltageDrop(current, length, cableSize, phase, powerFactor);
@@ -6277,9 +6386,14 @@
             const vdStatus = vdPercent <= vdRule.allowed ? 'OK' : '×';
             const vdStatusTitle = `許容${vdRule.allowed}% (${vdRule.sourceClass}・${vdRule.basis}) / ${vdRule.note}`;
 
-            const breaker = selectBreaker(current, feeder.breaker_type);
-            const breakerAF = feeder.breaker_af || breaker.af;
-            const breakerAT = feeder.breaker_at || breaker.at;
+            const breakerCalc = selectBreaker(current, feeder.breaker_type);
+            const afCalc = breakerCalc.af;
+            const atCalc = breakerCalc.at;
+            const afManual = Number(feeder.breaker_af) || 0;
+            const atManual = Number(feeder.breaker_at) || 0;
+            const breakerAdopt = localFeederData[feeder.id]?.breaker_adopt || 'calc';
+            const breakerAF = (breakerAdopt === 'manual' && afManual > 0) ? afManual : afCalc;
+            const breakerAT = (breakerAdopt === 'manual' && atManual > 0) ? atManual : atCalc;
 
             const cableEntry = CABLE_DATA.find(c => c.size === cableSize);
             const cableCapacity = cableType === 'CV' ? cableEntry?.cv : cableEntry?.cvt;
@@ -6328,16 +6442,6 @@
             // ② 最小太さ（電技解釈146条）— 低圧屋内配線 CVは2.0mm²以上が実務最小
             const minWireOk = (cableSize >= 2.0);
             const minWireNote = minWireOk ? '' : `電技解釈146条: 低圧屋内配線は最小2.0mm²以上`;
-
-            // ③ ELCB施設要否
-            const installLocation = localFeederData[feeder.id]?.install_location || 'indoor';
-            const elcbJudge = judgeElcbRequired(voltage, phase, installLocation);
-            const breakerType = feeder.breaker_type || '';
-            const hasElcb = breakerType.startsWith('ELCB');
-            const elcbMismatch = (elcbJudge.required && !hasElcb);
-
-            // ④ 接地工事種別
-            const groundInfo = judgeGroundingType(voltage, phase, false);
 
             // ⑤ 短絡電流（IC協調）: トランス登録がない場合はスキップ
             const icUserInput = Number(localFeederData[feeder.id]?.breaker_icu_ka) || 0;
@@ -6407,7 +6511,7 @@
                     <input type="text" class="feeder-input" data-id="${feeder.id}" data-field="load_name" value="${feeder.load_name || ''}" />
                 </td>
                 <td>
-                    <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="load_capacity" value="${capacity.toFixed(2)}" readonly />
+                    <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="load_capacity" value="${capacity.toFixed(2)}" ${capacityEditable ? `style="background-color:#fff3e0;" title="手入力 (盤/機器自動集計に一致する負荷がないため)"` : 'readonly title="盤/機器から自動集計"'} />
                 </td>
                 <td>
                     <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="demand_factor" value="${demandFactor}" min="0" max="100" />
@@ -6439,9 +6543,15 @@
                         <option value="CVT" ${cableType === 'CVT' ? 'selected' : ''}>CVT</option>
                     </select>
                 </td>
-                <td>
-                    <select class="feeder-select" data-id="${feeder.id}" data-field="cable_size" style="background-color:#e8f5e9;">
-                        ${CABLE_DATA.map(c => `<option value="${c.size}" ${c.size === cableSize ? 'selected' : ''}>${c.size}</option>`).join('')}
+                <td style="font-size:0.65rem;">
+                    <div title="自動計算（電流・温度・条数補正から）" style="color:#1565c0;font-weight:bold;margin-bottom:1px;">計:${cableSizeCalc}</div>
+                    <select class="feeder-select" data-id="${feeder.id}" data-field="cable_size" style="background-color:#fff3e0;font-size:0.7rem;" title="実選定サイズ（手動）">
+                        <option value="">—</option>
+                        ${CABLE_DATA.map(c => `<option value="${c.size}" ${c.size === cableSizeManual ? 'selected' : ''}>${c.size}</option>`).join('')}
+                    </select>
+                    <select class="feeder-local" data-id="${feeder.id}" data-field="cable_adopt" style="font-size:0.6rem;margin-top:1px;width:100%;" title="採用: 計算値 or 実選定">
+                        <option value="calc" ${cableAdopt==='calc'?'selected':''}>📐計算採用</option>
+                        <option value="manual" ${cableAdopt==='manual'?'selected':''}>✋実採用</option>
                     </select>
                 </td>
                 <td>
@@ -6478,28 +6588,26 @@
                         <option value="ELCB3P" ${feeder.breaker_type === 'ELCB3P' ? 'selected' : ''}>ELCB3P</option>
                     </select>
                 </td>
-                <td>
-                    <select class="feeder-select" data-id="${feeder.id}" data-field="breaker_af" style="background-color:#e8f5e9;min-width:70px;">
-                        ${AF_VALUES.map(v => `<option value="${v}" ${v === breakerAF ? 'selected' : ''}>${v}</option>`).join('')}
+                <td style="font-size:0.65rem;">
+                    <div title="selectBreaker自動計算" style="color:#1565c0;font-weight:bold;margin-bottom:1px;">計:${afCalc}</div>
+                    <select class="feeder-select" data-id="${feeder.id}" data-field="breaker_af" style="background-color:#fff3e0;font-size:0.7rem;" title="実選定AF（手動）">
+                        <option value="">—</option>
+                        ${AF_VALUES.map(v => `<option value="${v}" ${v === afManual ? 'selected' : ''}>${v}</option>`).join('')}
                     </select>
                 </td>
-                <td>
-                    <select class="feeder-select" data-id="${feeder.id}" data-field="breaker_at" style="background-color:#e8f5e9;min-width:70px;">
-                        ${AT_VALUES.map(v => `<option value="${v}" ${v === breakerAT ? 'selected' : ''}>${v}</option>`).join('')}
+                <td style="font-size:0.65rem;">
+                    <div title="selectBreaker自動計算" style="color:#1565c0;font-weight:bold;margin-bottom:1px;">計:${atCalc}</div>
+                    <select class="feeder-select" data-id="${feeder.id}" data-field="breaker_at" style="background-color:#fff3e0;font-size:0.7rem;" title="実選定AT（手動）">
+                        <option value="">—</option>
+                        ${AT_VALUES.map(v => `<option value="${v}" ${v === atManual ? 'selected' : ''}>${v}</option>`).join('')}
+                    </select>
+                    <select class="feeder-local" data-id="${feeder.id}" data-field="breaker_adopt" style="font-size:0.6rem;margin-top:1px;width:100%;" title="採用: 計算値 or 実選定（AF/AT共通）">
+                        <option value="calc" ${breakerAdopt==='calc'?'selected':''}>📐計算採用</option>
+                        <option value="manual" ${breakerAdopt==='manual'?'selected':''}>✋実採用</option>
                     </select>
                 </td>
                 <td class="auto-calc">
                     <span class="badge ${atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${atStatus}</span>
-                </td>
-                <td>
-                    <select class="feeder-local" data-id="${feeder.id}" data-field="install_location" style="font-size:0.7rem;min-width:80px;" title="電技解釈36条・内線規程1375節 ELCB施設要否判定">
-                        <option value="indoor" ${installLocation==='indoor'?'selected':''}>乾燥屋内</option>
-                        <option value="indoor_wet" ${installLocation==='indoor_wet'?'selected':''}>湿気屋内</option>
-                        <option value="outdoor" ${installLocation==='outdoor'?'selected':''}>屋外</option>
-                        <option value="bathroom" ${installLocation==='bathroom'?'selected':''}>浴室等</option>
-                        <option value="waterfront" ${installLocation==='waterfront'?'selected':''}>水気場所</option>
-                        <option value="industrial" ${installLocation==='industrial'?'selected':''}>工場</option>
-                    </select>
                 </td>
                 <td>
                     <input type="number" step="0.1" min="0" class="feeder-local" data-id="${feeder.id}" data-field="breaker_icu_ka" value="${icUserInput||''}" placeholder="-" style="width:55px;" title="ブレーカ定格遮断容量 Icu [kA] 未入力ならスキップ" />
@@ -6509,14 +6617,6 @@
                         const badges = [];
                         // 最小太さ
                         if (!minWireOk) badges.push(`<span class="badge badge-ng" title="${minWireNote}">太さ×</span>`);
-                        // ELCB
-                        if (elcbMismatch) {
-                            badges.push(`<span class="badge badge-ng" title="${elcbJudge.reason} → ELCB必須">ELCB必要</span>`);
-                        } else if (elcbJudge.required) {
-                            badges.push(`<span class="badge badge-ok" title="${elcbJudge.reason}">ELCB✓</span>`);
-                        }
-                        // 接地
-                        badges.push(`<span class="badge" style="background:#e0e0e0;color:#333;" title="${groundInfo.note} / ${groundInfo.resistance} / ${groundInfo.minWire}">${groundInfo.grade}</span>`);
                         // IC
                         if (iscResult.available) {
                             if (icStatus === null) {
@@ -6571,7 +6671,7 @@
             let value = element.value;
 
             // Local-only fields - don't send to DB
-            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw', 'source_type', 'source_circuit_id', 'source_transformer_id', 'ambient_temp', 'grouping_count', 'install_location', 'breaker_icu_ka', 'branch_len_for_relax'];
+            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw', 'source_type', 'source_circuit_id', 'source_transformer_id', 'ambient_temp', 'grouping_count', 'breaker_icu_ka', 'branch_len_for_relax', 'cable_adopt', 'breaker_adopt'];
 
             if (LOCAL_ONLY_FIELDS.includes(field)) {
                 if (!localFeederData[feederId]) localFeederData[feederId] = {};
@@ -6582,7 +6682,7 @@
                     oldSrc = { ...getFeederSource(feederId) };
                 }
 
-                if (field === 'power_factor' || field === 'motor_total_kw' || field === 'motor_max_kw') {
+                if (field === 'power_factor' || field === 'motor_total_kw' || field === 'motor_max_kw' || field === 'load_capacity') {
                     localFeederData[feederId][field] = value ? parseFloat(value) : null;
                 } else if (field === 'source_circuit_id') {
                     localFeederData[feederId][field] = value ? parseInt(value) : null;
@@ -6661,7 +6761,7 @@
             } else {
                 // For string fields like feeder_no, feeder_category, source_type store as-is
                 // For numeric fields like motor_total_kw, motor_max_kw, source_circuit_id parse as number
-                if (field === 'feeder_no' || field === 'feeder_category' || field === 'source_type' || field === 'source_transformer_id') {
+                if (field === 'feeder_no' || field === 'feeder_category' || field === 'source_type' || field === 'source_transformer_id' || field === 'cable_adopt' || field === 'breaker_adopt') {
                     localFeederData[feederId][field] = value;
                 } else if (field === 'source_circuit_id') {
                     localFeederData[feederId][field] = parseInt(value) || null;
@@ -6749,7 +6849,7 @@
         }
 
         function exportFeedersCsv() {
-            const headers = ['幹線No', '区分', '自（起点）', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', '周囲温度[℃]', '条数', '許容(補正後)[A]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', '施設場所', 'Icu[kA]', '規定チェック', '動力合計kW', '最大電動機kW', '内線規程AT', '至（行先）'];
+            const headers = ['幹線No', '区分', '自（起点）', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', '周囲温度[℃]', '条数', '許容(補正後)[A]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', 'Icu[kA]', '規定チェック', '動力合計kW', '最大電動機kW', '内線規程AT', '至（行先）'];
             const rows = [headers.join(',')];
 
             allFeeders.forEach((feeder, index) => {
@@ -6761,7 +6861,8 @@
                 const demandCapacity = (capacity * demandFactor) / 100;
                 const voltage = feeder.voltage || 100;
                 const phase = feeder.phase_type || '1φ2W';
-                const powerFactor = localFeederData[feeder.id]?.power_factor || (feederCategory === '動力' ? 0.8 : 0.85);
+                // 力率デフォルト: 電灯=1.0, 動力=0.8 (内線規程 JEAC8001 / JIS C 8601 準拠)
+            const powerFactor = localFeederData[feeder.id]?.power_factor || (feederCategory === '動力' ? 0.8 : 1.0);
 
                 let current = 0;
                 if (phase === '3φ3W') {
@@ -6775,7 +6876,10 @@
                 const cableType = feeder.cable_type || 'CV';
                 const ambientTempCsv = Number(localFeederData[feeder.id]?.ambient_temp) || 30;
                 const groupingCountCsv = Number(localFeederData[feeder.id]?.grouping_count) || 1;
-                const cableSize = selectCableSizeCorrected(current, cableType, ambientTempCsv, groupingCountCsv);
+                const cableSizeCalcCsv = selectCableSizeCorrected(current, cableType, ambientTempCsv, groupingCountCsv);
+                const cableSizeManualCsv = Number(feeder.cable_size) || 0;
+                const cableAdoptCsv = localFeederData[feeder.id]?.cable_adopt || 'calc';
+                const cableSize = (cableAdoptCsv === 'manual' && cableSizeManualCsv > 0) ? cableSizeManualCsv : cableSizeCalcCsv;
                 const length = feeder.cable_length || 0;
                 const vd = calculateVoltageDrop(current, length, cableSize, phase, powerFactor);
                 const vdPercent = (vd / voltage) * 100;
@@ -6783,8 +6887,11 @@
                 const vdStatus = vdPercent <= vdRuleCsv.allowed ? 'OK' : '×';
 
                 const breaker = selectBreaker(current, feeder.breaker_type);
-                const breakerAF = feeder.breaker_af || breaker.af;
-                const breakerAT = feeder.breaker_at || breaker.at;
+                const afManualCsv = Number(feeder.breaker_af) || 0;
+                const atManualCsv = Number(feeder.breaker_at) || 0;
+                const breakerAdoptCsv = localFeederData[feeder.id]?.breaker_adopt || 'calc';
+                const breakerAF = (breakerAdoptCsv === 'manual' && afManualCsv > 0) ? afManualCsv : breaker.af;
+                const breakerAT = (breakerAdoptCsv === 'manual' && atManualCsv > 0) ? atManualCsv : breaker.at;
 
                 // AT判定（幹線は内線規程 1310条: AT ≥ 設計電流。1.25倍は分岐回路のみ適用）
                 let atStatus = (breakerAT >= current) ? 'OK' : '×';
@@ -6812,15 +6919,10 @@
                 const cableEntryCsv = CABLE_DATA.find(c => c.size === cableSize);
                 const baseAmpCsv = cableEntryCsv ? (cableType === 'CVT' ? cableEntryCsv.cvt : cableEntryCsv.cv) : 0;
                 const ampInfoCsv = calcCorrectedAmpacity(baseAmpCsv, ambientTempCsv, groupingCountCsv);
-                const installLocCsv = localFeederData[feeder.id]?.install_location || 'indoor';
-                const elcbJudgeCsv = judgeElcbRequired(voltage, phase, installLocCsv);
-                const groundInfoCsv = judgeGroundingType(voltage, phase, false);
                 const iscResultCsv = calcFeederIscCascade(feeder);
                 const icuCsv = Number(localFeederData[feeder.id]?.breaker_icu_ka) || 0;
                 const checkParts = [];
                 if (cableSize < 2.0) checkParts.push('太さ×');
-                if (elcbJudgeCsv.required && !(feeder.breaker_type || '').startsWith('ELCB')) checkParts.push('ELCB必要');
-                checkParts.push(groundInfoCsv.grade);
                 if (iscResultCsv.available) {
                     if (icuCsv > 0) {
                         checkParts.push(`IC${icuCsv >= iscResultCsv.IscKA ? 'OK' : 'NG'}(Isc≈${iscResultCsv.IscKA.toFixed(1)}kA)`);
@@ -6853,7 +6955,6 @@
                     breakerAF,
                     breakerAT,
                     atStatus,
-                    installLocCsv,
                     icuCsv || '',
                     checkParts.join(' / '),
                     motorTotalKw || '',
