@@ -1748,6 +1748,9 @@
                                 <th>電流[A]</th>
                                 <th>ケーブル種別</th>
                                 <th>ケーブル[mm²]</th>
+                                <th title="周囲温度[℃]（内線規程1340-3）">周囲温度</th>
+                                <th title="同一経路条数（内線規程1340-4）">条数</th>
+                                <th title="補正後許容電流 = 基準値 × 温度k × 条数k">許容(補正)</th>
                                 <th>こう長[m]</th>
                                 <th>力率</th>
                                 <th>電圧降下[V]</th>
@@ -1757,6 +1760,9 @@
                                 <th style="min-width:70px;">AF</th>
                                 <th style="min-width:70px;">AT</th>
                                 <th>AT判定</th>
+                                <th title="施設場所（電技解釈36条 ELCB要否）">施設場所</th>
+                                <th title="ブレーカ定格遮断容量 Icu [kA]">Icu[kA]</th>
+                                <th title="内線規程・電技解釈の総合判定">規定チェック</th>
                                 <th>動力合計kW</th>
                                 <th>最大電動機kW</th>
                                 <th>内線規程AT</th>
@@ -1768,19 +1774,152 @@
                     </table>
                 </div>
                 <div class="calculation-basis">
-                    <h3>計算根拠</h3>
-                    <p><strong>電圧降下計算式（インピーダンス法）:</strong></p>
-                    <p><strong>三相:</strong> e = √3 × I × L × (r·cosθ + x·sinθ) / 1000</p>
-                    <p><strong>単相:</strong> e = 2 × I × L × (r·cosθ + x·sinθ) / 1000</p>
-                    <p>r = 電線抵抗(Ω/km), x = 電線リアクタンス(Ω/km), θ = 力率角</p>
-                    <p><strong>ケーブル選定:</strong>内線規程に準拠した選定（CV/CVT許容電流より選定）</p>
-                    <p><strong>遮断器選定:</strong>遮断器AT値 ≥ 計算電流 かつ ケーブル許容電流 ≥ AT値</p>
-                    <p><strong>需要率:</strong>内線規程 3705-1表により負荷容量から自動選定</p>
+                    <h3>計算根拠・使い方</h3>
+                    <dl style="font-size:0.9rem;line-height:1.6;">
+                        <dt><strong>① ツリー表示（親幹線 → 子幹線）の仕組み</strong></dt>
+                        <dd>
+                            幹線の「自（起点）」で <b>🔀 幹線分岐（他盤タップ）</b> を選び、親となる分岐回路を指定すると、その親幹線の直下に <b>├─ └─</b> の罫線でぶら下がる形で表示されます（電灯・動力グループ内それぞれで独立にツリー化）。<br>
+                            例：1L-1 盤の回路DBに「記号=分岐 / 行先=1L-1a」がある状態で、1L-1a の幹線の自＝1L-1の分岐回路 にすると、1L-1 の直下に 1L-1a が <code>└─</code> で連結表示されます。
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>② 自動反映ボタン「🔄 盤一覧・回路DBから自動反映」</strong></dt>
+                        <dd>
+                            ワンクリックで以下を一括処理します：
+                            <ul style="margin:0.3rem 0 0 1.2rem;">
+                                <li>盤一覧の各盤 → <code>load_name=盤名</code> の幹線行を自動作成（相・電圧・電灯/動力区分は盤の電気種別 <code>elec_type</code> から推定）</li>
+                                <li>記号「分岐」の回路 → 行先が盤名と一致する場合、その盤の幹線を子幹線として親分岐にリンク</li>
+                                <li>親分岐回路の <code>feeder[VA]</code> を子幹線の需要容量で自動更新（<code>syncAllBranchFeeders</code>）</li>
+                            </ul>
+                            既にリンク済みの組合せは上書きしないので、何度押しても安全です。
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>③ 負荷容量・需要容量・電流の計算</strong></dt>
+                        <dd>
+                            <b>負荷容量[kVA]</b>：load_name が盤名と一致する場合は、その盤の <b>全回路の合計VA</b>（電灯＋コンセント＋FC＋OA＋幹線）を自動集計します。<br>
+                            <b>需要容量[kVA]</b> ＝ 負荷容量 × 需要率[%] ÷ 100 （需要率は内線規程 1305-1 参考資料・電技解釈第148条・国交省仕様の用途別値をデフォルト、手動上書き可）<br>
+                            <b>電流[A]</b>：相別に算定（内線規程 1310節）<br>
+                            ・3φ3W：I = VA × 1000 / (√3 × V<sub>線間</sub>)<br>
+                            ・1φ3W：I = VA × 1000 / 200（平衡時 線間200V）<br>
+                            ・1φ2W：I = VA × 1000 / V
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>④ 電圧降下（インピーダンス法）と許容値 — 内線規程 1310-1 本文＋表1310-1</strong></dt>
+                        <dd>
+                            <b>三相：</b> e = √3 × I × L × (r·cosθ + x·sinθ) / 1000<br>
+                            <b>単相：</b> e = 2 × I × L × (r·cosθ + x·sinθ) / 1000<br>
+                            r：電線抵抗[Ω/km]、x：リアクタンス[Ω/km]、θ：力率角、L：こう長[m]、I：設計電流[A]<br>
+                            <br>
+                            <b>内線規程 1310-1 本文</b>：「低圧配線中の電圧降下は、幹線および分岐回路においてそれぞれ標準電圧の <b>2%</b> 以下とすること。ただし、電気使用場所内に設けた変圧器から供給される場合の<b>幹線</b>の電圧降下は <b>3%</b> 以下とすることができる。」<br>
+                            <b>表1310-1</b>：こう長が60mを超え、電気的等の要件からやむを得ない場合の緩和値。<br>
+                            <br>
+                            <b>本アプリの自動判定マトリクス</b>：
+                            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-top:0.4rem;">
+                                <thead>
+                                    <tr style="background:#f5f5f5;">
+                                        <th style="border:1px solid #ddd;padding:0.3rem;">区分（自＝起点）</th>
+                                        <th style="border:1px solid #ddd;padding:0.3rem;">60m以下<br><small>(1310-1本文)</small></th>
+                                        <th style="border:1px solid #ddd;padding:0.3rem;">60m超<br>120m以下</th>
+                                        <th style="border:1px solid #ddd;padding:0.3rem;">120m超<br>200m以下</th>
+                                        <th style="border:1px solid #ddd;padding:0.3rem;">200m超</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;"><b>幹線</b>（⚡キュービクル / 🔌トランス2次）<br>＝構内変圧器から供給される主幹線</td>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;text-align:center;"><b>3%</b><br><small>（本文ただし書き）</small></td>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;text-align:center;">5%</td>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;text-align:center;">6%</td>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;text-align:center;">7%</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;"><b>幹線分岐</b>（🔀 他盤タップ）<br>＝本文の「分岐」扱い</td>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;text-align:center;background:#fff3e0;"><b>2%</b><br><small>（本文原則）</small></td>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;text-align:center;" colspan="3">60m超は親を辿った電源種別で緩和値を適用<br>（構内変圧器 5/6/7% ／ 事業者引込 4/5/6%）</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;"><b>幹線</b>（事業者引込）<br>＝構内変圧器を介さない場合</td>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;text-align:center;"><b>2%</b><br><small>（本文原則）</small></td>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;text-align:center;">4%</td>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;text-align:center;">5%</td>
+                                        <td style="border:1px solid #ddd;padding:0.3rem;text-align:center;">6%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <small style="color:#555;">※ 60m以下は 1310-1 本文に従い、「幹線」と「分岐（幹線分岐）」を区別します。構内変圧器から直接引く幹線のみ 3% 緩和が適用され、幹線分岐（タップ）は原則の 2% になります。<br>
+                            ※ 60m超は表1310-1 の総合VD率ベースで電源種別（構内変圧器 / 事業者引込）のみで判定します。<br>
+                            ※ 各行のVD判定セルに適用許容値と区分を併記しています。セルにマウスオーバーで根拠条文を表示。</small>
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>⑤ ケーブル・遮断器選定</strong></dt>
+                        <dd>
+                            <b>ケーブル</b>：CV/CVT の許容電流表（マスタータブ）から、設計電流以上を満たす最小サイズを自動選定。<br>
+                            <b>AF/AT</b>：標準ブレーカの AT ≧ 設計電流 を満たす最小を自動選定。<br>
+                            <b>AT判定</b>：内線規程 <b>1310節</b> により、幹線は <code>AT ≧ 設計電流</code>（分岐回路の1.25倍ルール＝3605-3条は幹線には非適用）。<br>
+                            <b>親AT超過チェック</b>：子幹線を親分岐にリンクした場合、子幹線の設計電流が親分岐のAT値を超えると ⚠ 警告表示します。
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>⑥ 動力幹線の場合（内線規程 3705節）</strong></dt>
+                        <dd>
+                            相＝3φ3W かつ 動力合計kW・最大電動機kW が入力（または盤集計で自動取得）されると、<b>「内線規程AT」列</b>に JEAC8001-2016 <b>3705-1表</b> からのブレーカ選定値を自動表示します。<br>
+                            選定条件（内線規程 3705-3条）：
+                            <ul style="margin:0.3rem 0 0 1.2rem;">
+                                <li>ΣIm ≦ ΣIo のとき：Iw ≧ ΣIm+ΣIo、In ≦ min(3ΣIm+ΣIo, 2.5Iw)</li>
+                                <li>50A ≧ ΣIm > ΣIo：Iw ≧ 1.25×(ΣIm+ΣIo)</li>
+                                <li>50A < ΣIm：Iw ≧ 1.1×(ΣIm+ΣIo)</li>
+                            </ul>
+                            <b>※</b> 各行で自動計算されるため、下段の単体ツール「動力幹線ブレーカ選定」は実質不要です（what-if用に残しています）。
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>⑦ 自（起点）の3種類</strong></dt>
+                        <dd>
+                            ・<b>⚡ キュービクル（主母線）</b>：受電キュービクルから直接引き出される幹線（ルート幹線）<br>
+                            ・<b>🔌 トランス2次（登録済）</b>：トランスタブで登録した変圧器の2次側から引き出される幹線（選択トランスの Isc 目安を併記）<br>
+                            ・<b>🔀 幹線分岐（他盤タップ）</b>：他盤の回路DBにある「記号=分岐」からタップした子幹線（親分岐回路のAT超過を自動チェック）
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>⑧ 【2026-04追加】周囲温度・条数補正による許容電流 — 内線規程 1340-3／1340-4</strong></dt>
+                        <dd>
+                            ケーブル基準許容電流は<b>周囲温度30℃</b>かつ<b>単独配線</b>を前提としています。実際の施工では以下の補正が必要です（電技解釈149条 解釈別表準拠）：<br>
+                            <b>・周囲温度補正 k₁</b>：25℃→1.04 / 30℃→1.00 / 35℃→0.96 / 40℃→0.91 / 45℃→0.87 / 50℃→0.82 / 55℃→0.76 / 60℃→0.71<br>
+                            <b>・条数低減 k₂</b>：1〜3条→1.00 / 4〜6条→0.70 / 7〜15条→0.63 / 16〜40条→0.56 / 41条以上→0.50<br>
+                            <b>補正後許容電流 = 基準値 × k₁ × k₂</b>。テーブル「周囲温度」「条数」列に入力すると、自動でケーブル選定に反映し「許容(補正)」列に補正後の許容電流を表示、電流を下回る場合は赤バッジで警告します。
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>⑨ 【2026-04追加】最小太さ・ELCB施設要否・接地工事・短絡協調・3m/8m緩和</strong></dt>
+                        <dd>
+                            「規定チェック」列に複合判定を表示します：<br>
+                            <b>・電線最小太さ</b>（電技解釈146条）：低圧屋内配線は<b>2.0mm²以上</b>（CV）。下回ると「太さ×」警告。<br>
+                            <b>・ELCB（漏電遮断器）施設要否</b>（電技解釈36条・内線規程1375節）：施設場所列で「湿気屋内／屋外／浴室等／水気場所」を選ぶと自動で「ELCB必要」判定。ブレーカ種別がMCCB系のままだと赤バッジ。<br>
+                            <b>・接地工事種別</b>（電技解釈17〜19条）：対地電圧により<b>A種／B種／C種／D種</b>を自動判定。バッジをhoverで接地抵抗値・接地線最小太さを表示。（低圧300V以下→D種100Ω／300V超→C種10Ω／高圧機器→A種10Ω／変圧器中性点→B種）<br>
+                            <b>・短絡電流協調（IC）</b>（電技解釈149条）：登録されたトランスを起点に、ケーブル%Z をカスケード合成して各点の想定<b>短絡電流Isc[kA]</b>を算出。ブレーカのIcu[kA]列に入力すると「ICOK / ICNG」を判定。トランス未登録時はスキップ（エラーなし）。<br>
+                            <b>・幹線からの分岐 3m/8m緩和</b>（内線規程1360-2）：幹線分岐の場合、分岐長3m以下→過電流保護省略可、8m以下かつ分岐許容電流が親の35%以上→省略可。8m超または35%未満→分岐点にMCCB設置必要。
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>⑩ 【2026-04追加】電動機分岐回路の電線協調 — 内線規程 3705-1条</strong></dt>
+                        <dd>
+                            回路DBの動力回路は以下を追加判定します：<br>
+                            <b>・電線許容電流 ≥ 1.25 × Im</b>（37kW以下） / <b>≥ 1.10 × Im</b>（37kW超）<br>
+                            <b>・分岐MCCB定格 ≤ 3 × Im</b>（3705-2条、既実装）<br>
+                            <b>・分岐MCCB定格 ≥ Im</b>（銘板値基準、既実装）<br>
+                            AT選定により決まる電線サイズが 1.25×Im に満たない場合、AT判定列に NG＋理由を表示します。
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>⑪ 根拠法令・文献</strong></dt>
+                        <dd>
+                            <ul style="margin:0.3rem 0 0 1.2rem;">
+                                <li>一般社団法人 日本電気協会 <b>内線規程 JEAC 8001-2016</b>（1305節 設備不平衡率・需要率参考／1310節 低圧幹線／1340節 許容電流・温度補正・条数低減／1360節 幹線分岐3m/8m緩和／1375節 漏電遮断器／3605節 分岐回路／3705節 電動機回路）</li>
+                                <li>電気設備技術基準の解釈 <b>第17〜19条</b>（接地工事）・<b>第36条</b>（漏電遮断器の施設）・<b>第146条</b>（低圧屋内配線の電線太さ）・<b>第148条</b>（低圧幹線の施設）・<b>第149条</b>（低圧分岐回路等）</li>
+                                <li>国土交通省「<b>公共建築工事標準仕様書 電気設備工事編（令和7年版）</b>」・「<b>建築設備設計基準</b>」</li>
+                                <li>JEC-2137「誘導機」、JIS C 4034-1「回転電気機械 定格及び特性」</li>
+                            </ul>
+                        </dd>
+                    </dl>
                 </div>
 
-                <!-- 動力幹線ブレーカ選定ツール -->
-                <div class="calculation-basis" style="margin-top:1.5rem; background-color:#fff;">
-                    <h3>動力幹線ブレーカ選定（AC200/220V 三相誘導電動機）</h3>
+                <!-- 動力幹線ブレーカ選定ツール（what-if用・通常は上記テーブルの「内線規程AT」列で自動算出） -->
+                <details class="calculation-basis" style="margin-top:1.5rem; background-color:#fff;">
+                    <summary style="cursor:pointer;font-weight:bold;color:#1a1a2e;padding:0.3rem 0;">▸ 動力幹線ブレーカ単体計算ツール（what-if用・通常は上表の「内線規程AT」列で行ごとに自動算出されます）</summary>
+                    <h3 style="margin-top:0.8rem;">動力幹線ブレーカ選定（AC200/220V 三相誘導電動機）</h3>
                     <p style="font-size:0.85rem;color:#666;margin-bottom:1rem;">内線規程 JEAC8001-2016 準拠（直入れ始動）</p>
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem;">
                         <div>
@@ -1803,7 +1942,7 @@
                         <p style="font-size:0.85rem;">50A ≥ ΣIm > ΣIo → Iw ≥ 1.25×ΣIm×ΣIo</p>
                         <p style="font-size:0.85rem;">50A < ΣIm → Iw ≥ 1.1×ΣIm×ΣIo</p>
                     </div>
-                </div>
+                </details>
             </div>
 
             <!-- Transformer Tab -->
@@ -2344,6 +2483,235 @@
                 return { breakerAT: row.at[colIdx], totalCurrent: row.current };
             }
             return null; // 該当なし
+        }
+
+        // ========================================================================
+        // 【規定拡充】電技解釈・内線規程の詳細ルール（2026-04 追加）
+        // ========================================================================
+
+        // ① 周囲温度補正係数（内線規程 1340-3表・電技解釈149条 解釈別表）
+        // ベース: 30℃ CV/CVT (架橋ポリエチレン 許容温度90℃)
+        const AMBIENT_TEMP_CORRECTION = [
+            { temp: 25, k: 1.04 },
+            { temp: 30, k: 1.00 },
+            { temp: 35, k: 0.96 },
+            { temp: 40, k: 0.91 },
+            { temp: 45, k: 0.87 },
+            { temp: 50, k: 0.82 },
+            { temp: 55, k: 0.76 },
+            { temp: 60, k: 0.71 }
+        ];
+        function getAmbientTempK(temp) {
+            const t = Number(temp) || 30;
+            let best = AMBIENT_TEMP_CORRECTION[1];
+            for (const row of AMBIENT_TEMP_CORRECTION) {
+                if (t <= row.temp) { best = row; break; }
+                best = row;
+            }
+            return best.k;
+        }
+
+        // ② 同一金属管・ケーブルラック内条数低減（内線規程 1340-4表）
+        function getGroupingK(count) {
+            const n = Number(count) || 1;
+            if (n <= 1) return 1.00;
+            if (n <= 2) return 1.00;
+            if (n <= 3) return 1.00;
+            if (n <= 6) return 0.70;
+            if (n <= 15) return 0.63;
+            if (n <= 40) return 0.56;
+            return 0.50;
+        }
+
+        // 補正後許容電流を算出
+        function calcCorrectedAmpacity(baseAmpacity, ambientTemp, groupingCount) {
+            const kt = getAmbientTempK(ambientTemp);
+            const kg = getGroupingK(groupingCount);
+            return {
+                corrected: baseAmpacity * kt * kg,
+                kTemp: kt,
+                kGroup: kg
+            };
+        }
+
+        // 補正込み最適ケーブルサイズ選定
+        function selectCableSizeCorrected(current, cableType, ambientTemp, groupingCount) {
+            const capacity = cableType === 'CV' ? 'cv' : 'cvt';
+            const kt = getAmbientTempK(ambientTemp);
+            const kg = getGroupingK(groupingCount);
+            for (let i = 0; i < CABLE_DATA.length; i++) {
+                if (CABLE_DATA[i][capacity] * kt * kg >= current) {
+                    return CABLE_DATA[i].size;
+                }
+            }
+            return CABLE_DATA[CABLE_DATA.length - 1].size;
+        }
+
+        // ③ ELCB（漏電遮断器）施設要否判定（電技解釈36条・内線規程1375節）
+        // 対地電圧150V超、湿気水気場所、屋外コンセント等で必須
+        // location: 'indoor' | 'indoor_wet' | 'outdoor' | 'bathroom' | 'waterfront' | 'industrial'
+        function judgeElcbRequired(voltage, phase, location) {
+            // 対地電圧の算出: 1φ3Wは100V、3φ3W 200Vは200V(対地)、1φ2W 200Vは200V(対地)
+            let earthVoltage = voltage;
+            if (phase === '1φ3W') earthVoltage = 100;
+            else if (phase === '1φ2W' && voltage === 100) earthVoltage = 100;
+            else if (phase === '3φ3W') earthVoltage = voltage; // 非接地系でない場合
+            const over150 = earthVoltage > 150;
+            const wetLocations = ['indoor_wet', 'outdoor', 'bathroom', 'waterfront'];
+            const isWet = wetLocations.includes(location);
+            // 施設場所未指定 or 乾燥屋内で対地150V以下 → 任意
+            if (!location || location === 'indoor') {
+                if (over150) return { required: true, reason: '対地電圧150V超（電技解釈36条）' };
+                return { required: false, reason: '乾燥屋内・対地150V以下' };
+            }
+            if (isWet) {
+                return { required: true, reason: `湿気/水気場所・屋外等（電技解釈36条・内線規程1375節）` };
+            }
+            if (location === 'industrial' && over150) {
+                return { required: true, reason: '工場等で対地電圧150V超（電技解釈36条）' };
+            }
+            return { required: false, reason: '設置条件による' };
+        }
+
+        // ④ 接地工事種別判定（電技解釈17〜19条）
+        // 返値: {grade: 'A'|'B'|'C'|'D', resistance: '10Ω以下' 等, minWire: '2.6mm以上' 等, note: ''}
+        function judgeGroundingType(voltage, phase, isHighVoltage) {
+            if (isHighVoltage) {
+                return {
+                    grade: 'A種',
+                    resistance: '10Ω以下',
+                    minWire: '2.6mm（IV単線）以上',
+                    note: '電技解釈17条: 高圧または特別高圧機器の金属製外箱'
+                };
+            }
+            // 低圧: 対地電圧で判定
+            let earthVoltage = voltage;
+            if (phase === '1φ3W') earthVoltage = 100;
+            if (earthVoltage > 300) {
+                return {
+                    grade: 'C種',
+                    resistance: '10Ω以下（0.5秒以内自動遮断時は500Ω以下）',
+                    minWire: '1.6mm（IV単線）以上',
+                    note: '電技解釈17条: 300V超低圧機器の金属製外箱'
+                };
+            }
+            return {
+                grade: 'D種',
+                resistance: '100Ω以下（0.5秒以内自動遮断時は500Ω以下）',
+                minWire: '1.6mm（IV単線）以上',
+                note: '電技解釈17条: 300V以下低圧機器の金属製外箱'
+            };
+        }
+
+        // ⑤ 短絡電流カスケード計算（%Z 法）
+        // 変圧器2次 Isc を起点に、ケーブルのインピーダンスを加算して各点の Isc を算出
+        // cableSize [mm²], length [m], baseKVA [kVA], baseV [V]
+        function calcCableZPercent(cableSize, length, baseKVA, baseV) {
+            const cable = CABLE_DATA.find(c => c.size === cableSize);
+            if (!cable || !baseKVA || !baseV) return { rPct: 0, xPct: 0, zPct: 0 };
+            // Z_base [Ω] = V² / (baseKVA*1000)
+            const Zbase = (baseV * baseV) / (baseKVA * 1000);
+            // ケーブル R,X は [Ω/km]
+            const R = cable.r * length / 1000;
+            const X = cable.x * length / 1000;
+            const rPct = (R / Zbase) * 100;
+            const xPct = (X / Zbase) * 100;
+            const zPct = Math.sqrt(rPct * rPct + xPct * xPct);
+            return { rPct, xPct, zPct };
+        }
+        // Feeder点の Isc を親トランスからカスケード算出
+        // 返値: {IscKA, available: true/false} （トランス未登録なら available=false）
+        function calcFeederIscCascade(feeder) {
+            // 親トランスを辿る
+            const src = getFeederSource(feeder.id);
+            let rootTransformer = null;
+            let accumulatedZ = 0; // %Z (合成)
+            let baseKVA = 0, baseV = 0;
+            let curFeeder = feeder;
+            let guard = 0;
+            // 現在feederのケーブルZも合算するため、先に自分のZを加算する
+            const path = [feeder];
+            while (guard++ < 20) {
+                const s = getFeederSource(curFeeder.id);
+                if (s.type === 'transformer' && s.transformerId) {
+                    rootTransformer = getTransformerById(s.transformerId);
+                    break;
+                }
+                if (s.type === 'cubicle') {
+                    // キュービクル直結: 1号変圧器を仮参照（なければ不可）
+                    if (transformers.length > 0) rootTransformer = transformers[0];
+                    break;
+                }
+                if (s.type === 'branch' && s.circuitId) {
+                    const parentCircuit = allCircuits.find(c => c.id === s.circuitId);
+                    if (!parentCircuit) break;
+                    const parentFeeder = allFeeders.find(f => f.load_name === parentCircuit.panel_name);
+                    if (!parentFeeder) break;
+                    path.push(parentFeeder);
+                    curFeeder = parentFeeder;
+                    continue;
+                }
+                break;
+            }
+            if (!rootTransformer) return { IscKA: 0, available: false, reason: 'トランス未登録' };
+            baseKVA = Number(rootTransformer.rated_kva) || 0;
+            baseV = Number(rootTransformer.secondary_voltage) || 0;
+            const pz = Number(rootTransformer.percent_z) || 0;
+            if (!baseKVA || !baseV || !pz) return { IscKA: 0, available: false, reason: 'トランス情報不足' };
+            accumulatedZ = pz; // トランス%Z
+            // パスの各feederのケーブルZを加算
+            path.forEach(f => {
+                const sz = Number(f.cable_size) || selectCableSize(0, f.cable_type || 'CV');
+                const len = Number(f.cable_length) || 0;
+                const z = calcCableZPercent(sz, len, baseKVA, baseV);
+                accumulatedZ += z.zPct;
+            });
+            const In = calcTransformerRatedCurrent(rootTransformer);
+            const Isc = (In * 100 / accumulatedZ) / 1000; // kA
+            return { IscKA: Isc, available: true, reason: '' };
+        }
+
+        // ⑥ 電動機分岐回路の電線/ブレーカ協調（内線規程 3705-1〜3705-5）
+        // Im: 電動機定格電流, cableAmp: 電線許容電流 (補正後), breakerAT: 分岐MCCB
+        // 判定: 電線 ≥ 1.25 × Im (37kW超は1.1×), ブレーカ ≤ 3 × Im
+        function judgeMotorBranchCoordination(kw, Im, cableAmp, breakerAT) {
+            if (!Im || Im <= 0) return { ok: true, notes: [] };
+            const multiplier = (kw > 37) ? 1.1 : 1.25;
+            const requiredCable = Im * multiplier;
+            const maxBreaker = Im * 3;
+            const notes = [];
+            let ok = true;
+            if (cableAmp && cableAmp < requiredCable) {
+                ok = false;
+                notes.push(`電線許容${cableAmp.toFixed(0)}A<必要${requiredCable.toFixed(0)}A(×${multiplier} 3705-1)`);
+            }
+            if (breakerAT && breakerAT > maxBreaker) {
+                ok = false;
+                notes.push(`AT(${breakerAT})>Im×3=${maxBreaker.toFixed(0)}(3705-2)`);
+            }
+            if (breakerAT && breakerAT < Im) {
+                ok = false;
+                notes.push(`AT(${breakerAT})<Im(${Im.toFixed(0)}A)`);
+            }
+            return { ok, notes, requiredCable, maxBreaker };
+        }
+
+        // ⑦ 幹線からの分岐における3m/8m緩和（内線規程 1360-2）
+        // parentAmp: 親幹線許容電流, branchAmp: 子分岐許容電流, branchLen: 分岐長[m]
+        function judgeBranch3m8mRelax(parentAmp, branchAmp, branchLen) {
+            const L = Number(branchLen) || 0;
+            if (!parentAmp || !branchAmp || L <= 0) return { exempt: false, rule: '-', note: '情報不足' };
+            if (L <= 3) {
+                return { exempt: true, rule: '3m以下', note: '内線規程1360-2: 分岐長3m以下は過電流保護省略可' };
+            }
+            if (L <= 8) {
+                const ratio = (branchAmp / parentAmp) * 100;
+                if (ratio >= 35) {
+                    return { exempt: true, rule: '8m以下(35%以上)', note: `分岐許容/親許容=${ratio.toFixed(0)}% ≥35% (1360-2)` };
+                }
+                return { exempt: false, rule: '8m以下', note: `分岐許容/親許容=${ratio.toFixed(0)}% <35% → 分岐点保護必要` };
+            }
+            return { exempt: false, rule: '8m超', note: '分岐点に過電流保護必須（1360-2）' };
         }
 
         const DEMAND_FACTOR_TABLE = [
@@ -4053,6 +4421,20 @@
             } else {
                 atStatus = 'OK';
             }
+            // 【規定拡充⑥】電動機分岐: 電線許容電流の協調チェック（内線規程3705-1〜3）
+            // 電線許容 ≥ 1.25×Im (37kW以下)、1.1×Im (37kW超)
+            if (atStatus === 'OK' && isMotor && motorSingleIm > 0) {
+                const kw = Number(motorMetaForJudge.kw) || 0;
+                const multiplier = (kw > 37) ? 1.1 : 1.25;
+                const requiredCableAmp = motorSingleIm * multiplier;
+                // AT→推奨ケーブルからampacity推定
+                const brEntry = BREAKER_CABLE_TABLE.find(b => b.at >= at) || BREAKER_CABLE_TABLE[BREAKER_CABLE_TABLE.length - 1];
+                const cableAmp = brEntry ? brEntry.ampacity : 0;
+                if (cableAmp && cableAmp < requiredCableAmp) {
+                    atStatus = 'NG';
+                    atNgReason = `電線許容${cableAmp}A < 必要${requiredCableAmp.toFixed(0)}A (Im×${multiplier}) [内線規程3705-1条]`;
+                }
+            }
 
             row.innerHTML = `
                 <td>${rowNumber}</td>
@@ -5130,6 +5512,65 @@
                 transformerId: l.source_transformer_id || null
             };
         }
+        // 内線規程 1310-1 本文＋表1310-1 に基づく許容電圧降下率[%]
+        // 本文：「低圧配線中の電圧降下は、幹線および分岐回路においてそれぞれ標準電圧の2%以下。
+        //        ただし、電気使用場所内に設けた変圧器から供給される場合の【幹線】の電圧降下は 3% 以下とすることができる」
+        // 表1310-1：60mを超え、電気的要件等からやむを得ない場合の緩和値（総合VD率）
+        //   - 60m超120m以下：構内変圧器 5% / 事業者引込 4%
+        //   - 120m超200m以下：構内変圧器 6% / 事業者引込 5%
+        //   - 200m超：        構内変圧器 7% / 事業者引込 6%
+        // 本アプリでは幹線計算書の各行について：
+        //   - 60m以下：
+        //       source_type='cubicle' or 'transformer' （構内変圧器からの主幹線）→ 3%
+        //       source_type='branch' （幹線分岐＝タップ）→ 2%（本文の分岐枠）
+        //       構内変圧器以外の主幹線（事業者引込）→ 2%
+        //   - 60m超：電源種別（構内変圧器 or 事業者引込）で緩和値
+        function getAllowedVdPercent(feeder, length) {
+            const src = getFeederSource(feeder.id);
+            // 親を遡って最終電源種別を特定（60m超の緩和値判定に使う）
+            let rootType = src.type;
+            if (src.type === 'branch') {
+                let guard = 0;
+                let curFeeder = feeder;
+                while (guard++ < 20) {
+                    const s = getFeederSource(curFeeder.id);
+                    if (s.type !== 'branch' || !s.circuitId) { rootType = s.type; break; }
+                    const parentCircuit = allCircuits.find(c => c.id === s.circuitId);
+                    if (!parentCircuit) { rootType = 'cubicle'; break; }
+                    const parentFeeder = allFeeders.find(f => f.load_name === parentCircuit.panel_name);
+                    if (!parentFeeder) { rootType = 'cubicle'; break; }
+                    curFeeder = parentFeeder;
+                }
+            }
+            const inhouseTransformer = (rootType === 'cubicle' || rootType === 'transformer');
+            const isBranch = (src.type === 'branch');
+            const L = Number(length) || 0;
+
+            // 60m以下：本文ルール
+            if (L <= 60) {
+                if (isBranch) {
+                    // 幹線分岐（＝分岐枠）は2%（本文）
+                    return { allowed: 2, basis: '60m以下', sourceClass: '幹線分岐', note: '内線規程1310-1本文（分岐）' };
+                }
+                if (inhouseTransformer) {
+                    // 構内変圧器から供給される主幹線：本文ただし書きで3%まで可
+                    return { allowed: 3, basis: '60m以下', sourceClass: '構内変圧器→幹線', note: '内線規程1310-1本文ただし書き' };
+                }
+                // 事業者引込の主幹線：本文原則2%
+                return { allowed: 2, basis: '60m以下', sourceClass: '事業者引込→幹線', note: '内線規程1310-1本文' };
+            }
+
+            // 60m超：表1310-1（電源種別で分類、幹線分岐の区別なし）
+            if (inhouseTransformer) {
+                if (L <= 120) return { allowed: 5, basis: '60m超120m以下', sourceClass: '構内変圧器', note: '内線規程 表1310-1' };
+                if (L <= 200) return { allowed: 6, basis: '120m超200m以下', sourceClass: '構内変圧器', note: '内線規程 表1310-1' };
+                return              { allowed: 7, basis: '200m超',          sourceClass: '構内変圧器', note: '内線規程 表1310-1' };
+            } else {
+                if (L <= 120) return { allowed: 4, basis: '60m超120m以下', sourceClass: '事業者引込', note: '内線規程 表1310-1' };
+                if (L <= 200) return { allowed: 5, basis: '120m超200m以下', sourceClass: '事業者引込', note: '内線規程 表1310-1' };
+                return              { allowed: 6, basis: '200m超',          sourceClass: '事業者引込', note: '内線規程 表1310-1' };
+            }
+        }
         // 分岐回路から引かれている子幹線を探す（1対1想定）
         function findFeederFromBranch(circuitId) {
             if (!circuitId) return null;
@@ -5623,12 +6064,18 @@
             }
 
             const cableType = feeder.cable_type || 'CV';
-            const cableSize = selectCableSize(current, cableType);
+            // 【規定拡充①】周囲温度・条数補正を考慮したケーブル選定
+            const ambientTemp = Number(localFeederData[feeder.id]?.ambient_temp) || 30;
+            const groupingCount = Number(localFeederData[feeder.id]?.grouping_count) || 1;
+            const cableSize = selectCableSizeCorrected(current, cableType, ambientTemp, groupingCount);
             const length = feeder.cable_length || 0;
 
             const voltageDrop = calculateVoltageDrop(current, length, cableSize, phase, powerFactor);
             const vdPercent = (voltageDrop / voltage) * 100;
-            const vdStatus = vdPercent <= 3 ? 'OK' : '×';
+            // 内線規程 1310-1 表1310-1 に基づく許容VD率（電源種別・こう長で決定）
+            const vdRule = getAllowedVdPercent(feeder, length);
+            const vdStatus = vdPercent <= vdRule.allowed ? 'OK' : '×';
+            const vdStatusTitle = `許容${vdRule.allowed}% (${vdRule.sourceClass}・${vdRule.basis}) / ${vdRule.note}`;
 
             const breaker = selectBreaker(current, feeder.breaker_type);
             const breakerAF = feeder.breaker_af || breaker.af;
@@ -5668,6 +6115,55 @@
             if (motorTotalKw && motorMaxKw && phase === '3φ3W') {
                 const result = lookupMotorFeederBreaker200V(motorTotalKw, motorMaxKw);
                 if (result) kiteiAT = result.breakerAT;
+            }
+
+            // ================== 【規定拡充】追加判定 ==================
+            // ① 補正後許容電流チェック
+            const baseAmp = cableCapacity || 0;
+            const ampInfo = calcCorrectedAmpacity(baseAmp, ambientTemp, groupingCount);
+            const correctedAmp = ampInfo.corrected;
+            const ampStatus = (correctedAmp >= current) ? 'OK' : '×';
+            const ampTitle = `基準${baseAmp}A × 温度k=${ampInfo.kTemp.toFixed(2)} × 条数k=${ampInfo.kGroup.toFixed(2)} = ${correctedAmp.toFixed(1)}A\n(内線規程1340-3表 周囲温度補正 / 1340-4表 条数低減)`;
+
+            // ② 最小太さ（電技解釈146条）— 低圧屋内配線 CVは2.0mm²以上が実務最小
+            const minWireOk = (cableSize >= 2.0);
+            const minWireNote = minWireOk ? '' : `電技解釈146条: 低圧屋内配線は最小2.0mm²以上`;
+
+            // ③ ELCB施設要否
+            const installLocation = localFeederData[feeder.id]?.install_location || 'indoor';
+            const elcbJudge = judgeElcbRequired(voltage, phase, installLocation);
+            const breakerType = feeder.breaker_type || '';
+            const hasElcb = breakerType.startsWith('ELCB');
+            const elcbMismatch = (elcbJudge.required && !hasElcb);
+
+            // ④ 接地工事種別
+            const groundInfo = judgeGroundingType(voltage, phase, false);
+
+            // ⑤ 短絡電流（IC協調）: トランス登録がない場合はスキップ
+            const icUserInput = Number(localFeederData[feeder.id]?.breaker_icu_ka) || 0;
+            const iscResult = calcFeederIscCascade(feeder);
+            let icStatus = null;
+            if (iscResult.available && icUserInput > 0) {
+                icStatus = (icUserInput >= iscResult.IscKA) ? 'OK' : '×';
+            }
+
+            // ⑦ 3m/8m緩和（幹線分岐の場合のみ）
+            let relaxInfo = null;
+            if (feederSource.type === 'branch' && feederSource.circuitId) {
+                const parentCircuit = allCircuits.find(c => c.id === feederSource.circuitId);
+                if (parentCircuit) {
+                    const parentFeeder = allFeeders.find(f => f.load_name === parentCircuit.panel_name);
+                    if (parentFeeder) {
+                        const parentAmbT = Number(localFeederData[parentFeeder.id]?.ambient_temp) || 30;
+                        const parentGrpC = Number(localFeederData[parentFeeder.id]?.grouping_count) || 1;
+                        const parentSize = Number(parentFeeder.cable_size) || selectCableSizeCorrected(0, parentFeeder.cable_type || 'CV', parentAmbT, parentGrpC);
+                        const parentEntry = CABLE_DATA.find(c => c.size === parentSize);
+                        const parentBaseAmp = parentEntry ? (parentFeeder.cable_type === 'CVT' ? parentEntry.cvt : parentEntry.cv) : 0;
+                        const parentCorrected = calcCorrectedAmpacity(parentBaseAmp, parentAmbT, parentGrpC).corrected;
+                        const relaxLen = Number(localFeederData[feeder.id]?.branch_len_for_relax) || length;
+                        relaxInfo = judgeBranch3m8mRelax(parentCorrected, correctedAmp, relaxLen);
+                    }
+                }
             }
 
             row.innerHTML = `
@@ -5749,6 +6245,16 @@
                     </select>
                 </td>
                 <td>
+                    <input type="number" class="feeder-local" data-id="${feeder.id}" data-field="ambient_temp" value="${ambientTemp}" min="0" max="60" step="1" style="width:50px;" title="周囲温度[℃] デフォルト30℃" />
+                </td>
+                <td>
+                    <input type="number" class="feeder-local" data-id="${feeder.id}" data-field="grouping_count" value="${groupingCount}" min="1" max="50" step="1" style="width:45px;" title="同一経路ケーブル条数 デフォルト1" />
+                </td>
+                <td class="auto-calc" title="${ampTitle}">
+                    <span class="badge ${ampStatus === 'OK' ? 'badge-ok' : 'badge-ng'}" style="font-size:0.68rem;">${correctedAmp.toFixed(0)}A</span>
+                    <div style="font-size:0.58rem;color:#666;margin-top:1px;">基${baseAmp}×${ampInfo.kTemp.toFixed(2)}×${ampInfo.kGroup.toFixed(2)}</div>
+                </td>
+                <td>
                     <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="cable_length" value="${length}" min="0" />
                 </td>
                 <td>
@@ -5760,8 +6266,9 @@
                 <td>
                     <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="vd_percent" value="${vdPercent.toFixed(2)}" readonly />
                 </td>
-                <td class="auto-calc">
+                <td class="auto-calc" title="${vdStatusTitle}">
                     <span class="badge ${vdStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${vdStatus}</span>
+                    <div style="font-size:0.62rem;color:#666;margin-top:1px;">≦${vdRule.allowed}%<br>${vdRule.sourceClass}</div>
                 </td>
                 <td>
                     <select class="feeder-select" data-id="${feeder.id}" data-field="breaker_type">
@@ -5783,6 +6290,48 @@
                 </td>
                 <td class="auto-calc">
                     <span class="badge ${atStatus === 'OK' ? 'badge-ok' : 'badge-ng'}">${atStatus}</span>
+                </td>
+                <td>
+                    <select class="feeder-local" data-id="${feeder.id}" data-field="install_location" style="font-size:0.7rem;min-width:80px;" title="電技解釈36条・内線規程1375節 ELCB施設要否判定">
+                        <option value="indoor" ${installLocation==='indoor'?'selected':''}>乾燥屋内</option>
+                        <option value="indoor_wet" ${installLocation==='indoor_wet'?'selected':''}>湿気屋内</option>
+                        <option value="outdoor" ${installLocation==='outdoor'?'selected':''}>屋外</option>
+                        <option value="bathroom" ${installLocation==='bathroom'?'selected':''}>浴室等</option>
+                        <option value="waterfront" ${installLocation==='waterfront'?'selected':''}>水気場所</option>
+                        <option value="industrial" ${installLocation==='industrial'?'selected':''}>工場</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number" step="0.1" min="0" class="feeder-local" data-id="${feeder.id}" data-field="breaker_icu_ka" value="${icUserInput||''}" placeholder="-" style="width:55px;" title="ブレーカ定格遮断容量 Icu [kA] 未入力ならスキップ" />
+                </td>
+                <td class="auto-calc" style="font-size:0.62rem;text-align:left;min-width:150px;">
+                    ${(() => {
+                        const badges = [];
+                        // 最小太さ
+                        if (!minWireOk) badges.push(`<span class="badge badge-ng" title="${minWireNote}">太さ×</span>`);
+                        // ELCB
+                        if (elcbMismatch) {
+                            badges.push(`<span class="badge badge-ng" title="${elcbJudge.reason} → ELCB必須">ELCB必要</span>`);
+                        } else if (elcbJudge.required) {
+                            badges.push(`<span class="badge badge-ok" title="${elcbJudge.reason}">ELCB✓</span>`);
+                        }
+                        // 接地
+                        badges.push(`<span class="badge" style="background:#e0e0e0;color:#333;" title="${groundInfo.note} / ${groundInfo.resistance} / ${groundInfo.minWire}">${groundInfo.grade}</span>`);
+                        // IC
+                        if (iscResult.available) {
+                            if (icStatus === null) {
+                                badges.push(`<span class="badge" style="background:#fff3e0;color:#e65100;" title="Isc≈${iscResult.IscKA.toFixed(2)}kA (Icu未入力)">Isc≈${iscResult.IscKA.toFixed(1)}kA</span>`);
+                            } else {
+                                badges.push(`<span class="badge ${icStatus==='OK'?'badge-ok':'badge-ng'}" title="想定Isc=${iscResult.IscKA.toFixed(2)}kA / 選定Icu=${icUserInput}kA (電技解釈149条)">IC${icStatus}</span>`);
+                            }
+                        }
+                        // 3m/8m緩和
+                        if (relaxInfo) {
+                            const bgColor = relaxInfo.exempt ? 'badge-ok' : 'badge-ng';
+                            badges.push(`<span class="badge ${bgColor}" title="${relaxInfo.note}">${relaxInfo.rule}</span>`);
+                        }
+                        return badges.join(' ');
+                    })()}
                 </td>
                 <td>
                     <input type="number" step="0.1" class="${autoMotorTotalKw ? 'feeder-input' : 'feeder-local'}" data-id="${feeder.id}" data-field="motor_total_kw" value="${motorTotalKw || ''}" placeholder="-" style="width:55px;" ${autoMotorTotalKw ? 'readonly' : ''} />
@@ -5822,7 +6371,7 @@
             let value = element.value;
 
             // Local-only fields - don't send to DB
-            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw', 'source_type', 'source_circuit_id', 'source_transformer_id'];
+            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw', 'source_type', 'source_circuit_id', 'source_transformer_id', 'ambient_temp', 'grouping_count', 'install_location', 'breaker_icu_ka', 'branch_len_for_relax'];
 
             if (LOCAL_ONLY_FIELDS.includes(field)) {
                 if (!localFeederData[feederId]) localFeederData[feederId] = {};
@@ -6000,7 +6549,7 @@
         }
 
         function exportFeedersCsv() {
-            const headers = ['幹線No', '区分', '自（起点）', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', '動力合計kW', '最大電動機kW', '内線規程AT', '至（行先）'];
+            const headers = ['幹線No', '区分', '自（起点）', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', '周囲温度[℃]', '条数', '許容(補正後)[A]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', '施設場所', 'Icu[kA]', '規定チェック', '動力合計kW', '最大電動機kW', '内線規程AT', '至（行先）'];
             const rows = [headers.join(',')];
 
             allFeeders.forEach((feeder, index) => {
@@ -6024,11 +6573,14 @@
                 }
 
                 const cableType = feeder.cable_type || 'CV';
-                const cableSize = selectCableSize(current, cableType);
+                const ambientTempCsv = Number(localFeederData[feeder.id]?.ambient_temp) || 30;
+                const groupingCountCsv = Number(localFeederData[feeder.id]?.grouping_count) || 1;
+                const cableSize = selectCableSizeCorrected(current, cableType, ambientTempCsv, groupingCountCsv);
                 const length = feeder.cable_length || 0;
                 const vd = calculateVoltageDrop(current, length, cableSize, phase, powerFactor);
                 const vdPercent = (vd / voltage) * 100;
-                const vdStatus = vdPercent <= 3 ? 'OK' : '×';
+                const vdRuleCsv = getAllowedVdPercent(feeder, length);
+                const vdStatus = vdPercent <= vdRuleCsv.allowed ? 'OK' : '×';
 
                 const breaker = selectBreaker(current, feeder.breaker_type);
                 const breakerAF = feeder.breaker_af || breaker.af;
@@ -6056,6 +6608,26 @@
                         : '親回路なし';
                 }
 
+                // 補正後許容・規定チェック（CSV用）
+                const cableEntryCsv = CABLE_DATA.find(c => c.size === cableSize);
+                const baseAmpCsv = cableEntryCsv ? (cableType === 'CVT' ? cableEntryCsv.cvt : cableEntryCsv.cv) : 0;
+                const ampInfoCsv = calcCorrectedAmpacity(baseAmpCsv, ambientTempCsv, groupingCountCsv);
+                const installLocCsv = localFeederData[feeder.id]?.install_location || 'indoor';
+                const elcbJudgeCsv = judgeElcbRequired(voltage, phase, installLocCsv);
+                const groundInfoCsv = judgeGroundingType(voltage, phase, false);
+                const iscResultCsv = calcFeederIscCascade(feeder);
+                const icuCsv = Number(localFeederData[feeder.id]?.breaker_icu_ka) || 0;
+                const checkParts = [];
+                if (cableSize < 2.0) checkParts.push('太さ×');
+                if (elcbJudgeCsv.required && !(feeder.breaker_type || '').startsWith('ELCB')) checkParts.push('ELCB必要');
+                checkParts.push(groundInfoCsv.grade);
+                if (iscResultCsv.available) {
+                    if (icuCsv > 0) {
+                        checkParts.push(`IC${icuCsv >= iscResultCsv.IscKA ? 'OK' : 'NG'}(Isc≈${iscResultCsv.IscKA.toFixed(1)}kA)`);
+                    } else {
+                        checkParts.push(`Isc≈${iscResultCsv.IscKA.toFixed(1)}kA`);
+                    }
+                }
                 const row = [
                     feederNo,
                     feederCategory,
@@ -6069,6 +6641,9 @@
                     current.toFixed(2),
                     cableType,
                     cableSize.toFixed(1),
+                    ambientTempCsv,
+                    groupingCountCsv,
+                    ampInfoCsv.corrected.toFixed(0),
                     length,
                     powerFactor.toFixed(2),
                     vd.toFixed(2),
@@ -6078,6 +6653,9 @@
                     breakerAF,
                     breakerAT,
                     atStatus,
+                    installLocCsv,
+                    icuCsv || '',
+                    checkParts.join(' / '),
                     motorTotalKw || '',
                     motorMaxKw || '',
                     kiteiAT,
