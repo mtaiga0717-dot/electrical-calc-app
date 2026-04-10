@@ -1550,11 +1550,24 @@
                             <b>AT判定ロジック</b>（動力回路）：
                             <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
                                 <li><code>AT ≧ 設計電流</code>（基本）</li>
-                                <li><code>AT ≧ Im</code>（銘板値 or 表値、下回ると NG）</li>
-                                <li><code>AT ≧ 3705-1表の推奨分岐AT</code>（<b>表参照時のみ</b>適用。銘板値使用時は技術者判断として本チェックをスキップ）</li>
+                                <li><code>AT ≧ Im</code>（銘板値 or 式値 or 表値、下回ると NG）</li>
+                                <li><code>AT ≧ 3705-1表の推奨分岐AT</code>（<b>表参照時のみ</b>適用。銘板値・式値使用時は本チェックをスキップ）</li>
                                 <li><code>AT ≦ Im × 3</code>（内線規程 <b>3705-2条</b>：分岐回路の過電流遮断器は電動機定格電流の3倍以下、超えると NG）</li>
                                 <li>80% ルール（3605-3条）は動力には<b>適用しない</b>（連続負荷ではなく、始動時突入電流は別途 3705-1表で扱うため）</li>
                             </ul>
+
+                            <b>モード別 AT判定の違い</b>：判定に使う <code>Im</code> は <code>resolveMotorIm()</code> が現在の Im ソース（銘板／式／表）から決定し、以下のルールに切り替わります。
+                            <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
+                                <li><b>表モード（バッジ 表）</b>：<code>Im</code> は 3705-1表の直近上位値。<br>
+                                    適用チェック＝<code>AT ≧ 設計電流</code>／<code>AT ≧ Im</code>／<code>AT ≧ 3705-1表推奨AT</code>／<code>AT ≦ Im × 3</code>。<br>
+                                    表の推奨AT（例: 3.7kW → 20AT）に満たないと NG。</li>
+                                <li><b>式モード（バッジ 式）</b>：<code>Im = P[kW]×1000 / (√3×V×cosφ×η)</code> で算出した値を判定に使用。<br>
+                                    適用チェック＝<code>AT ≧ 設計電流</code>／<code>AT ≧ Im(式値)</code>／<code>AT ≦ Im(式値) × 3</code>。<br>
+                                    <b>3705-1表推奨ATチェックはスキップ</b>（表の代表値に丸めず、計算式による実Imで判定するため）。<br>
+                                    例: 2.3kW 3φ200V, cosφ=η=0.85 → Im≈9.2A、AT=15 なら <code>15≧9.2</code> かつ <code>15≦9.2×3=27.6</code> で OK。表モードだと 3.7kW行(Im=16.8A, 推奨20AT)で比較され NG になる点が異なります。</li>
+                                <li><b>銘板モード（バッジ 銘／実負荷タブのみ）</b>：実機銘板値を最優先で判定に使用。チェックは式モードと同じ（表推奨ATはスキップ）。</li>
+                            </ul>
+                            <b>注意</b>：式モードは中〜大容量帯（概ね 2.2kW 以上）で妥当ですが、0.2〜0.75kW の小容量帯では実機η·cosφが低く式値が実電流より小さくなり得ます。その帯域は表モードか銘板値を推奨します。
 
                             <b>盤サマリーバー 動力モード 3705-3 ガイダンス</b>：動力モードで盤フィルタを選択すると、その盤の動力回路を集約した以下を表示します。
                             <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
@@ -1705,6 +1718,18 @@
                     </select>
                     <button class="btn-action" id="btnAddFeeder">+ 幹線追加</button>
                     <button class="btn-action" id="btnFeedersExport">CSV出力</button>
+                    <button class="btn-action" id="btnShowSystemDiagram" style="background:#6a1b9a;color:#fff;">🌳 系統図プレビュー</button>
+                </div>
+
+                <!-- 系統図プレビューモーダル -->
+                <div id="systemDiagramModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;">
+                    <div style="position:absolute;top:5%;left:5%;right:5%;bottom:5%;background:#fff;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;flex-direction:column;">
+                        <div style="padding:0.8rem 1.2rem;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;background:#6a1b9a;color:#fff;border-radius:8px 8px 0 0;">
+                            <h3 style="margin:0;font-size:1.05rem;">🌳 系統図プレビュー（キュービクル → 幹線 → 盤 → 分岐 → 子幹線）</h3>
+                            <button type="button" id="btnCloseSystemDiagram" style="background:transparent;border:1px solid #fff;color:#fff;padding:4px 12px;border-radius:4px;cursor:pointer;">閉じる ✕</button>
+                        </div>
+                        <div id="systemDiagramBody" style="flex:1;overflow:auto;padding:1rem;font-family:'Hiragino Sans','Meiryo',sans-serif;font-size:0.82rem;line-height:1.5;background:#fafafa;"></div>
+                    </div>
                 </div>
                 <div class="feeders-table-wrapper">
                     <table class="feeders-table" id="feedersTable">
@@ -1712,6 +1737,7 @@
                             <tr>
                                 <th>幹線No</th>
                                 <th>区分</th>
+                                <th style="min-width:160px;">自（起点）</th>
                                 <th>負荷名称</th>
                                 <th>負荷容量[kVA]</th>
                                 <th>需要率[%]</th>
@@ -1733,7 +1759,7 @@
                                 <th>動力合計kW</th>
                                 <th>最大電動機kW</th>
                                 <th>内線規程AT</th>
-                                <th>行先</th>
+                                <th>至（行先）</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -2276,7 +2302,21 @@
         let allCircuits = [];
         let allFeeders = [];
         let editingPanelId = null;
-        const localFeederData = {};  // Client-side only data (not in Supabase)
+        // 幹線用クライアント専用データ（source_type, source_circuit_id, feeder_no, feeder_category,
+        // motor_total_kw, motor_max_kw, power_factor 等）。localStorageへ永続化。
+        const LOCAL_FEEDER_DATA_KEY = 'elecCalc:localFeederData';
+        function loadLocalFeederData() {
+            try {
+                const raw = localStorage.getItem(LOCAL_FEEDER_DATA_KEY);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) { return {}; }
+        }
+        function saveLocalFeederData() {
+            try {
+                localStorage.setItem(LOCAL_FEEDER_DATA_KEY, JSON.stringify(localFeederData));
+            } catch (e) { console.error('saveLocalFeederData:', e); }
+        }
+        const localFeederData = loadLocalFeederData();  // { [feederId]: { source_type, source_circuit_id, ... } }
         // 回路用クライアント専用データ（category等、Supabaseに無いフィールド）
         // localStorageへ永続化しページリロード後も復元する
         const LOCAL_CIRCUIT_DATA_KEY = 'elecCalc:localCircuitData';
@@ -2516,6 +2556,10 @@
 
             document.getElementById('btnAddFeeder').addEventListener('click', addFeederRow);
             document.getElementById('btnFeedersExport').addEventListener('click', exportFeedersCsv);
+            document.getElementById('btnShowSystemDiagram').addEventListener('click', showSystemDiagram);
+            document.getElementById('btnCloseSystemDiagram').addEventListener('click', () => {
+                document.getElementById('systemDiagramModal').style.display = 'none';
+            });
             document.getElementById('feederCategoryFilter').addEventListener('change', renderFeeders);
             document.getElementById('overallDemandFactor').addEventListener('change', updateTransformerCalculation);
 
@@ -2559,6 +2603,8 @@
                 await loadCircuits();
                 await loadPanels();
                 await loadFeeders();
+                // 起動時に分岐→子幹線リンクを一括同期（子孫の回路変更を親分岐回路へカスケード反映）
+                await syncAllBranchFeeders();
             } catch (error) {
                 console.error('Error loading data:', error);
             }
@@ -4074,7 +4120,18 @@
                     `;
                 })()}
                 <td><strong><span class="badge ${atStatus === 'OK' || atStatus === '-' ? 'badge-ok' : 'badge-ng'}" ${atNgReason ? `title="${atNgReason}"` : ''}>${atStatus}${atNgReason ? ' ⚠' : ''}</span></strong>${atNgReason ? `<div style="font-size:0.65rem;color:#d32f2f;white-space:nowrap;">${atNgReason}</div>` : ''}</td>
-                <td><input type="text" class="circuit-input" data-id="${circuit.id}" data-field="load_name" value="${circuit.load_name || ''}" /></td>
+                <td>
+                    <input type="text" class="circuit-input" data-id="${circuit.id}" data-field="load_name" value="${circuit.load_name || ''}" />
+                    ${isFeederTap ? (() => {
+                        // 分岐回路: リンクされた子幹線を表示、無ければ「子幹線追加」ボタン
+                        const childFeeder = findFeederFromBranch(circuit.id);
+                        if (childFeeder) {
+                            const fno = localFeederData[childFeeder.id]?.feeder_no || '(No未設定)';
+                            return `<div style="margin-top:2px;font-size:0.65rem;background:#e8f5e9;border-left:3px solid #2e7d32;padding:2px 4px;" title="この分岐からの子幹線: ${childFeeder.load_name||'(無題)'}｜クリックで幹線計算書へジャンプ"><a href="#" onclick="jumpToFeeder(${childFeeder.id});return false;" style="color:#2e7d32;text-decoration:none;font-weight:bold;">→子幹線 ${fno}</a> ${childFeeder.load_name||''}</div>`;
+                        }
+                        return `<div style="margin-top:2px;"><button type="button" class="btn-create-child-feeder" data-circuit-id="${circuit.id}" style="font-size:0.62rem;padding:1px 6px;background:#fff3e0;border:1px solid #ff6f00;color:#ff6f00;border-radius:2px;cursor:pointer;" title="この分岐から引く子幹線を幹線計算書に追加">+ 子幹線追加</button></div>`;
+                    })() : ''}
+                </td>
                 <td>${isLighting
                     ? `<input type="number" min="0" class="circuit-input" data-id="${circuit.id}" data-field="remocon" value="${circuit.remocon || 0}" style="width:50px;" />`
                     : `<span style="color:#bdbdbd;">—</span>`
@@ -4096,8 +4153,84 @@
             row.querySelectorAll('.motor-im-mode-btn').forEach(btn => {
                 btn.addEventListener('click', handleMotorImModeChange);
             });
+            // 分岐回路 → 子幹線作成ボタン
+            row.querySelectorAll('.btn-create-child-feeder').forEach(btn => {
+                btn.addEventListener('click', handleCreateChildFeeder);
+            });
 
             return row;
+        }
+
+        // 分岐回路から子幹線を作成（幹線計算書に新規行を追加し、自をこの分岐回路に紐付け）
+        async function handleCreateChildFeeder(e) {
+            const btn = e.currentTarget;
+            const circuitId = parseInt(btn.dataset.circuitId);
+            const parent = allCircuits.find(c => c.id === circuitId);
+            if (!parent) { alert('親回路が見つかりません'); return; }
+            // 既に子幹線がある場合はジャンプのみ
+            const existing = findFeederFromBranch(circuitId);
+            if (existing) { jumpToFeeder(existing.id); return; }
+
+            // 親回路の相から新規幹線の相・電圧を推定
+            const parentIs3Phase = parent.phase && ['R','S','T','R-S','S-T','R-T','RST'].includes(parent.phase);
+            const phase = parentIs3Phase ? '3φ3W' : '1φ3W';
+            const breaker = parentIs3Phase ? 'MCCB3P' : 'MCCB2P2E';
+            const newFeeder = {
+                load_name: '',
+                load_type: 'panel',
+                demand_factor: 70,
+                phase_type: phase,
+                voltage: 200,
+                cable_type: 'CV',
+                cable_size: 8,
+                cable_length: 0,
+                breaker_type: breaker,
+                breaker_af: 50,
+                breaker_at: parent.at || 30,
+                destination: ''
+            };
+            try {
+                const { data, error } = await db
+                    .from('feeders')
+                    .insert([newFeeder])
+                    .select();
+                if (error) throw error;
+                const inserted = data && data[0];
+                if (inserted) {
+                    // 自=branch, source_circuit_id=親回路ID, 区分は親回路と同じ
+                    if (!localFeederData[inserted.id]) localFeederData[inserted.id] = {};
+                    localFeederData[inserted.id].source_type = 'branch';
+                    localFeederData[inserted.id].source_circuit_id = circuitId;
+                    localFeederData[inserted.id].feeder_category = parent.category || '電灯';
+                    saveLocalFeederData();
+                }
+                await loadFeeders();
+                // 親分岐回路へ初期同期（新規子幹線の需要=0だが整合性のため）
+                await syncBranchCircuitFromChild(circuitId);
+                await loadCircuits();
+                await renderFeeders();
+                await renderCircuits();
+                if (inserted) jumpToFeeder(inserted.id);
+            } catch (err) {
+                console.error('handleCreateChildFeeder:', err);
+                alert('子幹線の作成に失敗しました');
+            }
+        }
+
+        // 幹線計算書タブに切り替えて指定feeder行へスクロール
+        function jumpToFeeder(feederId) {
+            const feederTab = document.querySelector('.nav-tab[data-tab="feeders"]');
+            if (feederTab) feederTab.click();
+            setTimeout(() => {
+                const row = document.getElementById(`feeder-${feederId}`);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.style.transition = 'background-color 0.4s';
+                    const orig = row.style.backgroundColor;
+                    row.style.backgroundColor = '#fff59d';
+                    setTimeout(() => { row.style.backgroundColor = orig; }, 1600);
+                }
+            }, 200);
         }
 
         // Im計算方式(表/式)の切替
@@ -4461,6 +4594,8 @@
 
                 await loadCircuits();
                 await loadPanels();
+                // 子孫の回路変更を 分岐→子幹線 リンクで親へカスケード反映
+                await syncAllBranchFeeders();
                 isRendering = true;
                 await renderCircuits();
                 isRendering = false;
@@ -4835,6 +4970,273 @@
             };
         }
 
+        // ===== 幹線 source(自/至) ヘルパ =====
+        // 記号「分岐」の回路一覧をラベル付きで返す（幹線の自＝親回路として選択可能）
+        function listBranchCircuits() {
+            return allCircuits
+                .filter(c => c.symbol === '分岐')
+                .map(c => {
+                    const phaseStr = c.phase || '-';
+                    const at = c.at || 0;
+                    const label = `${c.panel_name || '?'} / 分岐 ${phaseStr} ${at}AT${c.load_name ? ' ('+c.load_name+')' : ''}`;
+                    return { id: c.id, label, circuit: c };
+                });
+        }
+        // 幹線の自設定を取得（デフォルトはキュービクル）
+        function getFeederSource(feederId) {
+            const l = localFeederData[feederId] || {};
+            return {
+                type: l.source_type || 'cubicle',
+                circuitId: l.source_circuit_id || null
+            };
+        }
+        // 分岐回路から引かれている子幹線を探す（1対1想定）
+        function findFeederFromBranch(circuitId) {
+            if (!circuitId) return null;
+            for (const f of allFeeders) {
+                const s = getFeederSource(f.id);
+                if (s.type === 'branch' && s.circuitId === circuitId) return f;
+            }
+            return null;
+        }
+
+        // 幹線の需要容量 [kVA] を計算（getLoadCapacity × demand_factor）
+        function computeFeederDemandKva(feeder) {
+            const cap = getLoadCapacity(feeder);
+            const df = feeder.demand_factor || getDemandFactor(cap);
+            return (cap * df) / 100;
+        }
+
+        // 循環参照の検知: 分岐回路の所属盤と子幹線の供給先盤が同じ or 先祖になる場合はNG
+        // 簡易BFSで、source=branch チェーンを遡って parentPanel にぶつかれば循環
+        function detectFeederCycle(parentCircuit, childFeeder) {
+            if (!parentCircuit || !childFeeder) return false;
+            const parentPanel = parentCircuit.panel_name;
+            if (!parentPanel) return false;
+            // 直接自己ループ: 子幹線が親と同じ盤を供給している
+            if (childFeeder.load_name === parentPanel) return true;
+            // 上流追跡: childFeeder の至=盤Y → 盤Y内の分岐回路の子幹線を辿って parentPanel へ到達するか
+            const visited = new Set();
+            const queue = [childFeeder];
+            while (queue.length) {
+                const f = queue.shift();
+                if (!f || visited.has(f.id)) continue;
+                visited.add(f.id);
+                const targetPanel = f.load_name;
+                if (!targetPanel) continue;
+                if (targetPanel === parentPanel) return true;
+                // 盤 targetPanel 内の分岐回路
+                const branches = allCircuits.filter(c => c.symbol === '分岐' && c.panel_name === targetPanel);
+                for (const b of branches) {
+                    const child = findFeederFromBranch(b.id);
+                    if (child) queue.push(child);
+                }
+            }
+            return false;
+        }
+
+        // 親分岐回路の feeder[VA] を子幹線の需要容量で上書き保存
+        // （子幹線 demand_capacity の変化を親分岐回路の設備容量へ反映し、
+        // 親盤サマリーの ΣVA に自動計上されるようにする）
+        async function syncBranchCircuitFromChild(circuitId) {
+            if (!circuitId) return;
+            const parent = allCircuits.find(c => c.id === circuitId);
+            if (!parent || parent.symbol !== '分岐') return;
+            const child = findFeederFromBranch(circuitId);
+            // 循環参照チェック
+            if (child && detectFeederCycle(parent, child)) {
+                console.warn(`syncBranchCircuitFromChild: cycle detected (circuit ${circuitId} → feeder ${child.id})`);
+                alert(`⚠ 循環参照を検知しました\n親分岐回路の所属盤「${parent.panel_name}」が子幹線の供給先チェーン内に含まれます。リンクを解除してください。`);
+                return;
+            }
+            const newFeederKva = child ? computeFeederDemandKva(child) : 0;
+            // 既存値と差分がなければ更新しない
+            if (Math.abs((parent.feeder || 0) - newFeederKva) < 0.001) return;
+            try {
+                const { error } = await db
+                    .from('circuits')
+                    .update({ lighting: 0, outlet: 0, fc: 0, oa: 0, feeder: newFeederKva })
+                    .eq('id', circuitId);
+                if (error) throw error;
+            } catch (err) {
+                console.error('syncBranchCircuitFromChild:', err);
+            }
+        }
+
+        // 指定feederIdの親分岐回路（自=branch）を特定しsync実行
+        async function syncParentBranchFromFeeder(feederId) {
+            const src = getFeederSource(feederId);
+            if (src.type !== 'branch' || !src.circuitId) return;
+            await syncBranchCircuitFromChild(src.circuitId);
+        }
+
+        // 全 分岐→子幹線 リンクを走査しparent feeder[VA]を同期（子孫の回路変更が親へ伝搬するように）
+        // 深い階層のカスケードに対応するため最大5段まで反復
+        let _syncAllBranchFeedersBusy = false;
+        async function syncAllBranchFeeders() {
+            if (_syncAllBranchFeedersBusy) return;
+            _syncAllBranchFeedersBusy = true;
+            try {
+                for (let pass = 0; pass < 5; pass++) {
+                    let changed = false;
+                    const branchCircuits = allCircuits.filter(c => c.symbol === '分岐');
+                    for (const bc of branchCircuits) {
+                        const child = findFeederFromBranch(bc.id);
+                        if (!child) continue;
+                        const newKva = computeFeederDemandKva(child);
+                        if (Math.abs((bc.feeder || 0) - newKva) >= 0.001) {
+                            await syncBranchCircuitFromChild(bc.id);
+                            changed = true;
+                        }
+                    }
+                    if (!changed) break;
+                    await loadCircuits();
+                }
+            } finally {
+                _syncAllBranchFeedersBusy = false;
+            }
+        }
+
+        // ===== 系統図プレビュー =====
+        // キュービクル → feeder(cubicle) → 盤 → 分岐 → 子feeder(branch) → ...
+        // をインデント付きの折りたたみ可能なツリーとして表示
+        function showSystemDiagram() {
+            const body = document.getElementById('systemDiagramBody');
+            const modal = document.getElementById('systemDiagramModal');
+            if (!body || !modal) return;
+
+            // 訪問済み盤セット（循環防止）
+            const visitedPanels = new Set();
+            // 訪問済みfeederセット（循環防止）
+            const visitedFeeders = new Set();
+
+            // 幹線ラベル
+            function feederLabel(f) {
+                const no = localFeederData[f.id]?.feeder_no || '';
+                const cat = localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯';
+                const catIcon = cat === '動力' ? '⚙' : '⚡';
+                const cap = getLoadCapacity(f);
+                const df = f.demand_factor || getDemandFactor(cap);
+                const dKva = (cap * df) / 100;
+                const ph = f.phase_type || '-';
+                const at = f.breaker_at || '-';
+                return `${catIcon} 幹線${no ? 'No.'+no : ''} <span style="color:#666;">[${ph} ${at}AT, 需要${dKva.toFixed(2)}kVA]</span> → <b>${f.load_name || '(盤未設定)'}</b>`;
+            }
+
+            // 分岐回路ラベル
+            function branchLabel(c) {
+                const at = c.at || 0;
+                const ph = c.phase || '-';
+                return `🔀 ${c.panel_name || '?'} / 分岐 ${ph} ${at}AT${c.load_name ? ' ('+c.load_name+')' : ''}`;
+            }
+
+            // 盤内の分岐回路とその子幹線を再帰的に描画
+            function renderPanelNode(panelName, depth) {
+                if (!panelName) return '';
+                if (visitedPanels.has(panelName)) {
+                    return `<div style="margin-left:${depth*20}px;color:#d32f2f;">↪ (循環参照: ${panelName})</div>`;
+                }
+                visitedPanels.add(panelName);
+
+                const panel = allPanels.find(p => p.name === panelName);
+                const panelCircuits = allCircuits.filter(c => c.panel_name === panelName);
+                const summaries = panel ? calculatePanelSummaries(panelName, panelCircuits) : null;
+                const totalKva = summaries ? summaries.total : 0;
+
+                let html = `<div style="margin-left:${depth*20}px;padding:4px 8px;background:#e3f2fd;border-left:3px solid #1976d2;margin-top:4px;border-radius:0 4px 4px 0;">`;
+                html += `📦 <b>${panelName}</b> ${panel ? `<span style="color:#666;font-size:0.75rem;">[${panel.elec_type||'?'}, Σ${totalKva.toFixed(2)}kVA]</span>` : '<span style="color:#d32f2f;">(盤なし)</span>'}`;
+                html += `</div>`;
+
+                // 盤内の分岐回路
+                const branches = panelCircuits.filter(c => c.symbol === '分岐');
+                for (const b of branches) {
+                    html += `<div style="margin-left:${(depth+1)*20}px;padding:3px 6px;background:#fff3e0;border-left:3px solid #ff6f00;margin-top:3px;border-radius:0 4px 4px 0;">${branchLabel(b)}</div>`;
+                    // その分岐に紐付く子幹線
+                    const child = findFeederFromBranch(b.id);
+                    if (child) {
+                        html += renderFeederNode(child, depth + 2);
+                    } else {
+                        html += `<div style="margin-left:${(depth+2)*20}px;color:#999;font-size:0.72rem;">（子幹線未リンク）</div>`;
+                    }
+                }
+                visitedPanels.delete(panelName);
+                return html;
+            }
+
+            // 幹線ノードを描画（ラベル→供給先盤を再帰）
+            function renderFeederNode(feeder, depth) {
+                if (visitedFeeders.has(feeder.id)) {
+                    return `<div style="margin-left:${depth*20}px;color:#d32f2f;">↪ (循環参照: 幹線ID ${feeder.id})</div>`;
+                }
+                visitedFeeders.add(feeder.id);
+
+                const src = getFeederSource(feeder.id);
+                // 整合チェック
+                let warn = '';
+                if (src.type === 'branch' && src.circuitId) {
+                    const parent = allCircuits.find(c => c.id === src.circuitId);
+                    if (parent) {
+                        const cap = getLoadCapacity(feeder);
+                        const df = feeder.demand_factor || getDemandFactor(cap);
+                        const dKva = (cap * df) / 100;
+                        const ph = feeder.phase_type || '1φ2W';
+                        const v = feeder.voltage || 100;
+                        let current = 0;
+                        if (ph === '3φ3W') current = dKva * 1000 / (Math.sqrt(3) * v);
+                        else if (ph === '1φ3W') current = dKva * 1000 / 200;
+                        else current = dKva * 1000 / v;
+                        if ((parent.at || 0) > 0 && current > parent.at) {
+                            warn = ` <span style="color:#d32f2f;font-weight:bold;">⚠ 親AT超過(${parent.at}A&lt;${current.toFixed(1)}A)</span>`;
+                        }
+                    }
+                }
+
+                let html = `<div style="margin-left:${depth*20}px;padding:3px 6px;background:#e8f5e9;border-left:3px solid #2e7d32;margin-top:3px;border-radius:0 4px 4px 0;">${feederLabel(feeder)}${warn}</div>`;
+                if (feeder.load_name) {
+                    html += renderPanelNode(feeder.load_name, depth + 1);
+                }
+                return html;
+            }
+
+            // ルート=キュービクル → source='cubicle' な幹線一覧
+            const cubicleFeeders = allFeeders.filter(f => getFeederSource(f.id).type === 'cubicle');
+            // 孤立: source='branch' だが source_circuit_id が無効
+            const orphanFeeders = allFeeders.filter(f => {
+                const s = getFeederSource(f.id);
+                if (s.type !== 'branch') return false;
+                return !s.circuitId || !allCircuits.find(c => c.id === s.circuitId);
+            });
+
+            let html = '';
+            html += `<div style="padding:6px 10px;background:#6a1b9a;color:#fff;border-radius:4px;font-weight:bold;font-size:0.95rem;">⚡ キュービクル（主母線）</div>`;
+
+            if (cubicleFeeders.length === 0) {
+                html += `<div style="margin-left:20px;color:#999;margin-top:6px;">キュービクル起点の幹線がありません（「自＝キュービクル」を選択してください）</div>`;
+            } else {
+                // 電灯/動力でグループ
+                const lightingF = cubicleFeeders.filter(f => (localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯') === '電灯');
+                const motorF = cubicleFeeders.filter(f => (localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯') === '動力');
+                if (lightingF.length > 0) {
+                    html += `<div style="margin-top:8px;margin-left:10px;color:#1976d2;font-weight:bold;">⚡ 電灯幹線</div>`;
+                    for (const f of lightingF) html += renderFeederNode(f, 1);
+                }
+                if (motorF.length > 0) {
+                    html += `<div style="margin-top:8px;margin-left:10px;color:#ff6f00;font-weight:bold;">⚙ 動力幹線</div>`;
+                    for (const f of motorF) html += renderFeederNode(f, 1);
+                }
+            }
+
+            if (orphanFeeders.length > 0) {
+                html += `<div style="margin-top:16px;padding:6px 10px;background:#ffebee;color:#c62828;border-radius:4px;font-weight:bold;">⚠ 孤立幹線（自＝分岐 だが親回路が未指定/削除済み）</div>`;
+                for (const f of orphanFeeders) {
+                    html += `<div style="margin-left:20px;margin-top:3px;padding:3px 6px;background:#fff;border-left:3px solid #c62828;">${feederLabel(f)}</div>`;
+                }
+            }
+
+            body.innerHTML = html;
+            modal.style.display = 'block';
+        }
+
         async function renderFeeders() {
             const tbody = document.getElementById('feedersTableBody');
             tbody.innerHTML = '';
@@ -4860,7 +5262,7 @@
                 if (lightingFeeders.length > 0 || motorFeeders.length > 0 || filtered.length === 0) {
                     if (lightingFeeders.length > 0 || (motorFeeders.length === 0 && filtered.length === 0)) {
                         const headerRow1 = document.createElement('tr');
-                        headerRow1.innerHTML = `<td colspan="25" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯幹線</td>`;
+                        headerRow1.innerHTML = `<td colspan="26" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯幹線</td>`;
                         tbody.appendChild(headerRow1);
                         lightingFeeders.forEach((feeder, index) => {
                             tbody.appendChild(createFeederRow(feeder, index + 1));
@@ -4869,7 +5271,7 @@
 
                     if (motorFeeders.length > 0) {
                         const headerRow2 = document.createElement('tr');
-                        headerRow2.innerHTML = `<td colspan="25" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力幹線</td>`;
+                        headerRow2.innerHTML = `<td colspan="26" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力幹線</td>`;
                         tbody.appendChild(headerRow2);
                         motorFeeders.forEach((feeder, index) => {
                             tbody.appendChild(createFeederRow(feeder, motorFeeders.indexOf(feeder) + 1));
@@ -4969,6 +5371,26 @@
             // ※分岐回路の 1.25倍（3605-3条）は幹線には適用しない
             let atStatus = (breakerAT >= current) ? 'OK' : '×';
 
+            // 自（起点）の取得と親分岐回路との整合チェック
+            const feederSource = getFeederSource(feeder.id);
+            const branchCircuits = listBranchCircuits();
+            let sourceWarning = '';
+            let sourceWarningTitle = '';
+            if (feederSource.type === 'branch' && feederSource.circuitId) {
+                const parent = allCircuits.find(c => c.id === feederSource.circuitId);
+                if (!parent) {
+                    sourceWarning = '親回路なし';
+                    sourceWarningTitle = '指定された親分岐回路が存在しません（削除された可能性）';
+                } else {
+                    const parentAT = parent.at || 0;
+                    // 子幹線の需要電流が親分岐AT を超えないこと（内線規程1310節 AT≧設計電流）
+                    if (parentAT > 0 && current > parentAT) {
+                        sourceWarning = `親AT超過(${parentAT}A<${current.toFixed(1)}A)`;
+                        sourceWarningTitle = `子幹線の需要電流 ${current.toFixed(1)}A が親分岐AT ${parentAT}A を超えています（内線規程1310節: AT≧設計電流）`;
+                    }
+                }
+            }
+
             // Calculate 内線規程AT for 3φ3W feeders with motor data
             let kiteiAT = '-';
             const motorTotalKw = autoMotorTotalKw || localFeederData[feeder.id]?.motor_total_kw;
@@ -4987,6 +5409,19 @@
                         <option value="電灯" ${feederCategory === '電灯' ? 'selected' : ''}>電灯</option>
                         <option value="動力" ${feederCategory === '動力' ? 'selected' : ''}>動力</option>
                     </select>
+                </td>
+                <td style="min-width:180px;">
+                    <select class="feeder-local" data-id="${feeder.id}" data-field="source_type" style="width:100%;font-size:0.72rem;${feederSource.type==='branch'?'background:#fff3e0;':'background:#e8f5e9;'}">
+                        <option value="cubicle" ${feederSource.type==='cubicle'?'selected':''}>⚡ キュービクル（主母線）</option>
+                        <option value="branch" ${feederSource.type==='branch'?'selected':''}>🔀 幹線分岐（他盤タップ）</option>
+                    </select>
+                    ${feederSource.type==='branch' ? `
+                        <select class="feeder-local" data-id="${feeder.id}" data-field="source_circuit_id" style="width:100%;font-size:0.68rem;margin-top:2px;background:#fff;" title="親となる分岐回路を選択（回路DB: 記号=分岐）">
+                            <option value="">— 親分岐を選択 —</option>
+                            ${branchCircuits.map(b => `<option value="${b.id}" ${feederSource.circuitId===b.id?'selected':''}>${b.label}</option>`).join('')}
+                        </select>
+                        ${sourceWarning ? `<div style="font-size:0.62rem;color:#d32f2f;margin-top:1px;" title="${sourceWarningTitle}">⚠ ${sourceWarning}</div>` : ''}
+                    ` : ''}
                 </td>
                 <td>
                     <input type="text" class="feeder-input" data-id="${feeder.id}" data-field="load_name" value="${feeder.load_name || ''}" />
@@ -5103,15 +5538,33 @@
             let value = element.value;
 
             // Local-only fields - don't send to DB
-            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw'];
+            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw', 'source_type', 'source_circuit_id'];
 
             if (LOCAL_ONLY_FIELDS.includes(field)) {
                 if (!localFeederData[feederId]) localFeederData[feederId] = {};
 
+                // source_type/source_circuit_id 変更時は旧親・新親の両方をsync
+                let oldSrc = null;
+                if (field === 'source_type' || field === 'source_circuit_id') {
+                    oldSrc = { ...getFeederSource(feederId) };
+                }
+
                 if (field === 'power_factor' || field === 'motor_total_kw' || field === 'motor_max_kw') {
                     localFeederData[feederId][field] = value ? parseFloat(value) : null;
+                } else if (field === 'source_circuit_id') {
+                    localFeederData[feederId][field] = value ? parseInt(value) : null;
                 } else {
                     localFeederData[feederId][field] = value;
+                }
+                saveLocalFeederData();
+
+                // 親分岐回路の feeder[VA] を同期
+                if (field === 'source_type' || field === 'source_circuit_id' || field === 'power_factor') {
+                    if (oldSrc && oldSrc.type === 'branch' && oldSrc.circuitId) {
+                        await syncBranchCircuitFromChild(oldSrc.circuitId);
+                    }
+                    await syncParentBranchFromFeeder(feederId);
+                    await loadCircuits();
                 }
 
                 await renderFeeders();
@@ -5145,6 +5598,11 @@
 
                 if (error) throw error;
                 await loadFeeders();
+                // 需要容量に影響するフィールド変更時は親分岐回路へ同期
+                if (['load_name', 'demand_factor', 'voltage', 'phase_type'].includes(field)) {
+                    await syncParentBranchFromFeeder(feederId);
+                    await loadCircuits();
+                }
                 await renderFeeders();
                 await updateTransformerCalculation();
             } catch (error) {
@@ -5166,14 +5624,17 @@
             if (value === '' || value === null) {
                 delete localFeederData[feederId][field];
             } else {
-                // For string fields like feeder_no and feeder_category, store as-is
-                // For numeric fields like motor_total_kw, motor_max_kw, parse as number
-                if (field === 'feeder_no' || field === 'feeder_category') {
+                // For string fields like feeder_no, feeder_category, source_type store as-is
+                // For numeric fields like motor_total_kw, motor_max_kw, source_circuit_id parse as number
+                if (field === 'feeder_no' || field === 'feeder_category' || field === 'source_type') {
                     localFeederData[feederId][field] = value;
+                } else if (field === 'source_circuit_id') {
+                    localFeederData[feederId][field] = parseInt(value) || null;
                 } else {
                     localFeederData[feederId][field] = parseFloat(value) || 0;
                 }
             }
+            saveLocalFeederData();
 
             await renderFeeders();
         }
@@ -5222,6 +5683,9 @@
         async function deleteFeeder(feederId) {
             if (!confirm('この幹線を削除しますか？')) return;
 
+            // 親分岐回路のIDを削除前にキャプチャ（削除後は getFeederSource で辿れなくなる）
+            const srcBeforeDelete = getFeederSource(feederId);
+
             try {
                 const { error } = await db
                     .from('feeders')
@@ -5229,8 +5693,19 @@
                     .eq('id', feederId);
 
                 if (error) throw error;
+                // クライアント側の紐付けも削除
+                if (localFeederData[feederId]) {
+                    delete localFeederData[feederId];
+                    saveLocalFeederData();
+                }
                 await loadFeeders();
+                // 親分岐回路の feeder[VA] を 0 に戻す
+                if (srcBeforeDelete && srcBeforeDelete.type === 'branch' && srcBeforeDelete.circuitId) {
+                    await syncBranchCircuitFromChild(srcBeforeDelete.circuitId);
+                    await loadCircuits();
+                }
                 await renderFeeders();
+                await renderCircuits();
                 await updateTransformerCalculation();
             } catch (error) {
                 console.error('Error deleting feeder:', error);
@@ -5239,7 +5714,7 @@
         }
 
         function exportFeedersCsv() {
-            const headers = ['幹線No', '区分', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', '動力合計kW', '最大電動機kW', '内線規程AT', '行先'];
+            const headers = ['幹線No', '区分', '自（起点）', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', '動力合計kW', '最大電動機kW', '内線規程AT', '至（行先）'];
             const rows = [headers.join(',')];
 
             allFeeders.forEach((feeder, index) => {
@@ -5285,9 +5760,20 @@
                     if (result) kiteiAT = result.breakerAT;
                 }
 
+                // 自（起点）のラベル生成
+                const fSrc = getFeederSource(feeder.id);
+                let sourceLabel = 'キュービクル';
+                if (fSrc.type === 'branch' && fSrc.circuitId) {
+                    const parent = allCircuits.find(c => c.id === fSrc.circuitId);
+                    sourceLabel = parent
+                        ? `${parent.panel_name || '?'} / 分岐 ${parent.phase || '-'} ${parent.at || 0}AT`
+                        : '親回路なし';
+                }
+
                 const row = [
                     feederNo,
                     feederCategory,
+                    sourceLabel,
                     feeder.load_name || '',
                     capacity.toFixed(2),
                     demandFactor,
