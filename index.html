@@ -980,7 +980,7 @@
         .feeders-table th:nth-child(25),
         .feeders-table td:nth-child(25) { width: 75px; min-width: 75px; }  /* Icu */
         .feeders-table th:nth-child(26),
-        .feeders-table td:nth-child(26) { width: 200px; min-width: 200px; white-space: normal; }/* 規定チェック */
+        .feeders-table td:nth-child(26) { width: 240px; min-width: 240px; white-space: normal; }/* 規定チェック */
         .feeders-table th:nth-child(27),
         .feeders-table td:nth-child(27) { width: 85px; min-width: 85px; }  /* 動力合計kW */
         .feeders-table th:nth-child(28),
@@ -2529,21 +2529,30 @@
         const AF_VALUES = [30, 50, 60, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 500, 600, 800];
         const AT_VALUES = [5, 10, 15, 20, 30, 40, 50, 60, 75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 500, 600];
 
+        // fp: FPケーブル(耐火ケーブル, JIS C 3521 / 消防用)
+        //     単芯〜4芯、30℃空中敷設ベース。CVの概ね90〜95%を保守側で採用（各社FP-C/FPC代表値）。
+        //     実値はメーカーカタログ（フジクラ FP-C, 古河電工 FP, 住電HSTケーブル FP 等）で確認のこと。
         const CABLE_DATA = [
-            { size: 2.0, cv: 23, cvt: 27, r: 9.45, x: 0.101 },
-            { size: 3.5, cv: 31, cvt: 37, r: 5.40, x: 0.095 },
-            { size: 5.5, cv: 43, cvt: 49, r: 3.43, x: 0.088 },
-            { size: 8, cv: 54, cvt: 61, r: 2.36, x: 0.083 },
-            { size: 14, cv: 73, cvt: 88, r: 1.35, x: 0.077 },
-            { size: 22, cv: 96, cvt: 115, r: 0.856, x: 0.074 },
-            { size: 38, cv: 131, cvt: 160, r: 0.495, x: 0.070 },
-            { size: 60, cv: 172, cvt: 210, r: 0.314, x: 0.067 },
-            { size: 100, cv: 232, cvt: 290, r: 0.189, x: 0.064 },
-            { size: 150, cv: 284, cvt: 355, r: 0.126, x: 0.063 },
-            { size: 200, cv: 338, cvt: 420, r: 0.0948, x: 0.062 },
-            { size: 250, cv: 390, cvt: 485, r: 0.0757, x: 0.062 },
-            { size: 325, cv: 453, cvt: 560, r: 0.0583, x: 0.061 }
+            { size: 2.0, cv: 23,  cvt: 27,  fp: 21,  r: 9.45,   x: 0.101 },
+            { size: 3.5, cv: 31,  cvt: 37,  fp: 29,  r: 5.40,   x: 0.095 },
+            { size: 5.5, cv: 43,  cvt: 49,  fp: 40,  r: 3.43,   x: 0.088 },
+            { size: 8,   cv: 54,  cvt: 61,  fp: 50,  r: 2.36,   x: 0.083 },
+            { size: 14,  cv: 73,  cvt: 88,  fp: 68,  r: 1.35,   x: 0.077 },
+            { size: 22,  cv: 96,  cvt: 115, fp: 89,  r: 0.856,  x: 0.074 },
+            { size: 38,  cv: 131, cvt: 160, fp: 122, r: 0.495,  x: 0.070 },
+            { size: 60,  cv: 172, cvt: 210, fp: 160, r: 0.314,  x: 0.067 },
+            { size: 100, cv: 232, cvt: 290, fp: 216, r: 0.189,  x: 0.064 },
+            { size: 150, cv: 284, cvt: 355, fp: 264, r: 0.126,  x: 0.063 },
+            { size: 200, cv: 338, cvt: 420, fp: 314, r: 0.0948, x: 0.062 },
+            { size: 250, cv: 390, cvt: 485, fp: 363, r: 0.0757, x: 0.062 },
+            { size: 325, cv: 453, cvt: 560, fp: 421, r: 0.0583, x: 0.061 }
         ];
+        // ケーブル種別 → CABLE_DATA 容量フィールド 対応
+        function getCableCapacityKey(cableType) {
+            if (cableType === 'CVT') return 'cvt';
+            if (cableType === 'FP' || cableType === 'FP-C' || cableType === 'FPC') return 'fp';
+            return 'cv'; // デフォルト CV
+        }
 
         const MOTOR_TABLE_3705_1 = [
             { kw: 0.2, current: 1.8, cable: 2.0, breaker: 15 },
@@ -2765,7 +2774,7 @@
 
         // 補正込み最適ケーブルサイズ選定（敷設方法対応版）
         function selectCableSizeCorrected(current, cableType, ambientTemp, groupingCount, installMethod) {
-            const capacity = cableType === 'CV' ? 'cv' : 'cvt';
+            const capacity = getCableCapacityKey(cableType);
             const methodInfo = getInstallMethodInfo(installMethod || 'rack_single');
             const kt = getAmbientTempK(ambientTemp);
             const kg = getGroupingK(groupingCount, methodInfo.key);
@@ -3436,15 +3445,15 @@
             allFeeders.sort((a, b) => {
                 const aNo = localFeederData[a.id]?.feeder_no || '';
                 const bNo = localFeederData[b.id]?.feeder_no || '';
-                // 両方空なら id 降順（新しい順）にフォールバック
-                if (!aNo && !bNo) return (b.id || 0) - (a.id || 0);
+                // 両方空なら id 昇順（古い順）にフォールバック
+                if (!aNo && !bNo) return (a.id || 0) - (b.id || 0);
                 // 片方だけ空なら空を末尾へ
                 if (!aNo) return 1;
                 if (!bNo) return -1;
                 const ak = naturalKey(aNo);
                 const bk = naturalKey(bNo);
-                if (ak === bk) return (b.id || 0) - (a.id || 0);
-                return ak < bk ? 1 : -1; // 降順
+                if (ak === bk) return (a.id || 0) - (b.id || 0);
+                return ak < bk ? -1 : 1; // 昇順
             });
         }
 
@@ -5854,7 +5863,7 @@
         }
 
         function selectCableSize(current, cableType) {
-            const capacity = cableType === 'CV' ? 'cv' : 'cvt';
+            const capacity = getCableCapacityKey(cableType);
             for (let i = CABLE_DATA.length - 1; i >= 0; i--) {
                 if (CABLE_DATA[i][capacity] >= current) {
                     return CABLE_DATA[i].size;
@@ -6561,7 +6570,7 @@
             const breakerAT = (breakerAdopt === 'manual' && atManual > 0) ? atManual : atCalc;
 
             const cableEntry = CABLE_DATA.find(c => c.size === cableSize);
-            const cableCapacity = cableType === 'CV' ? cableEntry?.cv : cableEntry?.cvt;
+            const cableCapacity = cableEntry ? cableEntry[getCableCapacityKey(cableType)] : 0;
 
             // AT判定: 幹線（main feeder）は内線規程 1310条により AT ≥ 設計電流で判定
             // ※分岐回路の 1.25倍（3605-3条）は幹線には適用しない
@@ -6628,13 +6637,135 @@
                         const parentMethod = localFeederData[parentFeeder.id]?.install_method || 'rack_single';
                         const parentSize = Number(parentFeeder.cable_size) || selectCableSizeCorrected(0, parentFeeder.cable_type || 'CV', parentAmbT, parentGrpC, parentMethod);
                         const parentEntry = CABLE_DATA.find(c => c.size === parentSize);
-                        const parentBaseAmp = parentEntry ? (parentFeeder.cable_type === 'CVT' ? parentEntry.cvt : parentEntry.cv) : 0;
+                        const parentBaseAmp = parentEntry ? parentEntry[getCableCapacityKey(parentFeeder.cable_type)] : 0;
                         const parentCorrected = calcCorrectedAmpacity(parentBaseAmp, parentAmbT, parentGrpC, parentMethod).corrected;
                         const relaxLen = Number(localFeederData[feeder.id]?.branch_len_for_relax) || length;
                         relaxInfo = judgeBranch3m8mRelax(parentCorrected, correctedAmp, relaxLen);
                     }
                 }
             }
+
+            // ================== 電線保護判定（ブレーカ容量の上限） ==================
+            // 内線規程 JEAC8001 1360-8表 / 電技解釈149条 / 1365-2条
+            //  - 電灯・非電動機幹線: AT ≤ 補正後許容電流 Iz
+            //  - 電動機含む幹線    : AT ≤ min( Iz × 2.5, 3×IMmax + I他 )
+            //                        (電動機始動電流と過負荷保護の両立を考慮)
+            let atUpperLimit = correctedAmp;
+            let atUpperBasisShort = '';
+            let atUpperBasisLong = '';
+            let hasMotorLoad = false;
+            {
+                const motorTotalKwNum = Number(motorTotalKw) || 0;
+                const motorMaxKwNum = Number(motorMaxKw) || 0;
+                hasMotorLoad = (motorTotalKwNum > 0);
+                if (!hasMotorLoad) {
+                    // 電灯 or 電動機を含まない動力幹線
+                    atUpperLimit = correctedAmp;
+                    atUpperBasisShort = `Iz=${correctedAmp.toFixed(0)}A`;
+                    atUpperBasisLong = `電灯/非電動機幹線: AT ≦ 補正後許容電流 Iz=${correctedAmp.toFixed(0)}A (内線規程 JEAC8001 1360-8表・電技解釈149条)`;
+                } else {
+                    // 電動機を含む幹線
+                    // 概算: 3φ 力率0.85 効率0.85 想定で電動機総電流
+                    const phaseFactor = (phase === '3φ3W') ? Math.sqrt(3) : (phase === '1φ3W' ? 1 : 1);
+                    const denom = Math.max(1, phaseFactor * voltage * 0.85 * 0.85);
+                    const motorTotalCurrent = motorTotalKwNum * 1000 / denom;
+                    const nonMotorCurrent = Math.max(0, current - motorTotalCurrent);
+                    // 最大電動機電流: MOTOR_TABLE_3705_1 から線形補間で概算
+                    let maxIm = 0;
+                    if (motorMaxKwNum > 0) {
+                        const row = MOTOR_TABLE_3705_1.find(r => r.kw >= motorMaxKwNum);
+                        if (row) {
+                            maxIm = row.current * (motorMaxKwNum / row.kw);
+                        } else {
+                            const last = MOTOR_TABLE_3705_1[MOTOR_TABLE_3705_1.length - 1];
+                            maxIm = last.current * (motorMaxKwNum / last.kw);
+                        }
+                    }
+                    const rule1 = 2.5 * correctedAmp;            // 電線保護の絶対上限
+                    const rule2 = 3 * maxIm + nonMotorCurrent;   // 電動機始動考慮
+                    atUpperLimit = Math.min(rule1, rule2);
+                    atUpperBasisShort = `min(2.5Iz=${rule1.toFixed(0)}, 3IM+I他=${rule2.toFixed(0)})=${atUpperLimit.toFixed(0)}A`;
+                    atUpperBasisLong = `電動機含幹線: AT ≦ min(Iz×2.5=${rule1.toFixed(0)}A, 3×IMmax+I他=${rule2.toFixed(0)}A) = ${atUpperLimit.toFixed(0)}A\n` +
+                                       `  ・IMmax(${motorMaxKwNum}kW)≈${maxIm.toFixed(1)}A, I電動機合計≈${motorTotalCurrent.toFixed(1)}A, I他≈${nonMotorCurrent.toFixed(1)}A\n` +
+                                       `  (内線規程 JEAC8001 1365-2条・表1365-1、3705-2条)`;
+                }
+            }
+            const cableProtStatus = (breakerAT > 0 && breakerAT <= atUpperLimit) ? 'OK' : (breakerAT > atUpperLimit ? '×' : '-');
+            const cableProtTitle = `電線保護判定: AT=${breakerAT}A / 上限=${atUpperLimit.toFixed(0)}A\n${atUpperBasisLong}`;
+
+            // ================== NG 理由サマリ ==================
+            // 各判定が NG の場合、該当項目と規程根拠を収集して規定チェック欄へ表示
+            const ngReasons = [];
+            if (ampStatus !== 'OK') {
+                ngReasons.push({
+                    item: '許容電流',
+                    detail: `補正後 ${correctedAmp.toFixed(1)}A < 設計電流 ${current.toFixed(1)}A`,
+                    basis: `内線規程 JEAC8001 1340-1/3表、電技解釈149条 (I_allow ≧ I_design)`
+                });
+            }
+            if (vdStatus !== 'OK') {
+                ngReasons.push({
+                    item: '電圧降下',
+                    detail: `VD率 ${vdPercent.toFixed(2)}% > 許容 ${vdRule.allowed}% (${vdRule.sourceClass})`,
+                    basis: `内線規程 JEAC8001 1310-1表 / ${vdRule.basis || '国交省公共建築工事標準仕様書'}`
+                });
+            }
+            if (atStatus !== 'OK') {
+                ngReasons.push({
+                    item: 'AT判定',
+                    detail: `AT ${breakerAT}A < 設計電流 ${current.toFixed(1)}A`,
+                    basis: `内線規程 JEAC8001 1310条 (幹線: AT ≧ 設計電流)`
+                });
+            }
+            if (!minWireOk) {
+                ngReasons.push({
+                    item: '最小太さ',
+                    detail: `選定 ${cableSize}mm² < 2.0mm²`,
+                    basis: `電技解釈146条 (低圧屋内配線 最小2.0mm²以上)`
+                });
+            }
+            if (iscResult.available && icStatus === '×') {
+                ngReasons.push({
+                    item: 'IC協調',
+                    detail: `選定Icu ${icUserInput}kA < 想定Isc ${iscResult.IscKA.toFixed(2)}kA`,
+                    basis: `電技解釈149条、内線規程 JEAC8001 1360節 (遮断容量 ≧ 短絡電流)`
+                });
+            }
+            if (relaxInfo && !relaxInfo.exempt) {
+                ngReasons.push({
+                    item: '3m/8m緩和',
+                    detail: relaxInfo.rule || '緩和条件不成立',
+                    basis: `内線規程 JEAC8001 1360節 (幹線分岐の3m/8m緩和規定)`
+                });
+            }
+            if (sourceWarning) {
+                ngReasons.push({
+                    item: '親回路整合',
+                    detail: sourceWarning,
+                    basis: `内線規程 JEAC8001 1310節 (親分岐AT ≧ 子幹線設計電流)`
+                });
+            }
+            if (cableProtStatus === '×') {
+                ngReasons.push({
+                    item: hasMotorLoad ? '電線保護(動力)' : '電線保護(電灯)',
+                    detail: `AT ${breakerAT}A > 上限 ${atUpperLimit.toFixed(0)}A (${atUpperBasisShort})`,
+                    basis: hasMotorLoad
+                        ? `内線規程 JEAC8001 1365-2条・表1365-1、3705-2条 (電動機幹線: AT ≦ min(2.5×Iz, 3×IM+I他))`
+                        : `内線規程 JEAC8001 1360-8表、電技解釈149条 (電線保護: AT ≦ 補正後許容電流)`
+                });
+            }
+            const ngCount = ngReasons.length;
+            const ngTooltipText = ngCount > 0
+                ? ngReasons.map(r => `【${r.item}】${r.detail}\n根拠: ${r.basis}`).join('\n\n')
+                : '規程上の問題なし';
+            const ngHtmlList = ngCount > 0
+                ? ngReasons.map(r =>
+                    `<div style="margin-top:2px;padding:2px 3px;background:#ffebee;border-left:2px solid #d32f2f;font-size:0.56rem;line-height:1.25;">` +
+                    `<b style="color:#c62828;">${r.item}×</b> ${r.detail}<br>` +
+                    `<span style="color:#616161;font-size:0.54rem;">根拠: ${r.basis}</span>` +
+                    `</div>`
+                  ).join('')
+                : '';
 
             row.innerHTML = `
                 <td style="white-space:nowrap;">
@@ -6704,9 +6835,10 @@
                     <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="current" value="${current.toFixed(2)}" readonly />
                 </td>
                 <td>
-                    <select class="feeder-select" data-id="${feeder.id}" data-field="cable_type">
+                    <select class="feeder-select" data-id="${feeder.id}" data-field="cable_type" title="CV:単心撚合 / CVT:トリプレックス / FP:耐火ケーブル(消防用・非常用)">
                         <option value="CV" ${cableType === 'CV' ? 'selected' : ''}>CV</option>
                         <option value="CVT" ${cableType === 'CVT' ? 'selected' : ''}>CVT</option>
+                        <option value="FP" ${cableType === 'FP' ? 'selected' : ''}>FP(耐火)</option>
                     </select>
                 </td>
                 <td style="font-size:0.65rem;">
@@ -6781,11 +6913,17 @@
                 <td>
                     <input type="number" step="0.1" min="0" class="feeder-local" data-id="${feeder.id}" data-field="breaker_icu_ka" value="${icUserInput||''}" placeholder="-" style="width:55px;" title="ブレーカ定格遮断容量 Icu [kA] 未入力ならスキップ" />
                 </td>
-                <td class="auto-calc" style="font-size:0.62rem;text-align:left;min-width:150px;">
+                <td class="auto-calc" style="font-size:0.62rem;text-align:left;min-width:220px;" title="${ngTooltipText.replace(/"/g,'&quot;')}">
                     ${(() => {
                         const badges = [];
                         // 最小太さ
                         if (!minWireOk) badges.push(`<span class="badge badge-ng" title="${minWireNote}">太さ×</span>`);
+                        // 電線保護（AT上限）
+                        if (cableProtStatus === 'OK') {
+                            badges.push(`<span class="badge badge-ok" title="${cableProtTitle.replace(/"/g,'&quot;')}">電線保護${hasMotorLoad?'(動)':'(灯)'}OK</span>`);
+                        } else if (cableProtStatus === '×') {
+                            badges.push(`<span class="badge badge-ng" title="${cableProtTitle.replace(/"/g,'&quot;')}">電線保護${hasMotorLoad?'(動)':'(灯)'}×</span>`);
+                        }
                         // IC
                         if (iscResult.available) {
                             if (icStatus === null) {
@@ -6799,8 +6937,12 @@
                             const bgColor = relaxInfo.exempt ? 'badge-ok' : 'badge-ng';
                             badges.push(`<span class="badge ${bgColor}" title="${relaxInfo.note}">${relaxInfo.rule}</span>`);
                         }
+                        if (ngCount === 0) {
+                            badges.unshift('<span class="badge badge-ok">総合OK</span>');
+                        }
                         return badges.join(' ');
                     })()}
+                    ${ngHtmlList ? `<div style="margin-top:3px;border-top:1px dashed #d32f2f;padding-top:2px;"><div style="font-size:0.56rem;color:#c62828;font-weight:bold;">⚠ NG理由 (${ngCount}件) / 規程根拠</div>${ngHtmlList}</div>` : ''}
                 </td>
                 <td>
                     <input type="number" step="0.1" class="${autoMotorTotalKw ? 'feeder-input' : 'feeder-local'}" data-id="${feeder.id}" data-field="motor_total_kw" value="${motorTotalKw || ''}" placeholder="-" style="width:55px;" ${autoMotorTotalKw ? 'readonly' : ''} />
@@ -7092,12 +7234,32 @@
 
                 // 補正後許容・規定チェック（CSV用）
                 const cableEntryCsv = CABLE_DATA.find(c => c.size === cableSize);
-                const baseAmpCsv = cableEntryCsv ? (cableType === 'CVT' ? cableEntryCsv.cvt : cableEntryCsv.cv) : 0;
+                const baseAmpCsv = cableEntryCsv ? cableEntryCsv[getCableCapacityKey(cableType)] : 0;
                 const ampInfoCsv = calcCorrectedAmpacity(baseAmpCsv, ambientTempCsv, groupingCountCsv, installMethodCsv);
+                const correctedAmpCsv = ampInfoCsv.corrected;
                 const iscResultCsv = calcFeederIscCascade(feeder);
                 const icuCsv = Number(localFeederData[feeder.id]?.breaker_icu_ka) || 0;
                 const checkParts = [];
                 if (cableSize < 2.0) checkParts.push('太さ×');
+                // 電線保護上限（AT ≤ Iz or motor rule）
+                const hasMotorCsv = (Number(motorTotalKw) || 0) > 0;
+                let atUpperCsv = correctedAmpCsv;
+                if (hasMotorCsv) {
+                    const phaseFactorCsv = (phase === '3φ3W') ? Math.sqrt(3) : 1;
+                    const denomCsv = Math.max(1, phaseFactorCsv * voltage * 0.85 * 0.85);
+                    const motorTotalCurrentCsv = (Number(motorTotalKw) || 0) * 1000 / denomCsv;
+                    const nonMotorCurrentCsv = Math.max(0, current - motorTotalCurrentCsv);
+                    const mkw = Number(motorMaxKw) || 0;
+                    let maxImCsv = 0;
+                    if (mkw > 0) {
+                        const rowM = MOTOR_TABLE_3705_1.find(r => r.kw >= mkw) || MOTOR_TABLE_3705_1[MOTOR_TABLE_3705_1.length - 1];
+                        maxImCsv = rowM.current * (mkw / rowM.kw);
+                    }
+                    atUpperCsv = Math.min(2.5 * correctedAmpCsv, 3 * maxImCsv + nonMotorCurrentCsv);
+                }
+                if (breakerAT > 0 && breakerAT > atUpperCsv) {
+                    checkParts.push(`電線保護${hasMotorCsv?'(動)':'(灯)'}×(AT${breakerAT}>${atUpperCsv.toFixed(0)})`);
+                }
                 if (iscResultCsv.available) {
                     if (icuCsv > 0) {
                         checkParts.push(`IC${icuCsv >= iscResultCsv.IscKA ? 'OK' : 'NG'}(Isc≈${iscResultCsv.IscKA.toFixed(1)}kA)`);
