@@ -150,9 +150,11 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: calc(100vw - 1rem);
+            width: calc(100vw - 1rem);
             margin: 2rem auto;
-            padding: 0 2rem;
+            padding: 0 0.5rem;
+            box-sizing: border-box;
         }
 
         .tab-content {
@@ -885,17 +887,141 @@
         }
 
         .feeders-table-wrapper {
-            overflow-x: auto;
+            overflow-x: scroll;   /* 常に横スクロール表示 */
+            overflow-y: visible;
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 0;
+        }
+        /* 画面下に常時表示される横スクロールバー（プロキシ） */
+        .feeders-scroll-proxy {
+            position: sticky;
+            bottom: 0;
+            overflow-x: scroll;
+            overflow-y: hidden;
+            height: 16px;
+            background: rgba(255,255,255,0.98);
+            border-top: 1px solid #bbb;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.08);
+            z-index: 20;
             margin-bottom: 2rem;
         }
+        .feeders-scroll-proxy-inner { height: 1px; }
+        .feeders-scroll-proxy::-webkit-scrollbar {
+            height: 14px;
+            -webkit-appearance: none;
+        }
+        .feeders-scroll-proxy::-webkit-scrollbar-track { background: #e9ecef; }
+        .feeders-scroll-proxy::-webkit-scrollbar-thumb {
+            background: #868e96;
+            border-radius: 6px;
+            border: 2px solid #e9ecef;
+        }
+        .feeders-scroll-proxy::-webkit-scrollbar-thumb:hover { background: #495057; }
 
         .feeders-table {
-            min-width: 2200px;
+            min-width: 2800px;
             border-collapse: collapse;
             font-size: 0.8rem;
+            table-layout: fixed;
+        }
+
+        /* Feeders table 列幅固定 — 文字が切れないように広めに設定 */
+        .feeders-table th:nth-child(1),
+        .feeders-table td:nth-child(1) { width: 70px; min-width: 70px; }   /* 幹線No */
+        .feeders-table th:nth-child(2),
+        .feeders-table td:nth-child(2) { width: 60px; min-width: 60px; }   /* 区分 */
+        .feeders-table th:nth-child(3),
+        .feeders-table td:nth-child(3) { width: 180px; min-width: 180px; } /* 自（起点） */
+        .feeders-table th:nth-child(4),
+        .feeders-table td:nth-child(4) { width: 130px; min-width: 130px; } /* 負荷名称 */
+        .feeders-table th:nth-child(5),
+        .feeders-table td:nth-child(5) { width: 90px; min-width: 90px; }   /* 負荷容量 */
+        .feeders-table th:nth-child(6),
+        .feeders-table td:nth-child(6) { width: 70px; min-width: 70px; }   /* 需要率 */
+        .feeders-table th:nth-child(7),
+        .feeders-table td:nth-child(7) { width: 90px; min-width: 90px; }   /* 需要容量 */
+        .feeders-table th:nth-child(8),
+        .feeders-table td:nth-child(8) { width: 70px; min-width: 70px; }   /* 相 */
+        .feeders-table th:nth-child(9),
+        .feeders-table td:nth-child(9) { width: 70px; min-width: 70px; }   /* 電圧 */
+        .feeders-table th:nth-child(10),
+        .feeders-table td:nth-child(10) { width: 70px; min-width: 70px; }  /* 電流 */
+        .feeders-table th:nth-child(11),
+        .feeders-table td:nth-child(11) { width: 90px; min-width: 90px; }  /* ケーブル種別 */
+        .feeders-table th:nth-child(12),
+        .feeders-table td:nth-child(12) { width: 95px; min-width: 95px; }  /* ケーブル[mm²] */
+        .feeders-table th:nth-child(13),
+        .feeders-table td:nth-child(13) { width: 70px; min-width: 70px; }  /* 周囲温度 */
+        .feeders-table th:nth-child(14),
+        .feeders-table td:nth-child(14) { width: 60px; min-width: 60px; }  /* 条数 */
+        .feeders-table th:nth-child(15),
+        .feeders-table td:nth-child(15) { width: 90px; min-width: 90px; }  /* 許容(補正) */
+        .feeders-table th:nth-child(16),
+        .feeders-table td:nth-child(16) { width: 75px; min-width: 75px; }  /* こう長 */
+        .feeders-table th:nth-child(17),
+        .feeders-table td:nth-child(17) { width: 60px; min-width: 60px; }  /* 力率 */
+        .feeders-table th:nth-child(18),
+        .feeders-table td:nth-child(18) { width: 85px; min-width: 85px; }  /* 電圧降下 */
+        .feeders-table th:nth-child(19),
+        .feeders-table td:nth-child(19) { width: 75px; min-width: 75px; }  /* VD率 */
+        .feeders-table th:nth-child(20),
+        .feeders-table td:nth-child(20) { width: 75px; min-width: 75px; }  /* VD判定 */
+        .feeders-table th:nth-child(21),
+        .feeders-table td:nth-child(21) { width: 105px; min-width: 105px; }/* ブレーカー種別 */
+        .feeders-table th:nth-child(22),
+        .feeders-table td:nth-child(22) { width: 80px; min-width: 80px; }  /* AF */
+        .feeders-table th:nth-child(23),
+        .feeders-table td:nth-child(23) { width: 80px; min-width: 80px; }  /* AT */
+        .feeders-table th:nth-child(24),
+        .feeders-table td:nth-child(24) { width: 75px; min-width: 75px; }  /* AT判定 */
+        .feeders-table th:nth-child(25),
+        .feeders-table td:nth-child(25) { width: 115px; min-width: 115px; }/* 施設場所 */
+        .feeders-table th:nth-child(26),
+        .feeders-table td:nth-child(26) { width: 75px; min-width: 75px; }  /* Icu */
+        .feeders-table th:nth-child(27),
+        .feeders-table td:nth-child(27) { width: 200px; min-width: 200px; white-space: normal; }/* 規定チェック */
+        .feeders-table th:nth-child(28),
+        .feeders-table td:nth-child(28) { width: 85px; min-width: 85px; }  /* 動力合計kW */
+        .feeders-table th:nth-child(29),
+        .feeders-table td:nth-child(29) { width: 90px; min-width: 90px; }  /* 最大電動機kW */
+        .feeders-table th:nth-child(30),
+        .feeders-table td:nth-child(30) { width: 90px; min-width: 90px; }  /* 内線規程AT */
+        .feeders-table th:nth-child(31),
+        .feeders-table td:nth-child(31) { width: 150px; min-width: 150px; }/* 至（行先） */
+        .feeders-table th:nth-child(32),
+        .feeders-table td:nth-child(32) { width: 70px; min-width: 70px; }  /* 操作 */
+
+        /* 常時横スクロールバーを表示（Webkit） */
+        .panels-table-wrapper,
+        .circuits-table-wrapper,
+        .feeders-table-wrapper {
+            overflow-x: scroll !important;
+            scrollbar-width: auto; /* Firefox */
+        }
+        .panels-table-wrapper::-webkit-scrollbar,
+        .circuits-table-wrapper::-webkit-scrollbar,
+        .feeders-table-wrapper::-webkit-scrollbar {
+            height: 14px;
+            -webkit-appearance: none;
+        }
+        .panels-table-wrapper::-webkit-scrollbar-track,
+        .circuits-table-wrapper::-webkit-scrollbar-track,
+        .feeders-table-wrapper::-webkit-scrollbar-track {
+            background: #e9ecef;
+        }
+        .panels-table-wrapper::-webkit-scrollbar-thumb,
+        .circuits-table-wrapper::-webkit-scrollbar-thumb,
+        .feeders-table-wrapper::-webkit-scrollbar-thumb {
+            background: #868e96;
+            border-radius: 6px;
+            border: 2px solid #e9ecef;
+        }
+        .panels-table-wrapper::-webkit-scrollbar-thumb:hover,
+        .circuits-table-wrapper::-webkit-scrollbar-thumb:hover,
+        .feeders-table-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #495057;
         }
 
         .feeders-table thead {
@@ -1732,7 +1858,7 @@
                         <div id="systemDiagramBody" style="flex:1;overflow:auto;padding:1rem;font-family:'Hiragino Sans','Meiryo',sans-serif;font-size:0.82rem;line-height:1.5;background:#fafafa;"></div>
                     </div>
                 </div>
-                <div class="feeders-table-wrapper">
+                <div class="feeders-table-wrapper" id="feedersTableWrapper">
                     <table class="feeders-table" id="feedersTable">
                         <thead>
                             <tr>
@@ -1773,6 +1899,7 @@
                         <tbody id="feedersTableBody"></tbody>
                     </table>
                 </div>
+                <div class="feeders-scroll-proxy" id="feedersScrollProxy"><div class="feeders-scroll-proxy-inner" id="feedersScrollProxyInner"></div></div>
                 <div class="calculation-basis">
                     <h3>計算根拠・使い方</h3>
                     <dl style="font-size:0.9rem;line-height:1.6;">
@@ -3034,7 +3161,9 @@
             // 横スクロール同期（画面下に常時表示されるプロキシバー）
             setupScrollProxy();
             setupPanelsScrollProxy();
+            setupFeedersScrollProxy();
             window.addEventListener('resize', syncScrollProxyWidth);
+            window.addEventListener('resize', syncFeedersScrollProxyWidth);
 
             // 画面上に浮かせるヘッダー（縦スクロール時も列名が残る）
             setupFloatingHeader();
@@ -3615,6 +3744,35 @@
             const wrapper = document.getElementById('panelsTableWrapper');
             const inner = document.getElementById('panelsScrollProxyInner');
             const table = document.getElementById('panelsTable');
+            if (!wrapper || !inner || !table) return;
+            inner.style.width = table.scrollWidth + 'px';
+        }
+
+        // 幹線一覧用 横スクロール プロキシ
+        function setupFeedersScrollProxy() {
+            const wrapper = document.getElementById('feedersTableWrapper');
+            const proxy = document.getElementById('feedersScrollProxy');
+            if (!wrapper || !proxy) return;
+            let syncing = false;
+            proxy.addEventListener('scroll', () => {
+                if (syncing) return;
+                syncing = true;
+                wrapper.scrollLeft = proxy.scrollLeft;
+                syncing = false;
+            });
+            wrapper.addEventListener('scroll', () => {
+                if (syncing) return;
+                syncing = true;
+                proxy.scrollLeft = wrapper.scrollLeft;
+                syncing = false;
+            });
+            syncFeedersScrollProxyWidth();
+        }
+
+        function syncFeedersScrollProxyWidth() {
+            const wrapper = document.getElementById('feedersTableWrapper');
+            const inner = document.getElementById('feedersScrollProxyInner');
+            const table = document.getElementById('feedersTable');
             if (!wrapper || !inner || !table) return;
             inner.style.width = table.scrollWidth + 'px';
         }
@@ -5571,14 +5729,28 @@
                 return              { allowed: 6, basis: '200m超',          sourceClass: '事業者引込', note: '内線規程 表1310-1' };
             }
         }
-        // 分岐回路から引かれている子幹線を探す（1対1想定）
+        // 分岐回路から引かれている子幹線を探す（1対1想定。複数リンクがある場合は親カテゴリ一致を優先）
         function findFeederFromBranch(circuitId) {
             if (!circuitId) return null;
-            for (const f of allFeeders) {
+            const linked = allFeeders.filter(f => {
                 const s = getFeederSource(f.id);
-                if (s.type === 'branch' && s.circuitId === circuitId) return f;
+                return s.type === 'branch' && s.circuitId === circuitId;
+            });
+            if (linked.length === 0) return null;
+            if (linked.length === 1) return linked[0];
+            // 複数ある場合は親回路のカテゴリに一致するものを優先
+            const parent = allCircuits.find(c => c.id === circuitId);
+            if (parent) {
+                let pCat = parent.category || '';
+                if (!pCat) {
+                    const pPanel = allPanels.find(p => p.name === parent.panel_name);
+                    pCat = (pPanel?.elec_type === '3φ3W') ? '動力' : '電灯';
+                }
+                const getCategory = (f) => (localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯');
+                const matching = linked.find(f => getCategory(f) === pCat);
+                if (matching) return matching;
             }
-            return null;
+            return linked[0];
         }
 
         // 幹線の需要容量 [kVA] を計算（getLoadCapacity × demand_factor）
@@ -5900,6 +6072,7 @@
 
                 // 2) 分岐回路と子幹線のリンク
                 // 同じ盤名で電灯／動力の2幹線がある場合、親回路のカテゴリに一致する方を選ぶ
+                let unlinkCount = 0;
                 for (const circuit of allCircuits) {
                     if (circuit.symbol !== '分岐') continue;
                     const downstreamName = (circuit.load_name || '').trim();
@@ -5921,6 +6094,17 @@
                     const getCategory = (f) => (localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯');
                     let childFeeder = candidates.find(f => getCategory(f) === parentCategory);
                     if (!childFeeder) childFeeder = candidates[0];
+                    // この親回路に誤って紐付いている他の feeder を解除（1対1を保証）
+                    for (const f of allFeeders) {
+                        if (f.id === childFeeder.id) continue;
+                        const s = getFeederSource(f.id);
+                        if (s.type === 'branch' && s.circuitId === circuit.id) {
+                            if (!localFeederData[f.id]) localFeederData[f.id] = {};
+                            localFeederData[f.id].source_type = 'cubicle';
+                            localFeederData[f.id].source_circuit_id = null;
+                            unlinkCount++;
+                        }
+                    }
                     // 既にこの親にリンク済みならスキップ
                     const currentSrc = getFeederSource(childFeeder.id);
                     if (currentSrc.type === 'branch' && currentSrc.circuitId === circuit.id) continue;
@@ -5934,7 +6118,7 @@
                 if (typeof syncAllBranchFeeders === 'function') await syncAllBranchFeeders();
                 await loadFeeders();
                 await renderFeeders();
-                alert(`自動反映が完了しました。\n\n・新規幹線作成: ${createdCount} 件\n・親分岐リンク: ${linkedCount} 件`);
+                alert(`自動反映が完了しました。\n\n・新規幹線作成: ${createdCount} 件\n・親分岐リンク: ${linkedCount} 件\n・誤リンク解除: ${unlinkCount} 件`);
             } catch (e) {
                 console.error('autoSyncFeedersFromPanelsAndCircuits:', e);
                 alert('自動反映中にエラーが発生しました: ' + (e.message || e));
@@ -5975,14 +6159,14 @@
                 if (lightingFeeders.length > 0 || motorFeeders.length > 0 || filtered.length === 0) {
                     if (lightingFeeders.length > 0 || (motorFeeders.length === 0 && filtered.length === 0)) {
                         const headerRow1 = document.createElement('tr');
-                        headerRow1.innerHTML = `<td colspan="26" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯幹線（親→子をツリー表示）</td>`;
+                        headerRow1.innerHTML = `<td colspan="32" style="background:#e3f2fd;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚡ 電灯幹線（親→子をツリー表示）</td>`;
                         tbody.appendChild(headerRow1);
                         renderTreeGroup(lightingFeeders);
                     }
 
                     if (motorFeeders.length > 0) {
                         const headerRow2 = document.createElement('tr');
-                        headerRow2.innerHTML = `<td colspan="26" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力幹線（親→子をツリー表示）</td>`;
+                        headerRow2.innerHTML = `<td colspan="32" style="background:#fff3e0;font-weight:bold;padding:0.5rem;font-size:0.9rem;">⚙ 動力幹線（親→子をツリー表示）</td>`;
                         tbody.appendChild(headerRow2);
                         renderTreeGroup(motorFeeders);
                     }
@@ -5990,6 +6174,9 @@
             } else {
                 renderTreeGroup(filtered);
             }
+
+            // 横スクロールプロキシ幅同期
+            if (typeof syncFeedersScrollProxyWidth === 'function') syncFeedersScrollProxyWidth();
         }
 
         function createFeederRow(feeder, rowNumber, treeInfo) {
