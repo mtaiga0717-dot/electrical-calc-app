@@ -958,7 +958,7 @@
         .feeders-table th:nth-child(14),
         .feeders-table td:nth-child(14) { width: 60px; min-width: 60px; }  /* 条数 */
         .feeders-table th:nth-child(15),
-        .feeders-table td:nth-child(15) { width: 90px; min-width: 90px; }  /* 許容(補正) */
+        .feeders-table td:nth-child(15) { width: 160px; min-width: 160px; }  /* 許容(補正)＋敷設 */
         .feeders-table th:nth-child(16),
         .feeders-table td:nth-child(16) { width: 75px; min-width: 75px; }  /* こう長 */
         .feeders-table th:nth-child(17),
@@ -1901,9 +1901,9 @@
                                 <th>電流[A]</th>
                                 <th>ケーブル種別</th>
                                 <th>ケーブル[mm²]</th>
-                                <th title="周囲温度[℃]（内線規程1340-3）">周囲温度</th>
-                                <th title="同一経路条数（内線規程1340-4）">条数</th>
-                                <th title="補正後許容電流 = 基準値 × 温度k × 条数k">許容(補正)</th>
+                                <th title="周囲温度[℃]（内線規程 JEAC8001 1340-3表）">周囲温度</th>
+                                <th title="同一経路条数（内線規程 JEAC8001 1340-3表）">条数</th>
+                                <th title="許容(補正後) = 基準値 × 温度k × 条数k × 敷設k&#10;セル内の敷設方法プルダウンで方法切替&#10;(内線規程 JEAC8001 1340-1/3/6表)">許容(補正)＋敷設</th>
                                 <th>こう長[m]</th>
                                 <th>力率</th>
                                 <th>電圧降下[V]</th>
@@ -2030,12 +2030,17 @@
                             ・<b>🔀 幹線分岐（他盤タップ）</b>：他盤の回路DBにある「記号=分岐」からタップした子幹線（親分岐回路のAT超過を自動チェック）
                         </dd>
 
-                        <dt style="margin-top:0.8rem;"><strong>⑧ 【2026-04追加】周囲温度・条数補正による許容電流 — 内線規程 1340-3／1340-4</strong></dt>
+                        <dt style="margin-top:0.8rem;"><strong>⑧ 敷設方法・周囲温度・条数補正による許容電流 — 内線規程 JEAC8001 1340-1／1340-3／1340-6</strong></dt>
                         <dd>
-                            ケーブル基準許容電流は<b>周囲温度30℃</b>かつ<b>単独配線</b>を前提としています。実際の施工では以下の補正が必要です（電技解釈149条 解釈別表準拠）：<br>
-                            <b>・周囲温度補正 k₁</b>：25℃→1.04 / 30℃→1.00 / 35℃→0.96 / 40℃→0.91 / 45℃→0.87 / 50℃→0.82 / 55℃→0.76 / 60℃→0.71<br>
-                            <b>・条数低減 k₂</b>：1〜3条→1.00 / 4〜6条→0.70 / 7〜15条→0.63 / 16〜40条→0.56 / 41条以上→0.50<br>
-                            <b>補正後許容電流 = 基準値 × k₁ × k₂</b>。テーブル「周囲温度」「条数」列に入力すると、自動でケーブル選定に反映し「許容(補正)」列に補正後の許容電流を表示、電流を下回る場合は赤バッジで警告します。
+                            ケーブル基準許容電流（CABLE_DATA の cv/cvt 列）は<b>ケーブル工事・空中単独布設／ラック単段整列</b>かつ<b>周囲温度30℃</b>を前提としています。実際の施工では敷設方法・周囲温度・条数を反映した3段の補正が必要です（電技解釈149条 解釈別表準拠）：<br>
+                            <b>・周囲温度補正 k_t</b>（1340-3表）：25℃→1.04 / 30℃→1.00 / 35℃→0.96 / 40℃→0.91 / 45℃→0.87 / 50℃→0.82 / 55℃→0.76 / 60℃→0.71<br>
+                            <b>・多条布設低減 k_g</b>（1340-3表, 敷設方法別）：<br>
+                            &emsp;◦ ラック単段整列 / 間隔≥2D ： 1〜3条→1.00〜0.90 / 6条→0.86 / 12条→0.82（IEC 60364-5-52 近似）<br>
+                            &emsp;◦ ラック束ね・天井隠蔽ころがし ： 1条→1.00 / 3条→0.85 / 6条→0.75 / 9条→0.70 / 15条→0.63 / 40条→0.56<br>
+                            &emsp;◦ 金属管 / 合成樹脂管 / 金属ダクト ： 1条→1.00 / 3条→0.70 / 6条→0.63 / 15条→0.56 / 40条→0.50<br>
+                            &emsp;◦ 地中埋設 ： 1条→1.00 / 3条→0.75 / 6条→0.60（JEAC 1340-6表 簡略, 間隔0.5m/土壌熱抵抗1.0m·K/W 近似）<br>
+                            <b>・敷設方法補正 k_m</b>（1340-1表）：空中ラック単段=1.00 / ラック束ね=0.95 / 天井隠蔽=0.90 / 金属ダクト=0.85 / 金属管=0.85 / 合成樹脂管=0.80 / 地中直埋=0.78 / 地中管路=0.72<br>
+                            <b>補正後許容電流 = 基準値 × k_t × k_g × k_m</b>。テーブル「周囲温度」「条数」「許容(補正)＋敷設」列（セル内の緑色プルダウンで敷設方法選択）に入力すると自動でケーブル選定に反映し、電流を下回る場合は赤バッジで警告します。
                         </dd>
 
                         <dt style="margin-top:0.8rem;"><strong>⑨ 【2026-04追加】最小太さ・ELCB施設要否・接地工事・短絡協調・3m/8m緩和</strong></dt>
@@ -2664,36 +2669,110 @@
             return best.k;
         }
 
-        // ② 同一金属管・ケーブルラック内条数低減（内線規程 1340-4表）
-        function getGroupingK(count) {
-            const n = Number(count) || 1;
-            if (n <= 1) return 1.00;
-            if (n <= 2) return 1.00;
-            if (n <= 3) return 1.00;
-            if (n <= 6) return 0.70;
-            if (n <= 15) return 0.63;
-            if (n <= 40) return 0.56;
-            return 0.50;
+        // ② 敷設方法・多条布設低減（内線規程 JEAC8001-2016 1340-1表・1340-3表・1340-6表）
+        //
+        // 設計方針:
+        //  CABLE_DATA の cv/cvt は「ケーブル工事 空中単独布設／ラック単段整列」時の基準値。
+        //  これを method ごとの kBase で補正し、さらに method ごとの条数低減テーブル k_group を掛ける。
+        //  地中埋設(1340-6表)は間隔0.5m/土壌熱抵抗1.0m·K/W/地中25℃ 近似として扱う。
+        //  正確性より実務十分な値域を優先し、ツールチップで全係数を開示する。
+        const INSTALL_METHODS = [
+            { key: 'rack_single',         label: 'ケーブル工事(空中単独/ラック単段整列)', kBase: 1.00, groupingTable: 'rack' },
+            { key: 'rack_bundle',         label: 'ケーブル工事(ラック束ね)',             kBase: 0.95, groupingTable: 'bundle' },
+            { key: 'hidden_ceiling',      label: 'ケーブル工事(天井隠蔽・ころがし)',     kBase: 0.90, groupingTable: 'bundle' },
+            { key: 'conduit_metal',       label: '金属管工事',                           kBase: 0.85, groupingTable: 'conduit' },
+            { key: 'conduit_plastic',     label: '合成樹脂管工事(PF/CD/VE/HIVE)',        kBase: 0.80, groupingTable: 'conduit' },
+            { key: 'duct_metal',          label: '金属ダクト/暗渠',                      kBase: 0.85, groupingTable: 'conduit' },
+            { key: 'underground_conduit', label: '地中管路式埋設',                       kBase: 0.72, groupingTable: 'underground' },
+            { key: 'underground_direct',  label: '地中直接埋設',                         kBase: 0.78, groupingTable: 'underground' }
+        ];
+
+        // 方法別 多条補正テーブル
+        //  rack      : ラック単段 or 間隔≥2D (IEC 60364-5-52 Table B.52.20 近似)
+        //  bundle    : ラック束ね / 天井ころがし (JEAC 1340-3表 中間側)
+        //  conduit   : 金属管・樹脂管・ダクト内 (JEAC 1340-3表 厳しい側)
+        //  underground : 地中埋設 (JEAC 1340-6表 簡略 / 管路間隔0.5m)
+        const GROUPING_TABLES = {
+            rack: [
+                { n: 1,  k: 1.00 },
+                { n: 2,  k: 0.95 },
+                { n: 3,  k: 0.90 },
+                { n: 4,  k: 0.88 },
+                { n: 6,  k: 0.86 },
+                { n: 9,  k: 0.84 },
+                { n: 12, k: 0.82 },
+                { n: 99, k: 0.80 }
+            ],
+            bundle: [
+                { n: 1,  k: 1.00 },
+                { n: 3,  k: 0.85 },
+                { n: 6,  k: 0.75 },
+                { n: 9,  k: 0.70 },
+                { n: 15, k: 0.63 },
+                { n: 40, k: 0.56 },
+                { n: 99, k: 0.50 }
+            ],
+            conduit: [
+                { n: 1,  k: 1.00 },
+                { n: 3,  k: 0.70 },
+                { n: 6,  k: 0.63 },
+                { n: 15, k: 0.56 },
+                { n: 40, k: 0.50 },
+                { n: 99, k: 0.45 }
+            ],
+            underground: [
+                { n: 1,  k: 1.00 },
+                { n: 2,  k: 0.85 },
+                { n: 3,  k: 0.75 },
+                { n: 4,  k: 0.68 },
+                { n: 6,  k: 0.60 },
+                { n: 99, k: 0.55 }
+            ]
+        };
+
+        function getInstallMethodInfo(methodKey) {
+            return INSTALL_METHODS.find(m => m.key === methodKey) || INSTALL_METHODS[0];
         }
 
-        // 補正後許容電流を算出
-        function calcCorrectedAmpacity(baseAmpacity, ambientTemp, groupingCount) {
+        // 旧 API (後方互換): method 無指定のときは rack_single とみなす
+        function getGroupingK(count, methodKey) {
+            const m = getInstallMethodInfo(methodKey || 'rack_single');
+            const table = GROUPING_TABLES[m.groupingTable] || GROUPING_TABLES.rack;
+            const n = Math.max(1, Math.floor(Number(count) || 1));
+            for (const row of table) {
+                if (n <= row.n) return row.k;
+            }
+            return table[table.length - 1].k;
+        }
+
+        // 補正後許容電流を算出（敷設方法対応版）
+        // I_allow = I_base × k_temp × k_group(method) × k_method
+        // 地中埋設は周囲25℃近似として温度補正は適用するが、より正確には 1340-6 表に従うべき
+        function calcCorrectedAmpacity(baseAmpacity, ambientTemp, groupingCount, installMethod) {
+            const methodInfo = getInstallMethodInfo(installMethod || 'rack_single');
             const kt = getAmbientTempK(ambientTemp);
-            const kg = getGroupingK(groupingCount);
+            const kg = getGroupingK(groupingCount, methodInfo.key);
+            const kMethod = methodInfo.kBase;
             return {
-                corrected: baseAmpacity * kt * kg,
+                corrected: baseAmpacity * kt * kg * kMethod,
                 kTemp: kt,
-                kGroup: kg
+                kGroup: kg,
+                kMethod: kMethod,
+                methodKey: methodInfo.key,
+                methodLabel: methodInfo.label
             };
         }
 
-        // 補正込み最適ケーブルサイズ選定
-        function selectCableSizeCorrected(current, cableType, ambientTemp, groupingCount) {
+        // 補正込み最適ケーブルサイズ選定（敷設方法対応版）
+        function selectCableSizeCorrected(current, cableType, ambientTemp, groupingCount, installMethod) {
             const capacity = cableType === 'CV' ? 'cv' : 'cvt';
+            const methodInfo = getInstallMethodInfo(installMethod || 'rack_single');
             const kt = getAmbientTempK(ambientTemp);
-            const kg = getGroupingK(groupingCount);
+            const kg = getGroupingK(groupingCount, methodInfo.key);
+            const kMethod = methodInfo.kBase;
+            const k = kt * kg * kMethod;
             for (let i = 0; i < CABLE_DATA.length; i++) {
-                if (CABLE_DATA[i][capacity] * kt * kg >= current) {
+                if (CABLE_DATA[i][capacity] * k >= current) {
                     return CABLE_DATA[i].size;
                 }
             }
@@ -3400,14 +3479,17 @@
                     rerenderRow(el);
                 });
 
-                // 確定時: 最終値をもう一度保存して再描画（念のため）
+                // 確定時: 最終値をもう一度保存して再描画＋幹線計算側へ同期
                 tbody.addEventListener('change', (e) => {
                     const el = e.target;
                     if (!el.classList || !el.classList.contains('panel-demand-rate-input')) return;
                     const n = Number(el.value);
                     if (isNaN(n)) return;
-                    setDemandRate(el.dataset.panelName, Math.max(0, Math.min(200, n)));
+                    const clamped = Math.max(0, Math.min(200, n));
+                    setDemandRate(el.dataset.panelName, clamped);
                     rerenderRow(el);
+                    // 幹線計算の対応幹線にも同期
+                    syncFeedersDemandFromPanel(el.dataset.panelName, clamped);
                 });
             }
 
@@ -4033,6 +4115,58 @@
             try { localStorage.setItem(DEMAND_STORAGE_PREFIX + panelName, String(rate)); } catch (_) {}
         }
 
+        // ===== 盤一覧 需要率 ⇔ 幹線計算 demand_factor 連動 =====
+        // 根拠: 内線規程 JEAC8001 1305-1 / 1310 / 1365 — 分電盤の主幹は幹線の終端であり、
+        //   幹線需要率と盤主幹選定用の需要率は同一値であるべき。
+        function findFeedersByPanelName(panelName) {
+            if (!panelName) return [];
+            return (allFeeders || []).filter(f => f.load_name === panelName);
+        }
+
+        // 盤一覧側で需要率を変更した際に、対応する幹線(feeders)の demand_factor も同期更新
+        async function syncFeedersDemandFromPanel(panelName, rate) {
+            try {
+                const targets = findFeedersByPanelName(panelName);
+                if (!targets.length) return;
+                const clamped = Math.max(0, Math.min(200, Math.round(Number(rate) || 0)));
+                let changed = false;
+                for (const f of targets) {
+                    if (Number(f.demand_factor) === clamped) continue;
+                    const { error } = await db.from('feeders').update({ demand_factor: clamped }).eq('id', f.id);
+                    if (error) { console.error('feeder demand sync error:', error); continue; }
+                    f.demand_factor = clamped;
+                    changed = true;
+                }
+                if (changed) {
+                    await loadFeeders();
+                    if (typeof renderFeeders === 'function') {
+                        try { await renderFeeders(); } catch (_) {}
+                    }
+                    try { await updateTransformerCalculation(); } catch (_) {}
+                }
+            } catch (e) {
+                console.error('syncFeedersDemandFromPanel:', e);
+            }
+        }
+
+        // 幹線計算側で demand_factor を変更した際に、盤一覧の localStorage 需要率も同期
+        function syncPanelDemandFromFeeder(feeder) {
+            try {
+                if (!feeder || !feeder.load_name) return;
+                const panel = (allPanels || []).find(p => p.name === feeder.load_name);
+                if (!panel) return;
+                const rate = Math.max(0, Math.min(200, Number(feeder.demand_factor) || 0));
+                const cur = getDemandRate(panel.name);
+                if (cur === rate) return;
+                setDemandRate(panel.name, rate);
+                // 盤一覧/回路DBサマリーが描画済みなら更新
+                try { if (typeof renderPanels === 'function') renderPanels(); } catch (_) {}
+                try { renderPanelFilterSummary(panel.name); } catch (_) {}
+            } catch (e) {
+                console.error('syncPanelDemandFromFeeder:', e);
+            }
+        }
+
         // 盤フィルタ適用時の合計容量サマリーを描画
         function renderPanelFilterSummary(panelName) {
             const box = document.getElementById('panelFilterSummary');
@@ -4249,13 +4383,21 @@
                         const v = e.target.value;
                         if (v === 'custom') { customInpM.focus(); return; }
                         const n = Number(v);
-                        if (!isNaN(n)) { setDemandRate(panelName, n); renderPanelFilterSummary(panelName); }
+                        if (!isNaN(n)) {
+                            setDemandRate(panelName, n);
+                            renderPanelFilterSummary(panelName);
+                            syncFeedersDemandFromPanel(panelName, n);
+                        }
                     });
                 }
                 if (customInpM) {
                     customInpM.addEventListener('change', (e) => {
                         const n = Number(e.target.value);
-                        if (!isNaN(n)) { setDemandRate(panelName, n); renderPanelFilterSummary(panelName); }
+                        if (!isNaN(n)) {
+                            setDemandRate(panelName, n);
+                            renderPanelFilterSummary(panelName);
+                            syncFeedersDemandFromPanel(panelName, n);
+                        }
                     });
                     customInpM.addEventListener('input', (e) => {
                         const n = Number(e.target.value);
@@ -4397,6 +4539,7 @@
                     if (!isNaN(n)) {
                         setDemandRate(panelName, n);
                         renderPanelFilterSummary(panelName);
+                        syncFeedersDemandFromPanel(panelName, n);
                     }
                 });
             }
@@ -4406,6 +4549,7 @@
                     if (!isNaN(n)) {
                         setDemandRate(panelName, n);
                         renderPanelFilterSummary(panelName);
+                        syncFeedersDemandFromPanel(panelName, n);
                     }
                 });
                 customInp.addEventListener('input', (e) => {
@@ -6369,11 +6513,12 @@
             }
 
             const cableType = feeder.cable_type || 'CV';
-            // 【規定拡充①】周囲温度・条数補正を考慮したケーブル選定
+            // 【規定拡充①】周囲温度・条数・敷設方法を考慮したケーブル選定
             const ambientTemp = Number(localFeederData[feeder.id]?.ambient_temp) || 30;
             const groupingCount = Number(localFeederData[feeder.id]?.grouping_count) || 1;
+            const installMethod = localFeederData[feeder.id]?.install_method || 'rack_single';
             // 計算値（自動）と実選定値（ユーザー指定）を並存させ、採用側を適用する
-            const cableSizeCalc = selectCableSizeCorrected(current, cableType, ambientTemp, groupingCount);
+            const cableSizeCalc = selectCableSizeCorrected(current, cableType, ambientTemp, groupingCount, installMethod);
             const cableSizeManual = Number(feeder.cable_size) || 0;
             const cableAdopt = localFeederData[feeder.id]?.cable_adopt || 'calc'; // 'calc' | 'manual'
             const cableSize = (cableAdopt === 'manual' && cableSizeManual > 0) ? cableSizeManual : cableSizeCalc;
@@ -6432,12 +6577,12 @@
             }
 
             // ================== 【規定拡充】追加判定 ==================
-            // ① 補正後許容電流チェック
+            // ① 補正後許容電流チェック（敷設方法・周囲温度・条数を反映）
             const baseAmp = cableCapacity || 0;
-            const ampInfo = calcCorrectedAmpacity(baseAmp, ambientTemp, groupingCount);
+            const ampInfo = calcCorrectedAmpacity(baseAmp, ambientTemp, groupingCount, installMethod);
             const correctedAmp = ampInfo.corrected;
             const ampStatus = (correctedAmp >= current) ? 'OK' : '×';
-            const ampTitle = `基準${baseAmp}A × 温度k=${ampInfo.kTemp.toFixed(2)} × 条数k=${ampInfo.kGroup.toFixed(2)} = ${correctedAmp.toFixed(1)}A\n(内線規程1340-3表 周囲温度補正 / 1340-4表 条数低減)`;
+            const ampTitle = `基準${baseAmp}A × 温度k=${ampInfo.kTemp.toFixed(2)} × 条数k=${ampInfo.kGroup.toFixed(2)} × 敷設k=${ampInfo.kMethod.toFixed(2)} = ${correctedAmp.toFixed(1)}A\n敷設方法: ${ampInfo.methodLabel}\n(内線規程 JEAC8001 1340-1表/1340-3表/1340-6表)`;
 
             // ② 最小太さ（電技解釈146条）— 低圧屋内配線 CVは2.0mm²以上が実務最小
             const minWireOk = (cableSize >= 2.0);
@@ -6460,10 +6605,11 @@
                     if (parentFeeder) {
                         const parentAmbT = Number(localFeederData[parentFeeder.id]?.ambient_temp) || 30;
                         const parentGrpC = Number(localFeederData[parentFeeder.id]?.grouping_count) || 1;
-                        const parentSize = Number(parentFeeder.cable_size) || selectCableSizeCorrected(0, parentFeeder.cable_type || 'CV', parentAmbT, parentGrpC);
+                        const parentMethod = localFeederData[parentFeeder.id]?.install_method || 'rack_single';
+                        const parentSize = Number(parentFeeder.cable_size) || selectCableSizeCorrected(0, parentFeeder.cable_type || 'CV', parentAmbT, parentGrpC, parentMethod);
                         const parentEntry = CABLE_DATA.find(c => c.size === parentSize);
                         const parentBaseAmp = parentEntry ? (parentFeeder.cable_type === 'CVT' ? parentEntry.cvt : parentEntry.cv) : 0;
-                        const parentCorrected = calcCorrectedAmpacity(parentBaseAmp, parentAmbT, parentGrpC).corrected;
+                        const parentCorrected = calcCorrectedAmpacity(parentBaseAmp, parentAmbT, parentGrpC, parentMethod).corrected;
                         const relaxLen = Number(localFeederData[feeder.id]?.branch_len_for_relax) || length;
                         relaxInfo = judgeBranch3m8mRelax(parentCorrected, correctedAmp, relaxLen);
                     }
@@ -6514,7 +6660,7 @@
                     <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="load_capacity" value="${capacity.toFixed(2)}" ${capacityEditable ? `style="background-color:#fff3e0;" title="手入力 (盤/機器自動集計に一致する負荷がないため)"` : 'readonly title="盤/機器から自動集計"'} />
                 </td>
                 <td>
-                    <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="demand_factor" value="${demandFactor}" min="0" max="100" />
+                    <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="demand_factor" value="${demandFactor}" min="0" max="200" title="盤一覧の需要率と連動 (内線規程 JEAC8001 1305-1)" />
                 </td>
                 <td>
                     <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="demand_capacity" value="${demandCapacity.toFixed(2)}" readonly />
@@ -6562,7 +6708,10 @@
                 </td>
                 <td class="auto-calc" title="${ampTitle}">
                     <span class="badge ${ampStatus === 'OK' ? 'badge-ok' : 'badge-ng'}" style="font-size:0.68rem;">${correctedAmp.toFixed(0)}A</span>
-                    <div style="font-size:0.58rem;color:#666;margin-top:1px;">基${baseAmp}×${ampInfo.kTemp.toFixed(2)}×${ampInfo.kGroup.toFixed(2)}</div>
+                    <div style="font-size:0.55rem;color:#666;margin-top:1px;">基${baseAmp}×kt${ampInfo.kTemp.toFixed(2)}×kg${ampInfo.kGroup.toFixed(2)}×km${ampInfo.kMethod.toFixed(2)}</div>
+                    <select class="feeder-local" data-id="${feeder.id}" data-field="install_method" style="font-size:0.58rem;margin-top:2px;width:100%;background-color:#e8f5e9;" title="敷設方法 (JEAC8001 1340-1表)">
+                        ${INSTALL_METHODS.map(m => `<option value="${m.key}" ${m.key===installMethod?'selected':''}>${m.label}</option>`).join('')}
+                    </select>
                 </td>
                 <td>
                     <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="cable_length" value="${length}" min="0" />
@@ -6671,7 +6820,7 @@
             let value = element.value;
 
             // Local-only fields - don't send to DB
-            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw', 'source_type', 'source_circuit_id', 'source_transformer_id', 'ambient_temp', 'grouping_count', 'breaker_icu_ka', 'branch_len_for_relax', 'cable_adopt', 'breaker_adopt'];
+            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw', 'source_type', 'source_circuit_id', 'source_transformer_id', 'ambient_temp', 'grouping_count', 'breaker_icu_ka', 'branch_len_for_relax', 'cable_adopt', 'breaker_adopt', 'install_method'];
 
             if (LOCAL_ONLY_FIELDS.includes(field)) {
                 if (!localFeederData[feederId]) localFeederData[feederId] = {};
@@ -6738,6 +6887,11 @@
                     await syncParentBranchFromFeeder(feederId);
                     await loadCircuits();
                 }
+                // 幹線の demand_factor を直接編集した場合は盤一覧の需要率へ同期
+                if (field === 'demand_factor') {
+                    const updated = (allFeeders || []).find(f => f.id === feederId);
+                    if (updated) syncPanelDemandFromFeeder(updated);
+                }
                 await renderFeeders();
                 await updateTransformerCalculation();
             } catch (error) {
@@ -6761,7 +6915,7 @@
             } else {
                 // For string fields like feeder_no, feeder_category, source_type store as-is
                 // For numeric fields like motor_total_kw, motor_max_kw, source_circuit_id parse as number
-                if (field === 'feeder_no' || field === 'feeder_category' || field === 'source_type' || field === 'source_transformer_id' || field === 'cable_adopt' || field === 'breaker_adopt') {
+                if (field === 'feeder_no' || field === 'feeder_category' || field === 'source_type' || field === 'source_transformer_id' || field === 'cable_adopt' || field === 'breaker_adopt' || field === 'install_method') {
                     localFeederData[feederId][field] = value;
                 } else if (field === 'source_circuit_id') {
                     localFeederData[feederId][field] = parseInt(value) || null;
@@ -6849,7 +7003,7 @@
         }
 
         function exportFeedersCsv() {
-            const headers = ['幹線No', '区分', '自（起点）', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', '周囲温度[℃]', '条数', '許容(補正後)[A]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', 'Icu[kA]', '規定チェック', '動力合計kW', '最大電動機kW', '内線規程AT', '至（行先）'];
+            const headers = ['幹線No', '区分', '自（起点）', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', '周囲温度[℃]', '条数', '敷設方法', '許容(補正後)[A]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', 'Icu[kA]', '規定チェック', '動力合計kW', '最大電動機kW', '内線規程AT', '至（行先）'];
             const rows = [headers.join(',')];
 
             allFeeders.forEach((feeder, index) => {
@@ -6876,7 +7030,8 @@
                 const cableType = feeder.cable_type || 'CV';
                 const ambientTempCsv = Number(localFeederData[feeder.id]?.ambient_temp) || 30;
                 const groupingCountCsv = Number(localFeederData[feeder.id]?.grouping_count) || 1;
-                const cableSizeCalcCsv = selectCableSizeCorrected(current, cableType, ambientTempCsv, groupingCountCsv);
+                const installMethodCsv = localFeederData[feeder.id]?.install_method || 'rack_single';
+                const cableSizeCalcCsv = selectCableSizeCorrected(current, cableType, ambientTempCsv, groupingCountCsv, installMethodCsv);
                 const cableSizeManualCsv = Number(feeder.cable_size) || 0;
                 const cableAdoptCsv = localFeederData[feeder.id]?.cable_adopt || 'calc';
                 const cableSize = (cableAdoptCsv === 'manual' && cableSizeManualCsv > 0) ? cableSizeManualCsv : cableSizeCalcCsv;
@@ -6918,7 +7073,7 @@
                 // 補正後許容・規定チェック（CSV用）
                 const cableEntryCsv = CABLE_DATA.find(c => c.size === cableSize);
                 const baseAmpCsv = cableEntryCsv ? (cableType === 'CVT' ? cableEntryCsv.cvt : cableEntryCsv.cv) : 0;
-                const ampInfoCsv = calcCorrectedAmpacity(baseAmpCsv, ambientTempCsv, groupingCountCsv);
+                const ampInfoCsv = calcCorrectedAmpacity(baseAmpCsv, ambientTempCsv, groupingCountCsv, installMethodCsv);
                 const iscResultCsv = calcFeederIscCascade(feeder);
                 const icuCsv = Number(localFeederData[feeder.id]?.breaker_icu_ka) || 0;
                 const checkParts = [];
@@ -6945,6 +7100,7 @@
                     cableSize.toFixed(1),
                     ambientTempCsv,
                     groupingCountCsv,
+                    ampInfoCsv.methodLabel,
                     ampInfoCsv.corrected.toFixed(0),
                     length,
                     powerFactor.toFixed(2),
