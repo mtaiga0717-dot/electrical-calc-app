@@ -2646,11 +2646,11 @@
                             <strong>Ｆ点</strong>：このケーブル末端の位置を F₁〜F₈ から選択。100V (F₈) は巻線補正 r×1.44, x×1.2 を自動適用します。
                         </p>
                         <div style="margin-bottom:0.5rem;">
-                            <button class="btn-action" id="btnAddLoadCable" style="background:#43a047;color:#fff;">+ 負荷ケーブル追加</button>
-                            <button class="btn-action" id="btnLoadCableAutoF1F8" style="background:#1a1a2e;color:#fff;margin-left:0.3rem;" title="F₁〜F₈ すべての点に既定のケーブル雛形を一括で生成します">★ F₁〜F₈ 一括生成</button>
-                            <button class="btn-action" id="btnLoadCablePresetF4" style="background:#1976d2;color:#fff;margin-left:0.3rem;" title="動力分岐 F₄用 CV22mm² 30m をセット">F₄雛形</button>
-                            <button class="btn-action" id="btnLoadCablePresetF7" style="background:#7b1fa2;color:#fff;margin-left:0.3rem;" title="電灯分岐 F₇用 VV-F2.0 30m をセット">F₇雛形</button>
-                            <button class="btn-action" id="btnLoadCablePresetF8" style="background:#d32f2f;color:#fff;margin-left:0.3rem;" title="100V末端 F₈用 VV-F1.6 20m をセット">F₈雛形</button>
+                            <button type="button" class="btn-action" id="btnAddLoadCable" onclick="try{__uiAddLoadCable();}catch(e){alert('追加失敗: '+e.message);}" style="background:#43a047;color:#fff;">+ 負荷ケーブル追加</button>
+                            <button type="button" class="btn-action" id="btnLoadCableAutoF1F8" onclick="try{__uiAddAllF1F8();}catch(e){alert('一括生成失敗: '+e.message);}" style="background:#1a1a2e;color:#fff;margin-left:0.3rem;" title="F₁〜F₈ すべての点に既定のケーブル雛形を一括で生成します">★ F₁〜F₈ 一括生成</button>
+                            <button type="button" class="btn-action" id="btnLoadCablePresetF4" onclick="try{__uiAddPresetF('F4');}catch(e){alert(e.message);}" style="background:#1976d2;color:#fff;margin-left:0.3rem;" title="動力分岐 F₄用 CV22mm² 30m をセット">F₄雛形</button>
+                            <button type="button" class="btn-action" id="btnLoadCablePresetF7" onclick="try{__uiAddPresetF('F7');}catch(e){alert(e.message);}" style="background:#7b1fa2;color:#fff;margin-left:0.3rem;" title="電灯分岐 F₇用 VV-F2.0 30m をセット">F₇雛形</button>
+                            <button type="button" class="btn-action" id="btnLoadCablePresetF8" onclick="try{__uiAddPresetF('F8');}catch(e){alert(e.message);}" style="background:#d32f2f;color:#fff;margin-left:0.3rem;" title="100V末端 F₈用 VV-F1.6 20m をセット">F₈雛形</button>
                         </div>
                         <table id="loadCableTable" style="width:100%;border-collapse:collapse;font-size:0.78rem;">
                             <thead>
@@ -4465,6 +4465,25 @@
                 }
 
                 hvSteps.push(`<b style="color:#1565c0;">■ 短絡電流耐量の判定 (式5.5 準拠)</b>`);
+                // Isc 出所の説明
+                let iscSrcLabel = '⑥-A 電源%Z₁ から自動計算';
+                if (c.isc_mode === 'manual') iscSrcLabel = '手入力値';
+                else {
+                    try {
+                        const src = calcSourceImpedance();
+                        const V1 = Number(src.v_kv) || 6.6;
+                        const PnKva2 = (Number(src.pn_mva) || 10) * 1000;
+                        const zPct2 = Math.sqrt((src.r||0)**2 + (src.x||0)**2);
+                        if (zPct2 > 0) {
+                            const In2 = PnKva2 / (Math.sqrt(3) * V1);
+                            hvSteps.push(`　<span style="color:#666;">I<sub>sc</sub> 出所: ${iscSrcLabel} … Pn=${(src.pn_mva||10)}MV·A, V=${V1}kV, %Z₁=√(${(src.r||0).toFixed(3)}²+${(src.x||0).toFixed(3)}²)=${zPct2.toFixed(3)}</span>`);
+                            hvSteps.push(`　<span style="color:#666;">&nbsp;&nbsp;I<sub>n</sub> = Pn/(√3×V) = ${PnKva2}/(1.732×${V1}) = ${In2.toFixed(1)}A</span>`);
+                            hvSteps.push(`　<span style="color:#666;">&nbsp;&nbsp;I<sub>sc</sub> = I<sub>n</sub>×100/%Z = ${In2.toFixed(1)}×100/${zPct2.toFixed(3)} = <b>${IscKa.toFixed(2)}kA</b></span>`);
+                        } else {
+                            hvSteps.push(`　<span style="color:#c62828;">I<sub>sc</sub> 出所: ${iscSrcLabel}（%Z₁ 未設定のため 12.5kA 仮置き）</span>`);
+                        }
+                    } catch(e){}
+                }
                 hvSteps.push(`　F₁点 短絡電流 I<sub>sc</sub> = <b>${IscKa.toFixed(2)}kA</b> (${(IscA).toFixed(0)}A) / 短絡継続時間 t<sub>s</sub> = ${c.ts_sec}秒`);
                 hvSteps.push(`　① 現行サイズ ${c.size}mm² の短絡許容電流`);
                 hvSteps.push(`　　I<sub>ac</sub> = 135 × A / √t<sub>s</sub> = 135 × ${c.size} / √${c.ts_sec} = <b>${scAmp.toFixed(0)}A</b> (${(scAmp/1000).toFixed(1)}kA)`);
@@ -4534,7 +4553,21 @@
                         </select>
                     </td>
                     <td style="border:1px solid #ddd;padding:0.2rem;"><input type="number" step="1" data-hvc="${c.id}" data-f="ambient_c" value="${c.ambient_c ?? 25}" style="width:50px;"></td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="number" step="0.01" data-hvc="${c.id}" data-f="ts_sec" value="${c.ts_sec ?? 0.2}" style="width:55px;"></td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;">
+                        <input type="number" step="0.01" data-hvc="${c.id}" data-f="ts_sec" value="${c.ts_sec ?? 0.2}" style="width:55px;" title="短絡継続時間">
+                        <div style="margin-top:0.25rem;border-top:1px dashed #ccc;padding-top:0.2rem;font-size:0.68rem;">
+                            <div>I<sub>sc</sub>:</div>
+                            <select data-hvc="${c.id}" data-f="isc_mode" style="width:72px;font-size:0.68rem;" title="自動=⑥-A電源%Z₁から計算 / 手入力=任意値">
+                                <option value="auto"   ${c.isc_mode!=='manual'?'selected':''}>自動</option>
+                                <option value="manual" ${c.isc_mode==='manual'?'selected':''}>手入力</option>
+                            </select>
+                            <div style="text-align:right;margin-top:0.15rem;">
+                                ${c.isc_mode==='manual'
+                                    ? `<input type="number" step="0.1" min="0" data-hvc="${c.id}" data-f="isc_manual_ka" value="${c.isc_manual_ka ?? 0}" style="width:55px;font-size:0.72rem;">kA`
+                                    : `<b style="color:#c62828;">${IscKa.toFixed(1)}kA</b>`}
+                            </div>
+                        </div>
+                    </td>
                     <td style="border:1px solid #ddd;padding:0.2rem;">
                         <select data-hvc="${c.id}" data-f="load_current_mode" style="width:75px;font-size:0.7rem;">
                             <option value="auto" ${c.load_current_mode==='auto'?'selected':''}>自動</option>
@@ -4584,7 +4617,9 @@
                 ts_sec: 0.2,                 // 短絡継続時間 [秒]
                 load_current_mode: 'auto',   // auto=トランス紐付け / manual=手入力
                 load_current_a: 0,           // 手入力時の負荷電流 [A]
-                linked_tr_ids: []            // 紐付けトランスID
+                linked_tr_ids: [],           // 紐付けトランスID
+                isc_mode: 'auto',            // auto=⑥-A電源%Z₁から計算 / manual=手入力
+                isc_manual_ka: 0             // 手入力時の短絡電流 [kA]
             });
             saveHvCables();
             renderHvCableTable();
@@ -4613,7 +4648,7 @@
                     return;
                 }
                 let v = e.target.value;
-                const numFields = ['length_m','r_ohm_km','x_ohm_km','conductors','ambient_c','ts_sec','load_current_a'];
+                const numFields = ['length_m','r_ohm_km','x_ohm_km','conductors','ambient_c','ts_sec','load_current_a','isc_manual_ka'];
                 if (numFields.includes(field)) v = parseFloat(v);
                 if (field === 'conductors') v = Math.max(1, Math.round(v || 1));
                 if (field === 'size') {
@@ -4887,14 +4922,34 @@
             return (sumKva * 1000) / (Math.sqrt(3) * V * 1000); // [A]
         }
 
-        // 短絡電流 [kA] をSC計算結果から取得（引込=F1, 分岐=親トランス一次側≒F1）
+        // 短絡電流 [kA] を取得（優先順位: ①手入力 ②⑥-A電源%Z₁から直接計算 ③SC計算結果F₁ ④12.5kA仮置き）
         function hvFetchIscKa(cable) {
+            // ① 手入力モード
+            if (cable && cable.isc_mode === 'manual') {
+                const v = Number(cable.isc_manual_ka);
+                if (isFinite(v) && v > 0) return v;
+            }
+            // ② 電源%Z₁から直接計算（⑥-A の入力値に連動）
+            try {
+                if (typeof calcSourceImpedance === 'function') {
+                    const src = calcSourceImpedance();
+                    const V1 = Number(src.v_kv) || 6.6;
+                    const PnKva = (Number(src.pn_mva) || 10) * 1000; // MVA → kVA
+                    const zPct = Math.sqrt((src.r || 0) ** 2 + (src.x || 0) ** 2);
+                    if (zPct > 0) {
+                        const In = PnKva / (Math.sqrt(3) * V1);
+                        const IsA = In * 100 / zPct;
+                        return IsA / 1000;
+                    }
+                }
+            } catch(e){}
+            // ③ SC計算の直近結果から取得
             try {
                 if (typeof scLastResult !== 'undefined' && scLastResult && scLastResult.f1) {
                     return Number(scLastResult.f1.is_ka) || 12.5;
                 }
             } catch(e){}
-            // fallback: 12.5 kA 仮置き
+            // ④ フォールバック: 12.5 kA 仮置き
             return 12.5;
         }
 
@@ -5017,6 +5072,23 @@
                 if (!force && loadCables.some(c => c.target_point === p.target_point)) return;
                 addLoadCable(p);
             });
+        }
+        // インライン onclick から呼ばれる UI ラッパ (loadCables スコープにアクセス可能)
+        function __uiAddLoadCable() { addLoadCable(); }
+        function __uiAddAllF1F8() {
+            if (loadCables.length > 0) {
+                if (!confirm('既存の負荷ケーブル ' + loadCables.length + ' 件は残したまま、未登録のF点(F₁〜F₈)に雛形を追加します。よろしいですか？')) return;
+            }
+            addAllF1F8LoadCables(false);
+            alert('F₁〜F₈ の雛形を追加しました (合計 ' + loadCables.length + ' 件)。');
+        }
+        function __uiAddPresetF(fPoint) {
+            const map = {
+                'F4': { name:'M'+(loadCables.length+1), target_point:'F4', parent_kind:'feeder', type_key:'CV_22_3C',   size_label:'CV 22mm² 3C',  length_m:30, voltage_v:210 },
+                'F7': { name:'L'+(loadCables.length+1), target_point:'F7', parent_kind:'feeder', type_key:'VV-F_2.0_2C', size_label:'VV-F 2.0mm 2C', length_m:30, voltage_v:210 },
+                'F8': { name:'C'+(loadCables.length+1), target_point:'F8', parent_kind:'feeder', type_key:'VV-F_1.6_2C', size_label:'VV-F 1.6mm 2C', length_m:20, voltage_v:105 }
+            };
+            addLoadCable(map[fPoint]);
         }
         // 追加ボタンは DOM に関係なく確実に document デリゲーションで処理
         // （tbody 未存在時もボタンだけは動くように）
