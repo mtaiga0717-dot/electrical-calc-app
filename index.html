@@ -6521,14 +6521,22 @@
             };
 
             // ================== 接地母線行（キュービクル接地端子 → 配電盤） ==================
-            // 内線規程 JEAC8001 1350-14 — 共通接地母線のサイズは各幹線接地線の最大値
+            // 内線規程 JEAC8001 1350-14 — 共通接地母線のサイズは各幹線接地線の最大値（不要分は除外）
             {
                 const feederGroundSizes = filtered.flatMap(f => {
                     const at = Number(f.breaker_at) || 0;
                     const t = judgeGroundType(Number(f.voltage) || 0);
                     if (at <= 0 || (t !== 'D' && t !== 'C')) return [];
-                    const calc = calcGroundWireSize(at);
-                    return [calc.size, calc.size]; // D種 + ELB D種
+                    const ld = localFeederData[f.id] || {};
+                    const br = f.breaker_type || '';
+                    const elbDef = /ELB|ELCB|漏電/i.test(br) ? 'on' : 'off';
+                    const mD = ld.ground_d_mode || 'on';
+                    const mE = ld.ground_elb_mode || elbDef;
+                    const sz = calcGroundWireSize(at).size;
+                    const arr = [];
+                    if (mD === 'on') arr.push(sz);
+                    if (mE === 'on') arr.push(sz);
+                    return arr;
                 });
                 const busSize = calcGroundBusSize(feederGroundSizes);
                 const busRow = document.createElement('tr');
@@ -7117,43 +7125,69 @@
 
             // ================== 接地線サブ行（D種 + ELB D種） ==================
             // 内線規程 JEAC8001 1350節 — 各幹線の直下にD種接地線とELB用D種接地線の2本を表示
+            // 必要/不要 をユーザーが切替え可能（ground_d_mode / ground_elb_mode: 'on' | 'off'）
             const frag = document.createDocumentFragment();
             frag.appendChild(row);
             const gndType = judgeGroundType(voltage);
             const gndCalc = calcGroundWireSize(breakerAT);
-            // localFeederDataに保持されたユーザー選択値
             const fd = localFeederData[feeder.id] || {};
+            // 既定値: D種は必要、ELB D種も必要（ELB系ブレーカ種別でない場合は既定off）
+            const brType = feeder.breaker_type || '';
+            const elbDefault = /ELB|ELCB|漏電/i.test(brType) ? 'on' : (fd.ground_elb_mode ? fd.ground_elb_mode : 'off');
+            const modeD = fd.ground_d_mode || 'on';
+            const modeELB = fd.ground_elb_mode || elbDefault;
             const selGroundD = Number(fd.ground_wire_size) || gndCalc.size || 0;
             const selGroundELB = Number(fd.elb_ground_wire_size) || gndCalc.size || 0;
-            const jD = judgeGroundWire(selGroundD, breakerAT);
-            const jE = judgeGroundWire(selGroundELB, breakerAT);
-            const optSelector = (fieldName, current, required) => {
+            const jD = (modeD === 'on') ? judgeGroundWire(selGroundD, breakerAT) : null;
+            const jE = (modeELB === 'on') ? judgeGroundWire(selGroundELB, breakerAT) : null;
+            const optSelector = (fieldName, current) => {
                 const opts = GROUND_WIRE_STANDARD.map(s =>
                     `<option value="${s}" ${Number(current) === s ? 'selected' : ''}>${s} mm²</option>`
                 ).join('');
                 return `<select class="feeder-local" data-id="${feeder.id}" data-field="${fieldName}" style="width:72px;">${opts}</select>`;
             };
+            const modeSelector = (fieldName, current) => {
+                return `<select class="feeder-local" data-id="${feeder.id}" data-field="${fieldName}" style="width:60px;">` +
+                    `<option value="on" ${current === 'on' ? 'selected' : ''}>必要</option>` +
+                    `<option value="off" ${current === 'off' ? 'selected' : ''}>不要</option>` +
+                    `</select>`;
+            };
             const gndIndent = '&nbsp;'.repeat(Math.max(0, depth * 2 + 2));
-            const gndRowHTML = (label, selField, selVal, judge) => {
-                const badgeClass = judge.status === 'OK' ? 'badge-ok' : (judge.status === '×' ? 'badge-ng' : '');
-                const statusTxt = judge.status === '-' ? '-' : judge.status;
+            const gndRowHTML = (label, selField, selVal, modeField, modeVal, judge) => {
+                const isOff = (modeVal === 'off');
+                const badgeClass = isOff ? '' : (judge && judge.status === 'OK' ? 'badge-ok' : (judge && judge.status === '×' ? 'badge-ng' : ''));
+                const statusTxt = isOff ? '不要' : (judge ? (judge.status === '-' ? '-' : judge.status) : '-');
+                const bgColor = isOff ? '#eceff1' : '#f1f8e9';
+                const rowStyle = `background:${bgColor};font-size:0.7rem;` + (isOff ? 'opacity:0.55;' : '');
+                const sizeCell = isOff
+                    ? `<span style="color:#9e9e9e;">—</span>`
+                    : `選定: ${optSelector(selField, selVal)}`;
+                const reqCell = isOff
+                    ? `<span style="color:#9e9e9e;">—</span>`
+                    : `必要最小: <b>${judge.required || '-'}</b> mm²`;
+                const basisCell = isOff
+                    ? `この幹線では ${label} は不要として処理（接地母線計算からも除外）`
+                    : `根拠: A = 0.052 × In(=${breakerAT || 0}A) = ${(0.052 * (breakerAT || 0)).toFixed(2)}mm² → 直近上位 ${judge.required || '-'}mm²（1350-3表 / 資料1-3-6）`;
                 return `
-                    <tr class="ground-subrow" style="background:#f1f8e9;font-size:0.7rem;">
+                    <tr class="ground-subrow" style="${rowStyle}">
                         <td colspan="2" style="text-align:right;color:#558b2f;padding:2px 4px;">${gndIndent}└ 接地線</td>
-                        <td colspan="4" style="padding:2px 4px;color:#33691e;">
+                        <td colspan="3" style="padding:2px 4px;color:#33691e;">
                             <b>${label}</b> (${gndType !== '-' ? gndType + '種' : '-'})
                         </td>
-                        <td colspan="3" style="padding:2px 4px;" title="${judge.formula}">
-                            選定: ${optSelector(selField, selVal, judge.required)}
+                        <td colspan="2" style="padding:2px 4px;">
+                            ${modeSelector(modeField, modeVal)}
                         </td>
-                        <td colspan="3" style="padding:2px 4px;color:#555;" title="${judge.formula}">
-                            必要最小: <b>${judge.required || '-'}</b> mm²
+                        <td colspan="3" style="padding:2px 4px;" title="${(judge && judge.formula) || ''}">
+                            ${sizeCell}
                         </td>
-                        <td colspan="3" style="padding:2px 4px;">
-                            <span class="badge ${badgeClass}" title="${judge.formula}\n${judge.basis}">${statusTxt}</span>
+                        <td colspan="3" style="padding:2px 4px;color:#555;" title="${(judge && judge.formula) || ''}">
+                            ${reqCell}
                         </td>
-                        <td colspan="16" style="padding:2px 4px;color:#757575;font-size:0.6rem;" title="${judge.basis}">
-                            根拠: A = 0.052 × In(=${breakerAT || 0}A) = ${(0.052 * (breakerAT || 0)).toFixed(2)}mm² → 直近上位 ${judge.required || '-'}mm²（1350-3表 / 資料1-3-6）
+                        <td colspan="2" style="padding:2px 4px;">
+                            <span class="badge ${badgeClass}" title="${(judge && judge.formula) || ''}\n${(judge && judge.basis) || '不要'}">${statusTxt}</span>
+                        </td>
+                        <td colspan="16" style="padding:2px 4px;color:#757575;font-size:0.6rem;">
+                            ${basisCell}
                         </td>
                     </tr>
                 `;
@@ -7161,8 +7195,8 @@
             // 接地種別が判定不可 or 高圧/A種 の場合はサブ行非表示
             if (gndType === 'D' || gndType === 'C') {
                 const gTmp = document.createElement('tbody');
-                gTmp.innerHTML = gndRowHTML('D種接地 (機器)', 'ground_wire_size', selGroundD, jD) +
-                                 gndRowHTML('D種接地 (ELB二次側)', 'elb_ground_wire_size', selGroundELB, jE);
+                gTmp.innerHTML = gndRowHTML('D種接地 (機器)', 'ground_wire_size', selGroundD, 'ground_d_mode', modeD, jD) +
+                                 gndRowHTML('D種接地 (ELB二次側)', 'elb_ground_wire_size', selGroundELB, 'ground_elb_mode', modeELB, jE);
                 Array.from(gTmp.children).forEach(tr => {
                     tr.querySelectorAll('.feeder-local').forEach(input => {
                         input.addEventListener('change', handleFeederLocalChange);
@@ -7277,7 +7311,7 @@
             } else {
                 // For string fields like feeder_no, feeder_category, source_type store as-is
                 // For numeric fields like motor_total_kw, motor_max_kw, source_circuit_id parse as number
-                if (field === 'feeder_no' || field === 'feeder_category' || field === 'source_type' || field === 'source_transformer_id' || field === 'cable_adopt' || field === 'breaker_adopt' || field === 'install_method') {
+                if (field === 'feeder_no' || field === 'feeder_category' || field === 'source_type' || field === 'source_transformer_id' || field === 'cable_adopt' || field === 'breaker_adopt' || field === 'install_method' || field === 'ground_d_mode' || field === 'ground_elb_mode') {
                     localFeederData[feederId][field] = value;
                 } else if (field === 'source_circuit_id') {
                     localFeederData[feederId][field] = parseInt(value) || null;
@@ -7365,19 +7399,28 @@
         }
 
         function exportFeedersCsv() {
-            const headers = ['幹線No', '区分', '自（起点）', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', '周囲温度[℃]', '条数', '敷設方法', '許容(補正後)[A]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', 'Icu[kA]', '規定チェック', '動力合計kW', '最大電動機kW', '内線規程AT', '至（行先）', '接地種別', '接地線D種[mm²]', '接地線D種必要[mm²]', 'ELB接地線D種[mm²]', 'ELB接地線D種必要[mm²]'];
+            const headers = ['幹線No', '区分', '自（起点）', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', '周囲温度[℃]', '条数', '敷設方法', '許容(補正後)[A]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', 'Icu[kA]', '規定チェック', '動力合計kW', '最大電動機kW', '内線規程AT', '至（行先）', '接地種別', 'D種要否', '接地線D種[mm²]', '接地線D種必要[mm²]', 'ELBD種要否', 'ELB接地線D種[mm²]', 'ELB接地線D種必要[mm²]'];
             const rows = [headers.join(',')];
 
-            // 接地母線行（CSV先頭コメント行）
+            // 接地母線行（CSV先頭コメント行）— 不要分は除外
             {
                 const feederGroundSizesCsv = allFeeders.flatMap(f => {
                     const at = Number(f.breaker_at) || 0;
                     const t = judgeGroundType(Number(f.voltage) || 0);
                     if (at <= 0 || (t !== 'D' && t !== 'C')) return [];
-                    return [calcGroundWireSize(at).size, calcGroundWireSize(at).size];
+                    const ld = localFeederData[f.id] || {};
+                    const br = f.breaker_type || '';
+                    const elbDef = /ELB|ELCB|漏電/i.test(br) ? 'on' : 'off';
+                    const mD = ld.ground_d_mode || 'on';
+                    const mE = ld.ground_elb_mode || elbDef;
+                    const sz = calcGroundWireSize(at).size;
+                    const arr = [];
+                    if (mD === 'on') arr.push(sz);
+                    if (mE === 'on') arr.push(sz);
+                    return arr;
                 });
                 const busSizeCsv = calcGroundBusSize(feederGroundSizesCsv);
-                rows.push(`"# 接地母線(1350-14)","${busSizeCsv || '-'} mm² (max of each feeder ground wire)"`);
+                rows.push(`"# 接地母線(1350-14)","${busSizeCsv || '-'} mm² (max of each required feeder ground wire)"`);
             }
 
             allFeeders.forEach((feeder, index) => {
@@ -7483,8 +7526,13 @@
                 // 接地関連（CSV）
                 const gndTypeCsv = judgeGroundType(voltage);
                 const gndCalcCsv = calcGroundWireSize(breakerAT);
-                const selGroundDCsv = Number(localFeederData[feeder.id]?.ground_wire_size) || gndCalcCsv.size || 0;
-                const selGroundELBCsv = Number(localFeederData[feeder.id]?.elb_ground_wire_size) || gndCalcCsv.size || 0;
+                const ldCsv = localFeederData[feeder.id] || {};
+                const brTypeCsv = feeder.breaker_type || '';
+                const elbDefCsv = /ELB|ELCB|漏電/i.test(brTypeCsv) ? 'on' : 'off';
+                const modeDCsv = ldCsv.ground_d_mode || 'on';
+                const modeELBCsv = ldCsv.ground_elb_mode || elbDefCsv;
+                const selGroundDCsv = Number(ldCsv.ground_wire_size) || gndCalcCsv.size || 0;
+                const selGroundELBCsv = Number(ldCsv.elb_ground_wire_size) || gndCalcCsv.size || 0;
 
                 const row = [
                     feederNo,
@@ -7519,10 +7567,12 @@
                     kiteiAT,
                     feeder.destination || '',
                     (gndTypeCsv === 'D' || gndTypeCsv === 'C') ? (gndTypeCsv + '種') : '-',
-                    selGroundDCsv || '-',
-                    gndCalcCsv.size || '-',
-                    selGroundELBCsv || '-',
-                    gndCalcCsv.size || '-'
+                    modeDCsv === 'on' ? '必要' : '不要',
+                    modeDCsv === 'on' ? (selGroundDCsv || '-') : '-',
+                    modeDCsv === 'on' ? (gndCalcCsv.size || '-') : '-',
+                    modeELBCsv === 'on' ? '必要' : '不要',
+                    modeELBCsv === 'on' ? (selGroundELBCsv || '-') : '-',
+                    modeELBCsv === 'on' ? (gndCalcCsv.size || '-') : '-'
                 ];
                 rows.push(row.map(cell => `"${cell}"`).join(','));
             });
