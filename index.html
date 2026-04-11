@@ -2050,7 +2050,7 @@
                             <b>・ELCB（漏電遮断器）施設要否</b>（電技解釈36条・内線規程1375節）：施設場所列で「湿気屋内／屋外／浴室等／水気場所」を選ぶと自動で「ELCB必要」判定。ブレーカ種別がMCCB系のままだと赤バッジ。<br>
                             <b>・接地工事種別</b>（電技解釈17〜19条）：対地電圧により<b>A種／B種／C種／D種</b>を自動判定。バッジをhoverで接地抵抗値・接地線最小太さを表示。（低圧300V以下→D種100Ω／300V超→C種10Ω／高圧機器→A種10Ω／変圧器中性点→B種）<br>
                             <b>・短絡電流協調（IC）</b>（電技解釈149条）：登録されたトランスを起点に、ケーブル%Z をカスケード合成して各点の想定<b>短絡電流Isc[kA]</b>を算出。ブレーカのIcu[kA]列に入力すると「ICOK / ICNG」を判定。トランス未登録時はスキップ（エラーなし）。<br>
-                            <b>・幹線からの分岐 3m/8m緩和</b>（内線規程1360-2）：幹線分岐の場合、分岐長3m以下→過電流保護省略可、8m以下かつ分岐許容電流が親の35%以上→省略可。8m超または35%未満→分岐点にMCCB設置必要。
+                            <b>・幹線からの分岐 OCPD省略</b>（<b>内線規程 JEAC8001 1360-10条</b>「低圧屋内幹線を分岐する場合の過電流遮断器の施設」・電技解釈148条）：分岐点OCPDを省略できる条件は、<b>②</b> 細幹線Iz ≧ 親OCPD×55%（長さ制限なし）、<b>③</b> 8m以下かつ細幹線Iz ≧ 親OCPD×35%、<b>④</b> 3m以下かつ負荷側に他の幹線を接続しない、のいずれか。上記条件に該当しない場合は分岐点にMCCB設置必要。
                         </dd>
 
                         <dt style="margin-top:0.8rem;"><strong>⑩ 【2026-04追加】電動機分岐回路の電線協調 — 内線規程 3705-1条</strong></dt>
@@ -2062,10 +2062,40 @@
                             AT選定により決まる電線サイズが 1.25×Im に満たない場合、AT判定列に NG＋理由を表示します。
                         </dd>
 
+                        <dt style="margin-top:0.8rem;"><strong>⑩-2 【2026-04修正】幹線の電線保護（ブレーカAT上限）— 内線規程 JEAC8001 3705-8条 第3項</strong></dt>
+                        <dd>
+                            幹線計算書の「規定チェック」列には、ブレーカAT定格の<b>上限</b>判定を表示します。下限（AT ≧ 設計電流）のみでなく、電線保護の観点で AT上限以下であるかを別途判定します。<br>
+                            <b>・電灯・非電動機幹線（3705-8 第3項本文）</b>：<code>AT ≦ 補正後許容電流 Iz</code><br>
+                            &emsp;根拠：<b>内線規程 JEAC8001 3705-8条 第3項本文</b>／電技解釈148条。<br>
+                            <b>・電動機を含む幹線（3705-8 第3項ただし書）</b>：<code>AT ≦ min( 3×ΣIM + IH , 2.5×Iz )</code><br>
+                            &emsp;ΣIM = 電動機定格電流の<b>合計</b>（最大1台ではない）、IH = 電動機以外の負荷電流。<br>
+                            &emsp;<b>③</b> Iz > 100A の場合は、上記値を超えない範囲の<b>直近上位の標準定格</b>（15, 20, 30, 40, 50, 60, 75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 500, 600, 800, 1000, 1200A）まで許容。<br>
+                            &emsp;根拠：<b>内線規程 JEAC8001 3705-8条 第3項ただし書 ①②③</b>。電動機始動電流に耐えつつ、電線許容電流を超える過大ブレーカにならないよう規定。<br>
+                            NG 時は「電線保護(灯)×」「電線保護(動)×」バッジを表示し、tooltip と NG 理由リストに上限値・内訳（ΣIM / IH / 3ΣIM+IH / 2.5Iz / 標準定格緩和）・根拠条文を明記します。
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>⑩-3 【2026-04修正】幹線分岐OCPD省略規定 — 内線規程 JEAC8001 1360-10条</strong></dt>
+                        <dd>
+                            「低圧屋内幹線を分岐する場合の過電流遮断器の施設」— 分岐点の過電流遮断器は原則として必要ですが、以下のいずれかの条件を満たす場合は<b>省略可</b>：<br>
+                            <b>② 細幹線Iz ≧ 親幹線OCPD定格 × 55%</b>：長さ制限なし<br>
+                            <b>③ 分岐長 ≦ 8m かつ 細幹線Iz ≧ 親幹線OCPD定格 × 35%</b><br>
+                            <b>④ 分岐長 ≦ 3m かつ 負荷側に他の幹線を接続しない</b><br>
+                            本アプリでは親分岐ブレーカ(AT>0)がタップ点OCPDとして機能する場合は1360-10の対象外として判定をスキップします。判定不成立の場合は「幹線分岐OCPD省略×」バッジを表示。
+                        </dd>
+
+                        <dt style="margin-top:0.8rem;"><strong>⑩-4 【2026-04追加】接地工事の施設（D種／C種・接地母線・接地線サイズ）— 内線規程 JEAC8001 1350節</strong></dt>
+                        <dd>
+                            各幹線に対して、接地種別および接地線太さを自動判定・表示します。<br>
+                            <b>・接地種別判定（1350-2表）</b>：機器使用電圧 300V以下 → <b>D種</b>（接地抵抗 100Ω以下、ELCB付は500Ω以下）／ 300V超過 → <b>C種</b>（10Ω以下、ELCB付は500Ω以下）。<br>
+                            <b>・接地線太さ算定（1350-3表／資料1-3-6）</b>：<code>A [mm²] = 0.052 × In</code>（In = 過電流遮断器の定格電流[A]）より算定し、直近上位の標準サイズ（2, 3.5, 5.5, 8, 14, 22, 38, 60, 100, 150, 200, 250, 325 mm²）を選定。導出は接地線温度上昇式 θ = 0.008×(I/A)²×t に、故障電流=20×In、遮断時間=0.1s、初期温度30℃、許容温度150℃ を代入して得られる。<br>
+                            <b>・D種＋ELB D種の2本方式</b>：各幹線には機器接地用D種と、ELB（漏電遮断器）二次側のD種の合計2本を配線することを標準とし、各幹線行の直下に並べて表示します。<br>
+                            <b>・接地母線（1350-14）</b>：キュービクル接地端子から各幹線へ分岐する共通母線のサイズは、<b>各幹線接地線の最大値</b>を採用します。幹線計算書先頭に「接地母線」行として表示。
+                        </dd>
+
                         <dt style="margin-top:0.8rem;"><strong>⑪ 根拠法令・文献</strong></dt>
                         <dd>
                             <ul style="margin:0.3rem 0 0 1.2rem;">
-                                <li>一般社団法人 日本電気協会 <b>内線規程 JEAC 8001-2016</b>（1305節 設備不平衡率・需要率参考／1310節 低圧幹線／1340節 許容電流・温度補正・条数低減／1360節 幹線分岐3m/8m緩和／1375節 漏電遮断器／3605節 分岐回路／3705節 電動機回路）</li>
+                                <li>一般社団法人 日本電気協会 <b>内線規程 JEAC 8001-2016</b>（1305節 設備不平衡率・需要率参考／1310節 低圧幹線／1340節 許容電流・温度補正・条数低減／<b>1350節 接地工事（1350-2表 接地種別／1350-3表 接地線太さ／1350-14 接地母線／資料1-3-6 接地線算定）</b>／<b>1360-10条 幹線分岐OCPD省略（②55%・③8m35%・④3m他幹線なし）</b>／1375節 漏電遮断器／3605節 分岐回路／3705節 電動機回路（<b>3705-8条 第3項 幹線OCPD上限</b>））</li>
                                 <li>電気設備技術基準の解釈 <b>第17〜19条</b>（接地工事）・<b>第36条</b>（漏電遮断器の施設）・<b>第146条</b>（低圧屋内配線の電線太さ）・<b>第148条</b>（低圧幹線の施設）・<b>第149条</b>（低圧分岐回路等）</li>
                                 <li>国土交通省「<b>公共建築工事標準仕様書 電気設備工事編（令和7年版）</b>」・「<b>建築設備設計基準</b>」</li>
                                 <li>JEC-2137「誘導機」、JIS C 4034-1「回転電気機械 定格及び特性」</li>
@@ -2571,6 +2601,54 @@
             { kw: 37, current: 152.0, cable: 60, breaker: 200 }
         ];
 
+        // ============= 接地線（内線規程 JEAC8001 1350節） =============
+        // 標準接地線サイズ [mm²]（1350-3表に準拠）
+        const GROUND_WIRE_STANDARD = [2, 3.5, 5.5, 8, 14, 22, 38, 60, 100, 150, 200, 250, 325];
+
+        // 1350-2 表: 接地種別判定
+        // 低圧機器: 300V以下→D種 / 300V超過→C種 / 高圧→A種
+        function judgeGroundType(voltage) {
+            const v = Number(voltage) || 0;
+            if (v <= 0) return '-';
+            if (v > 600) return 'A'; // 高圧
+            if (v > 300) return 'C'; // 400V系
+            return 'D';              // 100V・200V系
+        }
+
+        // 1350-3表 / 資料1-3-6: 接地線太さの算定
+        //   θ = 0.008 × (I/A)² × t （温度上昇式）
+        //   故障電流 I = 20×In, 遮断時間 t = 0.1s, 初期30℃, 許容150℃ を代入すると
+        //   A [mm²] = 0.052 × In  （In = 過電流遮断器定格電流[A]）
+        function calcGroundWireSize(breakerAT) {
+            const In = Number(breakerAT) || 0;
+            if (In <= 0) return { required: 0, size: 0, formula: '-' };
+            const requiredArea = 0.052 * In;
+            const size = GROUND_WIRE_STANDARD.find(s => s >= requiredArea) || 325;
+            return {
+                required: requiredArea,
+                size,
+                formula: `A = 0.052 × ${In} = ${requiredArea.toFixed(2)}mm² → 直近上位 ${size}mm²`
+            };
+        }
+
+        // 1350-14: 共通接地母線の太さ = 各幹線接地線の最大値
+        function calcGroundBusSize(feederSizes) {
+            const arr = feederSizes.filter(x => x > 0);
+            if (arr.length === 0) return 0;
+            return Math.max(...arr);
+        }
+
+        function judgeGroundWire(selectedSize, breakerAT) {
+            const calc = calcGroundWireSize(breakerAT);
+            const sel = Number(selectedSize) || 0;
+            return {
+                status: (sel > 0 && sel >= calc.size) ? 'OK' : (sel > 0 ? '×' : '-'),
+                required: calc.size,
+                formula: calc.formula,
+                basis: '内線規程 JEAC8001 1350-3表 / 資料1-3-6 (A = 0.052×In)'
+            };
+        }
+
         // 分岐MCCB AT → 最小CVサイズ対応表
         const BREAKER_CABLE_TABLE = [
             { at: 15, cable: 2.0, ampacity: 23 },
@@ -2937,22 +3015,39 @@
             return { ok, notes, requiredCable, maxBreaker };
         }
 
-        // ⑦ 幹線からの分岐における3m/8m緩和（内線規程 1360-2）
-        // parentAmp: 親幹線許容電流, branchAmp: 子分岐許容電流, branchLen: 分岐長[m]
-        function judgeBranch3m8mRelax(parentAmp, branchAmp, branchLen) {
+        // ⑦ 幹線からの分岐における過電流遮断器省略（内線規程 1360-10 / 電技解釈148条）
+        // parentAmp: 親幹線OCPD定格(AT), branchAmp: 細幹線の許容電流Iz, branchLen: 分岐長[m]
+        // hasDownstreamFeeder: 細幹線の負荷側にさらに他の幹線を接続するか（1360-10 第④号）
+        function judgeBranch3m8mRelax(parentAmp, branchAmp, branchLen, hasDownstreamFeeder = false) {
             const L = Number(branchLen) || 0;
             if (!parentAmp || !branchAmp || L <= 0) return { exempt: false, rule: '-', note: '情報不足' };
+            const ratio = (branchAmp / parentAmp) * 100;
+            // ② 細幹線Iz ≥ 親OCPD×55% の場合は長さ制限なしで省略可
+            if (ratio >= 55) {
+                return { exempt: true, rule: '55%以上(長さ制限なし)',
+                    note: `細幹線Iz/親AT=${ratio.toFixed(0)}% ≥55% (1360-10 第②号)` };
+            }
+            // ④ 3m以下 かつ 負荷側に他の幹線を接続しない
+            if (L <= 3 && !hasDownstreamFeeder) {
+                return { exempt: true, rule: '3m以下(他幹線接続なし)',
+                    note: `長さ${L}m≤3m かつ負荷側他幹線なし (1360-10 第④号)` };
+            }
+            // ③ 8m以下 かつ 細幹線Iz ≥ 親OCPD×35%
+            if (L <= 8 && ratio >= 35) {
+                return { exempt: true, rule: '8m以下(35%以上)',
+                    note: `長さ${L}m≤8m かつ 細幹線Iz/親AT=${ratio.toFixed(0)}% ≥35% (1360-10 第③号)` };
+            }
+            // NG cases
             if (L <= 3) {
-                return { exempt: true, rule: '3m以下', note: '内線規程1360-2: 分岐長3m以下は過電流保護省略可' };
+                return { exempt: false, rule: '3m以下',
+                    note: '負荷側に他幹線接続あり → 省略不可 (1360-10 ④不適合)' };
             }
             if (L <= 8) {
-                const ratio = (branchAmp / parentAmp) * 100;
-                if (ratio >= 35) {
-                    return { exempt: true, rule: '8m以下(35%以上)', note: `分岐許容/親許容=${ratio.toFixed(0)}% ≥35% (1360-2)` };
-                }
-                return { exempt: false, rule: '8m以下', note: `分岐許容/親許容=${ratio.toFixed(0)}% <35% → 分岐点保護必要` };
+                return { exempt: false, rule: '8m以下',
+                    note: `細幹線Iz/親AT=${ratio.toFixed(0)}% <35% → 分岐点保護必要 (1360-10 ③不適合)` };
             }
-            return { exempt: false, rule: '8m超', note: '分岐点に過電流保護必須（1360-2）' };
+            return { exempt: false, rule: '8m超',
+                note: `細幹線Iz/親AT=${ratio.toFixed(0)}% <55% かつ 8m超 → 分岐点保護必須 (1360-10 ②③④いずれも不適合)` };
         }
 
         const DEMAND_FACTOR_TABLE = [
@@ -4145,8 +4240,8 @@
         }
 
         // ===== 盤一覧 需要率 ⇔ 幹線計算 demand_factor 連動 =====
-        // 根拠: 内線規程 JEAC8001 1305-1 / 1310 / 1365 — 分電盤の主幹は幹線の終端であり、
-        //   幹線需要率と盤主幹選定用の需要率は同一値であるべき。
+        // 根拠: 内線規程 JEAC8001 1305-1(需要率参考)・1310節(低圧幹線の設計) — 分電盤の
+        //   主幹は幹線の終端であり、幹線需要率と盤主幹選定用の需要率は同一値であるべき。
         function findFeedersByPanelName(panelName) {
             if (!panelName) return [];
             return (allFeeders || []).filter(f => f.load_name === panelName);
@@ -6425,6 +6520,34 @@
                 });
             };
 
+            // ================== 接地母線行（キュービクル接地端子 → 配電盤） ==================
+            // 内線規程 JEAC8001 1350-14 — 共通接地母線のサイズは各幹線接地線の最大値
+            {
+                const feederGroundSizes = filtered.flatMap(f => {
+                    const at = Number(f.breaker_at) || 0;
+                    const t = judgeGroundType(Number(f.voltage) || 0);
+                    if (at <= 0 || (t !== 'D' && t !== 'C')) return [];
+                    const calc = calcGroundWireSize(at);
+                    return [calc.size, calc.size]; // D種 + ELB D種
+                });
+                const busSize = calcGroundBusSize(feederGroundSizes);
+                const busRow = document.createElement('tr');
+                busRow.style.cssText = 'background:#e8f5e9;font-weight:bold;';
+                busRow.innerHTML = `
+                    <td colspan="31" style="padding:0.4rem 0.6rem;color:#1b5e20;font-size:0.78rem;">
+                        ⏚ <b>接地母線</b>（キュービクル接地端子 → 配電盤）:
+                        必要最小 = max(各幹線接地線) =
+                        <span style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid #4caf50;">
+                            ${busSize > 0 ? busSize + ' mm²' : '-'}
+                        </span>
+                        <span style="font-weight:normal;color:#558b2f;margin-left:0.8rem;font-size:0.7rem;">
+                            根拠: 内線規程 JEAC8001 1350-14 (共通接地母線 = 各幹線接地線の最大)
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(busRow);
+            }
+
             if (!categoryFilter) {
                 const lightingFeeders = filtered.filter(f => (f.feeder_category || '電灯') === '電灯');
                 const motorFeeders = filtered.filter(f => f.feeder_category === '動力');
@@ -6572,7 +6695,7 @@
             const cableEntry = CABLE_DATA.find(c => c.size === cableSize);
             const cableCapacity = cableEntry ? cableEntry[getCableCapacityKey(cableType)] : 0;
 
-            // AT判定: 幹線（main feeder）は内線規程 1310条により AT ≥ 設計電流で判定
+            // AT判定: 幹線（main feeder）は内線規程 1310節により AT ≥ 設計電流で判定
             // ※分岐回路の 1.25倍（3605-3条）は幹線には適用しない
             let atStatus = (breakerAT >= current) ? 'OK' : '×';
 
@@ -6626,68 +6749,86 @@
             }
 
             // ⑦ 3m/8m緩和（幹線分岐の場合のみ）
+            // 内線規程 JEAC8001 1360-10条 / 電技解釈148条 の幹線分岐OCPD省略規定は
+            //  「分岐点に過電流保護装置が施設されていない」場合の特例規定。
+            //  本アプリの「幹線分岐」モデルは親盤の分岐回路（source_circuit_id）
+            //  から給電されるため、親分岐ブレーカー(AT>0)がタップ点のOCPDとして
+            //  機能している。したがって AT>0 の親分岐が存在すれば1360-10の
+            //  適用対象外となり、判定をスキップする。
+            //  AT未設定(=0) または 親分岐が不明の場合のみ、1360-10の省略条件を評価。
             let relaxInfo = null;
+            let relaxSkipReason = '';
             if (feederSource.type === 'branch' && feederSource.circuitId) {
                 const parentCircuit = allCircuits.find(c => c.id === feederSource.circuitId);
                 if (parentCircuit) {
-                    const parentFeeder = allFeeders.find(f => f.load_name === parentCircuit.panel_name);
-                    if (parentFeeder) {
-                        const parentAmbT = Number(localFeederData[parentFeeder.id]?.ambient_temp) || 30;
-                        const parentGrpC = Number(localFeederData[parentFeeder.id]?.grouping_count) || 1;
-                        const parentMethod = localFeederData[parentFeeder.id]?.install_method || 'rack_single';
-                        const parentSize = Number(parentFeeder.cable_size) || selectCableSizeCorrected(0, parentFeeder.cable_type || 'CV', parentAmbT, parentGrpC, parentMethod);
-                        const parentEntry = CABLE_DATA.find(c => c.size === parentSize);
-                        const parentBaseAmp = parentEntry ? parentEntry[getCableCapacityKey(parentFeeder.cable_type)] : 0;
-                        const parentCorrected = calcCorrectedAmpacity(parentBaseAmp, parentAmbT, parentGrpC, parentMethod).corrected;
-                        const relaxLen = Number(localFeederData[feeder.id]?.branch_len_for_relax) || length;
-                        relaxInfo = judgeBranch3m8mRelax(parentCorrected, correctedAmp, relaxLen);
+                    const parentCircuitAT = Number(parentCircuit.at) || 0;
+                    if (parentCircuitAT > 0) {
+                        // 分岐点にOCPDあり → 緩和判定スキップ
+                        relaxSkipReason = `親分岐ブレーカー ${parentCircuitAT}AT がタップ点OCPDとして機能 (内線規程1360-10条 緩和対象外)`;
+                    } else {
+                        const parentFeeder = allFeeders.find(f => f.load_name === parentCircuit.panel_name);
+                        if (parentFeeder) {
+                            const parentAmbT = Number(localFeederData[parentFeeder.id]?.ambient_temp) || 30;
+                            const parentGrpC = Number(localFeederData[parentFeeder.id]?.grouping_count) || 1;
+                            const parentMethod = localFeederData[parentFeeder.id]?.install_method || 'rack_single';
+                            const parentSize = Number(parentFeeder.cable_size) || selectCableSizeCorrected(0, parentFeeder.cable_type || 'CV', parentAmbT, parentGrpC, parentMethod);
+                            const parentEntry = CABLE_DATA.find(c => c.size === parentSize);
+                            const parentBaseAmp = parentEntry ? parentEntry[getCableCapacityKey(parentFeeder.cable_type)] : 0;
+                            const parentCorrected = calcCorrectedAmpacity(parentBaseAmp, parentAmbT, parentGrpC, parentMethod).corrected;
+                            const relaxLen = Number(localFeederData[feeder.id]?.branch_len_for_relax) || length;
+                            relaxInfo = judgeBranch3m8mRelax(parentCorrected, correctedAmp, relaxLen);
+                        }
                     }
                 }
             }
 
             // ================== 電線保護判定（ブレーカ容量の上限） ==================
-            // 内線規程 JEAC8001 1360-8表 / 電技解釈149条 / 1365-2条
-            //  - 電灯・非電動機幹線: AT ≤ 補正後許容電流 Iz
-            //  - 電動機含む幹線    : AT ≤ min( Iz × 2.5, 3×IMmax + I他 )
-            //                        (電動機始動電流と過負荷保護の両立を考慮)
+            //  - 電灯・非電動機幹線: AT ≦ 補正後許容電流 Iz
+            //      根拠: 内線規程 JEAC8001 3705-8条 第3項本文 (電技解釈148条)
+            //  - 電動機含む幹線    : AT ≦ min( 3×ΣIM + IH , 2.5×Iz )
+            //      根拠: 内線規程 JEAC8001 3705-8条 第3項ただし書①②
+            //            ΣIM: 電動機定格電流の合計, IH: 電動機以外の負荷電流
+            //      ③ Iz > 100A の場合は上記値の直近上位標準定格まで許容
             let atUpperLimit = correctedAmp;
             let atUpperBasisShort = '';
             let atUpperBasisLong = '';
             let hasMotorLoad = false;
             {
                 const motorTotalKwNum = Number(motorTotalKw) || 0;
-                const motorMaxKwNum = Number(motorMaxKw) || 0;
                 hasMotorLoad = (motorTotalKwNum > 0);
                 if (!hasMotorLoad) {
-                    // 電灯 or 電動機を含まない動力幹線
+                    // 電灯 or 電動機を含まない幹線
                     atUpperLimit = correctedAmp;
                     atUpperBasisShort = `Iz=${correctedAmp.toFixed(0)}A`;
-                    atUpperBasisLong = `電灯/非電動機幹線: AT ≦ 補正後許容電流 Iz=${correctedAmp.toFixed(0)}A (内線規程 JEAC8001 1360-8表・電技解釈149条)`;
+                    atUpperBasisLong = `電灯/非電動機幹線: AT ≦ 補正後許容電流 Iz=${correctedAmp.toFixed(0)}A\n  (内線規程 JEAC8001 3705-8条 第3項本文 / 電技解釈148条)`;
                 } else {
-                    // 電動機を含む幹線
-                    // 概算: 3φ 力率0.85 効率0.85 想定で電動機総電流
+                    // 電動機を含む幹線 — 3705-8条 第3項ただし書
+                    // 概算: 3φ 力率0.85 効率0.85 想定で電動機総電流 ΣIM を算出
                     const phaseFactor = (phase === '3φ3W') ? Math.sqrt(3) : (phase === '1φ3W' ? 1 : 1);
                     const denom = Math.max(1, phaseFactor * voltage * 0.85 * 0.85);
-                    const motorTotalCurrent = motorTotalKwNum * 1000 / denom;
-                    const nonMotorCurrent = Math.max(0, current - motorTotalCurrent);
-                    // 最大電動機電流: MOTOR_TABLE_3705_1 から線形補間で概算
-                    let maxIm = 0;
-                    if (motorMaxKwNum > 0) {
-                        const row = MOTOR_TABLE_3705_1.find(r => r.kw >= motorMaxKwNum);
-                        if (row) {
-                            maxIm = row.current * (motorMaxKwNum / row.kw);
-                        } else {
-                            const last = MOTOR_TABLE_3705_1[MOTOR_TABLE_3705_1.length - 1];
-                            maxIm = last.current * (motorMaxKwNum / last.kw);
+                    const motorTotalCurrent = motorTotalKwNum * 1000 / denom;  // ΣIM
+                    const nonMotorCurrent = Math.max(0, current - motorTotalCurrent);  // IH
+                    const rule1 = 3 * motorTotalCurrent + nonMotorCurrent;  // 3×ΣIM + IH
+                    const rule2 = 2.5 * correctedAmp;                       // 2.5×Iz
+                    let baseLimit = Math.min(rule1, rule2);
+                    // ③ Iz > 100A の場合、直近上位標準定格まで許容
+                    let relaxedByStd = false;
+                    if (correctedAmp > 100) {
+                        const STANDARD_AT = [15,20,30,40,50,60,75,100,125,150,175,200,225,250,300,350,400,500,600,800,1000,1200];
+                        const nextUp = STANDARD_AT.find(a => a >= baseLimit);
+                        if (nextUp && nextUp > baseLimit) {
+                            baseLimit = nextUp;
+                            relaxedByStd = true;
                         }
                     }
-                    const rule1 = 2.5 * correctedAmp;            // 電線保護の絶対上限
-                    const rule2 = 3 * maxIm + nonMotorCurrent;   // 電動機始動考慮
-                    atUpperLimit = Math.min(rule1, rule2);
-                    atUpperBasisShort = `min(2.5Iz=${rule1.toFixed(0)}, 3IM+I他=${rule2.toFixed(0)})=${atUpperLimit.toFixed(0)}A`;
-                    atUpperBasisLong = `電動機含幹線: AT ≦ min(Iz×2.5=${rule1.toFixed(0)}A, 3×IMmax+I他=${rule2.toFixed(0)}A) = ${atUpperLimit.toFixed(0)}A\n` +
-                                       `  ・IMmax(${motorMaxKwNum}kW)≈${maxIm.toFixed(1)}A, I電動機合計≈${motorTotalCurrent.toFixed(1)}A, I他≈${nonMotorCurrent.toFixed(1)}A\n` +
-                                       `  (内線規程 JEAC8001 1365-2条・表1365-1、3705-2条)`;
+                    atUpperLimit = baseLimit;
+                    atUpperBasisShort = `min(3ΣIM+IH=${rule1.toFixed(0)}, 2.5Iz=${rule2.toFixed(0)})` +
+                                        (relaxedByStd ? `→直近上位${atUpperLimit}A` : `=${atUpperLimit.toFixed(0)}A`);
+                    atUpperBasisLong = `電動機含幹線: AT ≦ min(3×ΣIM+IH, 2.5×Iz)\n` +
+                                       `  ・ΣIM(電動機定格合計)≈${motorTotalCurrent.toFixed(1)}A, IH(他機器)≈${nonMotorCurrent.toFixed(1)}A\n` +
+                                       `  ・3×ΣIM+IH=${rule1.toFixed(0)}A, 2.5×Iz=${rule2.toFixed(0)}A\n` +
+                                       (relaxedByStd ? `  ・Iz>100A のため直近上位標準定格 ${atUpperLimit}A まで許容\n` : '') +
+                                       `  (内線規程 JEAC8001 3705-8条 第3項ただし書①②③)`;
                 }
             }
             const cableProtStatus = (breakerAT > 0 && breakerAT <= atUpperLimit) ? 'OK' : (breakerAT > atUpperLimit ? '×' : '-');
@@ -6707,14 +6848,14 @@
                 ngReasons.push({
                     item: '電圧降下',
                     detail: `VD率 ${vdPercent.toFixed(2)}% > 許容 ${vdRule.allowed}% (${vdRule.sourceClass})`,
-                    basis: `内線規程 JEAC8001 1310-1表 / ${vdRule.basis || '国交省公共建築工事標準仕様書'}`
+                    basis: `内線規程 JEAC8001 1310-1本文・表1310-1 / ${vdRule.basis || '国交省公共建築工事標準仕様書'}`
                 });
             }
             if (atStatus !== 'OK') {
                 ngReasons.push({
                     item: 'AT判定',
                     detail: `AT ${breakerAT}A < 設計電流 ${current.toFixed(1)}A`,
-                    basis: `内線規程 JEAC8001 1310条 (幹線: AT ≧ 設計電流)`
+                    basis: `内線規程 JEAC8001 1310節 (低圧幹線の設計: AT ≧ 設計電流)`
                 });
             }
             if (!minWireOk) {
@@ -6728,14 +6869,14 @@
                 ngReasons.push({
                     item: 'IC協調',
                     detail: `選定Icu ${icUserInput}kA < 想定Isc ${iscResult.IscKA.toFixed(2)}kA`,
-                    basis: `電技解釈149条、内線規程 JEAC8001 1360節 (遮断容量 ≧ 短絡電流)`
+                    basis: `電技解釈149条・内線規程 JEAC8001 1360節 (遮断器の定格遮断容量 ≧ 想定短絡電流)`
                 });
             }
             if (relaxInfo && !relaxInfo.exempt) {
                 ngReasons.push({
-                    item: '3m/8m緩和',
-                    detail: relaxInfo.rule || '緩和条件不成立',
-                    basis: `内線規程 JEAC8001 1360節 (幹線分岐の3m/8m緩和規定)`
+                    item: '幹線分岐OCPD省略',
+                    detail: relaxInfo.note || relaxInfo.rule || '省略条件不成立',
+                    basis: `内線規程 JEAC8001 1360-10条 (低圧屋内幹線を分岐する場合の過電流遮断器の施設) / 電技解釈148条`
                 });
             }
             if (sourceWarning) {
@@ -6750,8 +6891,8 @@
                     item: hasMotorLoad ? '電線保護(動力)' : '電線保護(電灯)',
                     detail: `AT ${breakerAT}A > 上限 ${atUpperLimit.toFixed(0)}A (${atUpperBasisShort})`,
                     basis: hasMotorLoad
-                        ? `内線規程 JEAC8001 1365-2条・表1365-1、3705-2条 (電動機幹線: AT ≦ min(2.5×Iz, 3×IM+I他))`
-                        : `内線規程 JEAC8001 1360-8表、電技解釈149条 (電線保護: AT ≦ 補正後許容電流)`
+                        ? `内線規程 JEAC8001 3705-8条 第3項ただし書 (電動機回路の過電流遮断器: AT ≦ min(3×ΣIM+IH, 2.5×Iz)、Iz>100A は直近上位標準定格まで)`
+                        : `内線規程 JEAC8001 3705-8条 第3項本文 / 電技解釈148条 (低圧幹線の過電流遮断器は電線の許容電流以下)`
                 });
             }
             const ngCount = ngReasons.length;
@@ -6936,6 +7077,8 @@
                         if (relaxInfo) {
                             const bgColor = relaxInfo.exempt ? 'badge-ok' : 'badge-ng';
                             badges.push(`<span class="badge ${bgColor}" title="${relaxInfo.note}">${relaxInfo.rule}</span>`);
+                        } else if (relaxSkipReason) {
+                            badges.push(`<span class="badge badge-ok" style="background:#e8f5e9;color:#2e7d32;" title="${relaxSkipReason}">3m/8m対象外</span>`);
                         }
                         if (ngCount === 0) {
                             badges.unshift('<span class="badge badge-ok">総合OK</span>');
@@ -6972,7 +7115,64 @@
                 input.addEventListener('blur', handleFeederLocalChange);
             });
 
-            return row;
+            // ================== 接地線サブ行（D種 + ELB D種） ==================
+            // 内線規程 JEAC8001 1350節 — 各幹線の直下にD種接地線とELB用D種接地線の2本を表示
+            const frag = document.createDocumentFragment();
+            frag.appendChild(row);
+            const gndType = judgeGroundType(voltage);
+            const gndCalc = calcGroundWireSize(breakerAT);
+            // localFeederDataに保持されたユーザー選択値
+            const fd = localFeederData[feeder.id] || {};
+            const selGroundD = Number(fd.ground_wire_size) || gndCalc.size || 0;
+            const selGroundELB = Number(fd.elb_ground_wire_size) || gndCalc.size || 0;
+            const jD = judgeGroundWire(selGroundD, breakerAT);
+            const jE = judgeGroundWire(selGroundELB, breakerAT);
+            const optSelector = (fieldName, current, required) => {
+                const opts = GROUND_WIRE_STANDARD.map(s =>
+                    `<option value="${s}" ${Number(current) === s ? 'selected' : ''}>${s} mm²</option>`
+                ).join('');
+                return `<select class="feeder-local" data-id="${feeder.id}" data-field="${fieldName}" style="width:72px;">${opts}</select>`;
+            };
+            const gndIndent = '&nbsp;'.repeat(Math.max(0, depth * 2 + 2));
+            const gndRowHTML = (label, selField, selVal, judge) => {
+                const badgeClass = judge.status === 'OK' ? 'badge-ok' : (judge.status === '×' ? 'badge-ng' : '');
+                const statusTxt = judge.status === '-' ? '-' : judge.status;
+                return `
+                    <tr class="ground-subrow" style="background:#f1f8e9;font-size:0.7rem;">
+                        <td colspan="2" style="text-align:right;color:#558b2f;padding:2px 4px;">${gndIndent}└ 接地線</td>
+                        <td colspan="4" style="padding:2px 4px;color:#33691e;">
+                            <b>${label}</b> (${gndType !== '-' ? gndType + '種' : '-'})
+                        </td>
+                        <td colspan="3" style="padding:2px 4px;" title="${judge.formula}">
+                            選定: ${optSelector(selField, selVal, judge.required)}
+                        </td>
+                        <td colspan="3" style="padding:2px 4px;color:#555;" title="${judge.formula}">
+                            必要最小: <b>${judge.required || '-'}</b> mm²
+                        </td>
+                        <td colspan="3" style="padding:2px 4px;">
+                            <span class="badge ${badgeClass}" title="${judge.formula}\n${judge.basis}">${statusTxt}</span>
+                        </td>
+                        <td colspan="16" style="padding:2px 4px;color:#757575;font-size:0.6rem;" title="${judge.basis}">
+                            根拠: A = 0.052 × In(=${breakerAT || 0}A) = ${(0.052 * (breakerAT || 0)).toFixed(2)}mm² → 直近上位 ${judge.required || '-'}mm²（1350-3表 / 資料1-3-6）
+                        </td>
+                    </tr>
+                `;
+            };
+            // 接地種別が判定不可 or 高圧/A種 の場合はサブ行非表示
+            if (gndType === 'D' || gndType === 'C') {
+                const gTmp = document.createElement('tbody');
+                gTmp.innerHTML = gndRowHTML('D種接地 (機器)', 'ground_wire_size', selGroundD, jD) +
+                                 gndRowHTML('D種接地 (ELB二次側)', 'elb_ground_wire_size', selGroundELB, jE);
+                Array.from(gTmp.children).forEach(tr => {
+                    tr.querySelectorAll('.feeder-local').forEach(input => {
+                        input.addEventListener('change', handleFeederLocalChange);
+                        input.addEventListener('blur', handleFeederLocalChange);
+                    });
+                    frag.appendChild(tr);
+                });
+            }
+
+            return frag;
         }
 
         async function handleFeederChange(e) {
@@ -7165,8 +7365,20 @@
         }
 
         function exportFeedersCsv() {
-            const headers = ['幹線No', '区分', '自（起点）', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', '周囲温度[℃]', '条数', '敷設方法', '許容(補正後)[A]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', 'Icu[kA]', '規定チェック', '動力合計kW', '最大電動機kW', '内線規程AT', '至（行先）'];
+            const headers = ['幹線No', '区分', '自（起点）', '負荷名称', '負荷容量[kVA]', '需要率[%]', '需要容量[kVA]', '相', '電圧[V]', '電流[A]', 'ケーブル種別', 'ケーブル[mm²]', '周囲温度[℃]', '条数', '敷設方法', '許容(補正後)[A]', 'こう長[m]', '力率', '電圧降下[V]', 'VD率[%]', 'VD判定', 'ブレーカー種別', 'AF', 'AT', 'AT判定', 'Icu[kA]', '規定チェック', '動力合計kW', '最大電動機kW', '内線規程AT', '至（行先）', '接地種別', '接地線D種[mm²]', '接地線D種必要[mm²]', 'ELB接地線D種[mm²]', 'ELB接地線D種必要[mm²]'];
             const rows = [headers.join(',')];
+
+            // 接地母線行（CSV先頭コメント行）
+            {
+                const feederGroundSizesCsv = allFeeders.flatMap(f => {
+                    const at = Number(f.breaker_at) || 0;
+                    const t = judgeGroundType(Number(f.voltage) || 0);
+                    if (at <= 0 || (t !== 'D' && t !== 'C')) return [];
+                    return [calcGroundWireSize(at).size, calcGroundWireSize(at).size];
+                });
+                const busSizeCsv = calcGroundBusSize(feederGroundSizesCsv);
+                rows.push(`"# 接地母線(1350-14)","${busSizeCsv || '-'} mm² (max of each feeder ground wire)"`);
+            }
 
             allFeeders.forEach((feeder, index) => {
                 const feederNo = localFeederData[feeder.id]?.feeder_no || '';
@@ -7210,7 +7422,7 @@
                 const breakerAF = (breakerAdoptCsv === 'manual' && afManualCsv > 0) ? afManualCsv : breaker.af;
                 const breakerAT = (breakerAdoptCsv === 'manual' && atManualCsv > 0) ? atManualCsv : breaker.at;
 
-                // AT判定（幹線は内線規程 1310条: AT ≥ 設計電流。1.25倍は分岐回路のみ適用）
+                // AT判定（幹線は内線規程 1310節: AT ≥ 設計電流。1.25倍は分岐回路のみ適用）
                 let atStatus = (breakerAT >= current) ? 'OK' : '×';
 
                 // 内線規程AT
@@ -7249,13 +7461,14 @@
                     const denomCsv = Math.max(1, phaseFactorCsv * voltage * 0.85 * 0.85);
                     const motorTotalCurrentCsv = (Number(motorTotalKw) || 0) * 1000 / denomCsv;
                     const nonMotorCurrentCsv = Math.max(0, current - motorTotalCurrentCsv);
-                    const mkw = Number(motorMaxKw) || 0;
-                    let maxImCsv = 0;
-                    if (mkw > 0) {
-                        const rowM = MOTOR_TABLE_3705_1.find(r => r.kw >= mkw) || MOTOR_TABLE_3705_1[MOTOR_TABLE_3705_1.length - 1];
-                        maxImCsv = rowM.current * (mkw / rowM.kw);
+                    // 3705-8 第3項ただし書①②: min(3×ΣIM+IH, 2.5×Iz)
+                    atUpperCsv = Math.min(3 * motorTotalCurrentCsv + nonMotorCurrentCsv, 2.5 * correctedAmpCsv);
+                    // ③ Iz>100A: 直近上位標準定格まで許容
+                    if (correctedAmpCsv > 100) {
+                        const STD_AT = [15,20,30,40,50,60,75,100,125,150,175,200,225,250,300,350,400,500,600,800,1000,1200];
+                        const nu = STD_AT.find(a => a >= atUpperCsv);
+                        if (nu) atUpperCsv = nu;
                     }
-                    atUpperCsv = Math.min(2.5 * correctedAmpCsv, 3 * maxImCsv + nonMotorCurrentCsv);
                 }
                 if (breakerAT > 0 && breakerAT > atUpperCsv) {
                     checkParts.push(`電線保護${hasMotorCsv?'(動)':'(灯)'}×(AT${breakerAT}>${atUpperCsv.toFixed(0)})`);
@@ -7267,6 +7480,12 @@
                         checkParts.push(`Isc≈${iscResultCsv.IscKA.toFixed(1)}kA`);
                     }
                 }
+                // 接地関連（CSV）
+                const gndTypeCsv = judgeGroundType(voltage);
+                const gndCalcCsv = calcGroundWireSize(breakerAT);
+                const selGroundDCsv = Number(localFeederData[feeder.id]?.ground_wire_size) || gndCalcCsv.size || 0;
+                const selGroundELBCsv = Number(localFeederData[feeder.id]?.elb_ground_wire_size) || gndCalcCsv.size || 0;
+
                 const row = [
                     feederNo,
                     feederCategory,
@@ -7298,7 +7517,12 @@
                     motorTotalKw || '',
                     motorMaxKw || '',
                     kiteiAT,
-                    feeder.destination || ''
+                    feeder.destination || '',
+                    (gndTypeCsv === 'D' || gndTypeCsv === 'C') ? (gndTypeCsv + '種') : '-',
+                    selGroundDCsv || '-',
+                    gndCalcCsv.size || '-',
+                    selGroundELBCsv || '-',
+                    gndCalcCsv.size || '-'
                 ];
                 rows.push(row.map(cell => `"${cell}"`).join(','));
             });
