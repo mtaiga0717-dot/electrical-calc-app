@@ -1423,6 +1423,166 @@
         .motor-result-row:last-child {
             border-bottom: none;
         }
+
+        /* ================== 印刷レポート（A3横） ================== */
+        #printView {
+            display: none;
+            background: #e0e0e0;
+            padding: 2rem 1rem;
+        }
+        #printView.active { display: block; }
+        #printView .print-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: #1a1a2e;
+            color: #fff;
+            padding: 0.6rem 1rem;
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+            flex-wrap: wrap;
+        }
+        #printView .print-toolbar input[type="text"] {
+            padding: 0.35rem 0.5rem;
+            border: 1px solid #bbb;
+            border-radius: 3px;
+            font-size: 0.85rem;
+            min-width: 220px;
+        }
+        #printView .print-toolbar label {
+            font-size: 0.8rem;
+            color: #cfd8dc;
+        }
+        #printView .print-toolbar button {
+            background: #42a5f5;
+            color: #fff;
+            border: none;
+            padding: 0.4rem 0.9rem;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        #printView .print-toolbar button.primary {
+            background: #e53935;
+            font-weight: bold;
+        }
+        .print-page {
+            background: #fff;
+            width: 420mm;       /* A3 横幅 */
+            min-height: 297mm;  /* A3 縦 */
+            margin: 0 auto 1rem;
+            padding: 10mm 10mm 12mm;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+            box-sizing: border-box;
+            page-break-after: always;
+            font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+            color: #000;
+            font-size: 10pt;
+        }
+        .print-page:last-child { page-break-after: auto; }
+        .print-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid #000;
+            padding-bottom: 4px;
+            margin-bottom: 8px;
+        }
+        .print-header .ph-title {
+            font-size: 16pt;
+            font-weight: bold;
+            letter-spacing: 0.05em;
+        }
+        .print-header .ph-meta {
+            font-size: 9pt;
+            text-align: right;
+            line-height: 1.4;
+        }
+        .print-header .ph-meta b { font-size: 10pt; }
+        .print-footer {
+            position: absolute;
+            bottom: 6mm;
+            left: 10mm;
+            right: 10mm;
+            font-size: 8pt;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid #ccc;
+            padding-top: 3px;
+        }
+        .print-page { position: relative; }
+        .print-page table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8.5pt;
+        }
+        .print-page table th,
+        .print-page table td {
+            border: 1px solid #333;
+            padding: 2px 4px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .print-page table th {
+            background: #1a1a2e;
+            color: #fff;
+            font-weight: bold;
+            font-size: 8pt;
+        }
+        .print-page table tbody tr:nth-child(even) td {
+            background: #f5f5f5;
+        }
+        .print-page .group-header td {
+            background: #455a64 !important;
+            color: #fff;
+            font-weight: bold;
+            text-align: left;
+            padding: 3px 6px;
+        }
+        .print-page .panel-subheader td {
+            background: #bbdefb !important;
+            color: #0d47a1;
+            font-weight: bold;
+            text-align: left;
+            padding: 3px 6px;
+            font-size: 9pt;
+        }
+        .print-page .bus-row td {
+            background: #c8e6c9 !important;
+            font-weight: bold;
+            text-align: left;
+            padding: 3px 6px;
+            color: #1b5e20;
+        }
+        .print-page .gnd-row td {
+            background: #f1f8e9 !important;
+            font-size: 7.5pt;
+            color: #33691e;
+        }
+        .print-page .status-ok { color: #1b5e20; font-weight: bold; }
+        .print-page .status-ng { color: #c62828; font-weight: bold; }
+
+        @media print {
+            body { background: #fff !important; }
+            body > *:not(#printView) { display: none !important; }
+            #printView { display: block !important; padding: 0; background: #fff; }
+            #printView .print-toolbar { display: none !important; }
+            .print-page {
+                box-shadow: none;
+                margin: 0;
+                padding: 8mm 8mm 10mm;
+                width: 100%;
+                min-height: 0;
+            }
+            @page {
+                size: A3 landscape;
+                margin: 8mm;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1449,7 +1609,23 @@
                 <button class="nav-tab" data-tab="transformer">トランス容量</button>
                 <button class="nav-tab" data-tab="diagram">系統図</button>
                 <button class="nav-tab" data-tab="master">マスターデータ</button>
+                <button class="nav-tab" id="btnOpenPrintView" style="background:#e53935;color:#fff;margin-left:0.6rem;">🖨 印刷レポート</button>
             </div>
+        </div>
+
+        <!-- ================== 印刷レポート（A3横 PDF用） ================== -->
+        <div id="printView">
+            <div class="print-toolbar">
+                <span style="font-weight:bold;">🖨 印刷レポート（A3 横）</span>
+                <label>工事名称</label>
+                <input type="text" id="printProjectName" placeholder="例: 〇〇ビル 新築工事" />
+                <label>作成日</label>
+                <input type="text" id="printDate" style="min-width:130px;" />
+                <button class="primary" id="btnDoPrint">📄 印刷 / PDF保存</button>
+                <button id="btnClosePrintView">✕ 閉じる</button>
+                <span style="font-size:0.75rem;color:#90caf9;">※ ブラウザの印刷ダイアログで「A3・横・背景あり」を指定してください</span>
+            </div>
+            <div id="printContent"></div>
         </div>
 
         <div class="container">
@@ -2280,9 +2456,194 @@
                         <input type="hidden" id="overallDemandFactor" value="100">
                     </div>
 
-                    <!-- ⑥ トランス登録（エンティティ管理） -->
+                    <!-- ⑤-2 設備不平衡率チェック（高圧受電三相3線式） -->
+                    <div class="summary-section">
+                        <div class="summary-title">⑤-2 設備不平衡率（内線規程 1305-2 / 建築設備設計基準）</div>
+                        <p style="font-size:0.82rem;color:#555;margin-bottom:0.6rem;">
+                            高圧受電・三相3線式の場合、<strong>設備不平衡率 ≦ 30%</strong> とする必要があります。<br>
+                            不平衡率 ＝ （各線間に接続される単相負荷総容量の最大と最小の差 ÷ 総負荷設備容量の 1/3）× 100 ［％］<br>
+                            ただし次のいずれかに該当する場合は例外：
+                            <span style="color:#1565c0;">① 低圧受電で単相負荷のみ　② 低圧受電で三相変圧器容量≦100kVA　③ 高圧受電で単相変圧器容量≦100kVA　④ 高圧受電で単相変圧器の最大最小差≦100kVA</span>
+                        </p>
+                        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+                            <thead>
+                                <tr style="background-color:#f5f5f5;">
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">項目</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">R-S 間 [kVA]</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">S-T 間 [kVA]</th>
+                                    <th style="border:1px solid #ddd;padding:0.4rem;">T-R 間 [kVA]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.4rem;">単相負荷 容量</td>
+                                    <td style="border:1px solid #ddd;padding:0.3rem;"><input type="number" step="0.01" id="imbalRS" class="summary-input" value="0" min="0" style="width:100%;"></td>
+                                    <td style="border:1px solid #ddd;padding:0.3rem;"><input type="number" step="0.01" id="imbalST" class="summary-input" value="0" min="0" style="width:100%;"></td>
+                                    <td style="border:1px solid #ddd;padding:0.3rem;"><input type="number" step="0.01" id="imbalTR" class="summary-input" value="0" min="0" style="width:100%;"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin-top:0.6rem;">
+                            <tbody>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.4rem;width:35%;">単相最大 － 単相最小</td>
+                                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:right;background:#e3f2fd;" id="imbalDiff">0.00 kVA</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid #ddd;padding:0.4rem;">総負荷設備容量 × 1/3</td>
+                                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:right;background:#e3f2fd;" id="imbalBase">0.00 kVA</td>
+                                </tr>
+                                <tr style="font-weight:bold;">
+                                    <td style="border:1px solid #ddd;padding:0.4rem;">設備不平衡率</td>
+                                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:right;" id="imbalRate">-</td>
+                                </tr>
+                                <tr style="font-weight:bold;">
+                                    <td style="border:1px solid #ddd;padding:0.4rem;">判定（≦30%）</td>
+                                    <td style="border:1px solid #ddd;padding:0.4rem;text-align:right;" id="imbalJudge">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ⑥ 短絡電流計算（受電地点～F8点） -->
+                    <div class="summary-section" style="margin-top:2rem;border-top:3px solid #c62828;padding-top:1.5rem;">
+                        <div class="summary-title" style="color:#c62828;">⑥ 短絡電流計算（JEAC8001/建築設備設計基準 Chap.2 準拠）</div>
+                        <p style="font-size:0.82rem;color:#555;margin-bottom:0.8rem;">
+                            %Z 法によりF₁（高圧母線）〜F₈（100V コンセント付近）の短絡電流を計算します。
+                            基準容量 P<sub>n</sub> は <b>10 MV·A</b> 固定です。
+                        </p>
+
+                        <!-- ⑥-A 電源インピーダンス -->
+                        <h4 style="color:#1a1a2e;margin:0.8rem 0 0.5rem 0;">⑥-A 電源 %Z<sub>1</sub> 入力</h4>
+                        <div style="display:flex;gap:1.2rem;margin-bottom:0.8rem;font-size:0.85rem;flex-wrap:wrap;">
+                            <label><input type="radio" name="sourceImpMode" id="srcModePdf" value="pdf" checked> 電力会社PDF詳細入力</label>
+                            <label><input type="radio" name="sourceImpMode" id="srcModeDirect" value="direct"> 電力会社%Z 直接入力（補充問題方式）</label>
+                            <label><input type="radio" name="sourceImpMode" id="srcModeFallback" value="fallback"> 12.5 kA 仮置き（PDF未入手時）</label>
+                        </div>
+                        <div id="srcInputPdf" style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;font-size:0.85rem;margin-bottom:0.6rem;">
+                            <label>受電電圧 [kV] <input type="number" step="0.01" id="srcVkv" value="6.6" style="width:100%;"></label>
+                            <label>配電線 Σ(a×c) [%] <input type="number" step="0.001" id="srcAC" value="0" style="width:100%;" title="配電線の合成%R"></label>
+                            <label>配電線 Σ(b×c) [%] <input type="number" step="0.001" id="srcBC" value="0" style="width:100%;" title="配電線の合成%X"></label>
+                            <label>X<sub>0</sub> [%] <input type="number" step="0.001" id="srcX0" value="0" style="width:100%;" title="上流電源リアクタンス"></label>
+                            <label>基準容量 P<sub>n</sub> [MV·A] <input type="number" step="0.1" id="srcPn" value="10" style="width:100%;"></label>
+                        </div>
+                        <div id="srcInputDirect" style="display:none;grid-template-columns:repeat(4,1fr);gap:0.5rem;font-size:0.85rem;margin-bottom:0.6rem;">
+                            <label>受電電圧 [kV] <input type="number" step="0.01" id="srcVkvDir" value="6.6" style="width:100%;"></label>
+                            <label>%Z<sub>a</sub> 実部 [%] <input type="number" step="0.01" id="srcZaR" value="1.7" style="width:100%;" title="例: 補充問題 %Za=1.7+j9.28 の 1.7"></label>
+                            <label>%Z<sub>a</sub> 虚部 [%] <input type="number" step="0.01" id="srcZaX" value="9.28" style="width:100%;" title="例: 補充問題 %Za=1.7+j9.28 の 9.28"></label>
+                            <label>基準容量 P<sub>n</sub> [MV·A] <input type="number" step="0.1" id="srcPnDir" value="10" style="width:100%;"></label>
+                        </div>
+                        <div id="srcInputFallback" style="display:none;grid-template-columns:repeat(3,1fr);gap:0.5rem;font-size:0.85rem;margin-bottom:0.6rem;">
+                            <label>電力会社推奨遮断電流 [kA] <input type="number" step="0.1" id="srcIkKa" value="12.5" style="width:100%;"></label>
+                            <label>最大使用電圧 [kV] <input type="number" step="0.01" id="srcVmaxKv" value="6.9" style="width:100%;" title="6.6 × 1.15/1.1 ≒ 6.9kV"></label>
+                            <label>基準容量 P<sub>n</sub> [MV·A] <input type="number" step="0.1" id="srcPnFb" value="10" style="width:100%;"></label>
+                        </div>
+                        <div id="srcZ1Preview" style="padding:0.5rem;background:#fff8e1;border-radius:4px;font-size:0.85rem;">
+                            %Z<sub>1</sub>（合成）= - + j - ［%］／受電地点 I<sub>s</sub> = - kA
+                        </div>
+
+                        <!-- ⑥-B 高圧ケーブル登録 -->
+                        <h4 style="color:#1a1a2e;margin:1rem 0 0.5rem 0;">⑥-B 高圧引込／構内ケーブル %Z<sub>2</sub> 登録</h4>
+                        <div style="margin-bottom:0.5rem;">
+                            <button class="btn-action" id="btnAddHvCable" style="background:#1565c0;color:#fff;">+ 高圧ケーブル追加</button>
+                        </div>
+                        <div style="overflow-x:auto;">
+                        <table id="hvCableTable" style="width:100%;border-collapse:collapse;font-size:0.78rem;min-width:1400px;">
+                            <thead>
+                                <tr style="background:#e3f2fd;">
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">名称</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">役割</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">種別</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">サイズ<br>[mm²]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">こう長<br>[m]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">布設方法</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">条数</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">間隔</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">周囲温度<br>[℃]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">ts<br>[秒]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">負荷電流<br>[A]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">%Z換算</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;background:#fff3e0;" colspan="3">選定判定（表5.3準拠）</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;" rowspan="2">操作</th>
+                                </tr>
+                                <tr style="background:#fff3e0;">
+                                    <th style="border:1px solid #ddd;padding:0.3rem;font-size:0.72rem;">連続許容</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;font-size:0.72rem;">短絡許容</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;font-size:0.72rem;">推奨サイズ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hvCableBody"></tbody>
+                        </table>
+                        </div>
+                        <p style="font-size:0.72rem;color:#666;margin-top:0.4rem;">
+                            選定判定の凡例：○=OK、×=現行サイズが不足、表外=表5.3 未定義。推奨サイズは連続電流条件と短絡電流条件のうち大きい方を自動表示します。<br>
+                            布設方法：気中/暗きょ式(40℃基底)・直接埋設式/管路式(25℃基底)。周囲温度補正 α=√((90-T3)/(90-T2))。短絡式 Ac=√ts/135×I（架橋ポリエチレン 銅導体）。
+                        </p>
+
+                        <!-- ⑥-C 負荷ケーブル登録（F7/F8計算用） -->
+                        <h4 style="color:#1a1a2e;margin:1rem 0 0.5rem 0;">⑥-C 負荷ケーブル登録（F₇/F₈ 末端短絡電流計算用・任意）</h4>
+                        <p style="font-size:0.8rem;color:#666;margin-bottom:0.5rem;">
+                            分電盤から負荷末端（照明器具・コンセント）までのケーブル。VV-F等を登録すると F₇/F₈ 点の短絡電流を自動計算します。
+                        </p>
+                        <div style="margin-bottom:0.5rem;">
+                            <button class="btn-action" id="btnAddLoadCable" style="background:#43a047;color:#fff;">+ 負荷ケーブル追加</button>
+                        </div>
+                        <table id="loadCableTable" style="width:100%;border-collapse:collapse;font-size:0.83rem;">
+                            <thead>
+                                <tr style="background:#e8f5e9;">
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">名称</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">接続先幹線</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">種別</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">サイズ</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">こう長 [m]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">電圧 [V]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">R [Ω/km]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">X [Ω/km]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="loadCableBody"></tbody>
+                        </table>
+
+                        <!-- ⑥-D 電動機寄与電流オプション -->
+                        <h4 style="color:#1a1a2e;margin:1rem 0 0.5rem 0;">⑥-D 電動機寄与電流（オプション）</h4>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;font-size:0.85rem;margin-bottom:0.6rem;">
+                            <label><input type="checkbox" id="motorContribEnabled"> 電動機寄与電流を考慮する</label>
+                            <label>動力トランス自動閾値 [kVA] <input type="number" step="10" id="motorContribThreshold" value="300" style="width:100%;" title="動力トランス容量がこれ以上なら自動ON"></label>
+                            <label>電動機合計入力容量 [kV·A] <input type="number" step="1" id="motorInputKva" value="0" style="width:100%;" title="55kW×1.5=82.5kV·A の様に"></label>
+                        </div>
+                        <p style="font-size:0.78rem;color:#666;margin:0;">
+                            参考書 p.37：%X<sub>10</sub> = 25 × P<sub>n</sub>/電動機入力容量。動力制御盤主幹(F₃)の短絡電流にのみ加算。
+                        </p>
+
+                        <!-- ⑥-E 短絡電流計算結果 -->
+                        <h4 style="color:#1a1a2e;margin:1rem 0 0.5rem 0;">⑥-E 短絡電流計算結果</h4>
+                        <div style="margin-bottom:0.5rem;">
+                            <button class="btn-action" id="btnRunShortCircuit" style="background:#c62828;color:#fff;">▶ 短絡電流を計算</button>
+                        </div>
+                        <table id="shortCircuitResultTable" style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                            <thead>
+                                <tr style="background:#c62828;color:#fff;">
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">事故点</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">区分</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">電圧 [V]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">%R</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">%X</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">%Z</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">I<sub>n</sub> [A]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">I<sub>s</sub> [kA]</th>
+                                    <th style="border:1px solid #ddd;padding:0.3rem;">備考</th>
+                                </tr>
+                            </thead>
+                            <tbody id="shortCircuitResultBody">
+                                <tr><td colspan="9" style="border:1px solid #ddd;padding:0.6rem;text-align:center;color:#999;">「短絡電流を計算」ボタンを押してください</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ⑦ トランス登録（エンティティ管理） -->
                     <div class="summary-section" style="margin-top:2rem;border-top:3px solid #1a1a2e;padding-top:1.5rem;">
-                        <div class="summary-title">⑥ トランス登録（実機管理・短絡電流計算準備）</div>
+                        <div class="summary-title">⑦ トランス登録（実機管理・短絡電流計算準備）</div>
                         <p style="font-size:0.85rem;color:#555;margin-bottom:0.8rem;">
                             国交省 建築設備設計基準（電気設備工事編）準拠。ここで登録したトランスは、幹線計算書の<strong>「自」</strong>欄で選択できます。%Z を入力すれば、将来の短絡電流（Isc = In × 100/%Z）計算に利用されます。
                         </p>
@@ -2359,7 +2720,7 @@
             <div id="master" class="tab-content">
                 <div class="master-tables">
                     <div class="master-table">
-                        <div class="master-table-title">CV/CVT 電力ケーブル（r, x値含む）</div>
+                        <div class="master-table-title">CV/CVT/FP/EM-CE/EM-CET 電力ケーブル許容電流（r, x値含む）</div>
                         <div class="master-table-content">
                             <table>
                                 <thead>
@@ -2367,6 +2728,9 @@
                                         <th>サイズ (mm²)</th>
                                         <th>CV (A)</th>
                                         <th>CVT (A)</th>
+                                        <th>FP (A)</th>
+                                        <th>EM-CE (A)</th>
+                                        <th>EM-CET (A)</th>
                                         <th>r (Ω/km)</th>
                                         <th>x (Ω/km)</th>
                                     </tr>
@@ -2562,25 +2926,30 @@
         // fp: FPケーブル(耐火ケーブル, JIS C 3521 / 消防用)
         //     単芯〜4芯、30℃空中敷設ベース。CVの概ね90〜95%を保守側で採用（各社FP-C/FPC代表値）。
         //     実値はメーカーカタログ（フジクラ FP-C, 古河電工 FP, 住電HSTケーブル FP 等）で確認のこと。
+        // JEAC8001 内線規程 1340節 許容電流（空中単独布設 / ラック単段 / 周囲30℃）
+        //   EM-CE / EM-CET は JIS C 3605 ノンハロゲン難燃ポリエチレン（エコケーブル）
+        //   導体・絶縁厚が同等のため許容電流は CV / CVT と同値とする（JEAC8001-2016 資料1-3-9）。
         const CABLE_DATA = [
-            { size: 2.0, cv: 23,  cvt: 27,  fp: 21,  r: 9.45,   x: 0.101 },
-            { size: 3.5, cv: 31,  cvt: 37,  fp: 29,  r: 5.40,   x: 0.095 },
-            { size: 5.5, cv: 43,  cvt: 49,  fp: 40,  r: 3.43,   x: 0.088 },
-            { size: 8,   cv: 54,  cvt: 61,  fp: 50,  r: 2.36,   x: 0.083 },
-            { size: 14,  cv: 73,  cvt: 88,  fp: 68,  r: 1.35,   x: 0.077 },
-            { size: 22,  cv: 96,  cvt: 115, fp: 89,  r: 0.856,  x: 0.074 },
-            { size: 38,  cv: 131, cvt: 160, fp: 122, r: 0.495,  x: 0.070 },
-            { size: 60,  cv: 172, cvt: 210, fp: 160, r: 0.314,  x: 0.067 },
-            { size: 100, cv: 232, cvt: 290, fp: 216, r: 0.189,  x: 0.064 },
-            { size: 150, cv: 284, cvt: 355, fp: 264, r: 0.126,  x: 0.063 },
-            { size: 200, cv: 338, cvt: 420, fp: 314, r: 0.0948, x: 0.062 },
-            { size: 250, cv: 390, cvt: 485, fp: 363, r: 0.0757, x: 0.062 },
-            { size: 325, cv: 453, cvt: 560, fp: 421, r: 0.0583, x: 0.061 }
+            { size: 2.0, cv: 23,  cvt: 27,  fp: 21,  em: 23,  emc: 27,  r: 9.45,   x: 0.101 },
+            { size: 3.5, cv: 31,  cvt: 37,  fp: 29,  em: 31,  emc: 37,  r: 5.40,   x: 0.095 },
+            { size: 5.5, cv: 43,  cvt: 49,  fp: 40,  em: 43,  emc: 49,  r: 3.43,   x: 0.088 },
+            { size: 8,   cv: 54,  cvt: 61,  fp: 50,  em: 54,  emc: 61,  r: 2.36,   x: 0.083 },
+            { size: 14,  cv: 73,  cvt: 88,  fp: 68,  em: 73,  emc: 88,  r: 1.35,   x: 0.077 },
+            { size: 22,  cv: 96,  cvt: 115, fp: 89,  em: 96,  emc: 115, r: 0.856,  x: 0.074 },
+            { size: 38,  cv: 131, cvt: 160, fp: 122, em: 131, emc: 160, r: 0.495,  x: 0.070 },
+            { size: 60,  cv: 172, cvt: 210, fp: 160, em: 172, emc: 210, r: 0.314,  x: 0.067 },
+            { size: 100, cv: 232, cvt: 290, fp: 216, em: 232, emc: 290, r: 0.189,  x: 0.064 },
+            { size: 150, cv: 284, cvt: 355, fp: 264, em: 284, emc: 355, r: 0.126,  x: 0.063 },
+            { size: 200, cv: 338, cvt: 420, fp: 314, em: 338, emc: 420, r: 0.0948, x: 0.062 },
+            { size: 250, cv: 390, cvt: 485, fp: 363, em: 390, emc: 485, r: 0.0757, x: 0.062 },
+            { size: 325, cv: 453, cvt: 560, fp: 421, em: 453, emc: 560, r: 0.0583, x: 0.061 }
         ];
         // ケーブル種別 → CABLE_DATA 容量フィールド 対応
         function getCableCapacityKey(cableType) {
             if (cableType === 'CVT') return 'cvt';
             if (cableType === 'FP' || cableType === 'FP-C' || cableType === 'FPC') return 'fp';
+            if (cableType === 'EM-CE' || cableType === 'EM-IE' || cableType === 'EM') return 'em';
+            if (cableType === 'EM-CET' || cableType === 'EM-CEE/F' || cableType === 'EMCET') return 'emc';
             return 'cv'; // デフォルト CV
         }
 
@@ -3155,6 +3524,974 @@
             return (In * 100 / pz) / 1000;  // kA
         }
 
+        // ============================================================
+        // 短絡電流計算（%Z法 / 建築設備設計基準 Chap.2 準拠）
+        // ============================================================
+
+        // ⑥-A 電源インピーダンス（電力会社PDF / 12.5kAフォールバック）
+        const SOURCE_IMP_KEY = 'elecCalc:sourceImpedance';
+        function loadSourceImp() {
+            try {
+                const raw = localStorage.getItem(SOURCE_IMP_KEY);
+                if (raw) return JSON.parse(raw);
+            } catch (e) {}
+            return { mode: 'pdf', pn_mva: 10, v_kv: 6.6, ac: 0, bc: 0, x0: 0, fb_ika: 12.5, fb_vmax: 6.9, fb_pn: 10, dir_za_r: 1.7, dir_za_x: 9.28, dir_v_kv: 6.6, dir_pn: 10 };
+        }
+        function saveSourceImp() {
+            try { localStorage.setItem(SOURCE_IMP_KEY, JSON.stringify(sourceImp)); } catch (e) {}
+        }
+        let sourceImp = loadSourceImp();
+
+        // 電源 %Z₁（基準容量 Pn[MV·A] に換算済み）
+        function calcSourceImpedance() {
+            if (sourceImp.mode === 'pdf') {
+                const Pn = Number(sourceImp.pn_mva) || 10;
+                return {
+                    r: Number(sourceImp.ac) || 0,
+                    x: (Number(sourceImp.x0) || 0) + (Number(sourceImp.bc) || 0),
+                    pn_mva: Pn,
+                    v_kv: Number(sourceImp.v_kv) || 6.6
+                };
+            } else if (sourceImp.mode === 'direct') {
+                // 電力会社から %Z 合成値が直接与えられる場合（補充問題方式）
+                return {
+                    r: Number(sourceImp.dir_za_r) || 0,
+                    x: Number(sourceImp.dir_za_x) || 0,
+                    pn_mva: Number(sourceImp.dir_pn) || 10,
+                    v_kv: Number(sourceImp.dir_v_kv) || 6.6
+                };
+            } else {
+                // フォールバック：電力会社推奨遮断電流から簡易短絡容量を求める
+                //   短絡容量[MV·A] = √3 × Ik[kA] × Vmax[kV]
+                //   %Z = Pn / 短絡容量 × 100
+                const Ik = Number(sourceImp.fb_ika) || 12.5;
+                const Vm = Number(sourceImp.fb_vmax) || 6.9;
+                const Pn = Number(sourceImp.fb_pn) || 10;
+                const mvaSc = Math.sqrt(3) * Ik * Vm;
+                const pct = mvaSc > 0 ? (Pn / mvaSc) * 100 : 0;
+                return { r: 0, x: pct, pn_mva: Pn, v_kv: 6.6 };
+            }
+        }
+
+        // ⑥-B 高圧ケーブル登録
+        const HV_CABLE_KEY = 'elecCalc:hvCables';
+        // 6kV CVT 典型値（Ω/km）出典：JCS / 建築設備設計基準 表2.2相当
+        const HV_CABLE_DEFAULT_RX = {
+            14:  { r: 1.51,   x: 0.143 },
+            22:  { r: 0.954,  x: 0.134 },
+            38:  { r: 0.626,  x: 0.124 },
+            60:  { r: 0.394,  x: 0.118 },
+            100: { r: 0.245,  x: 0.112 },
+            150: { r: 0.166,  x: 0.109 },
+            200: { r: 0.125,  x: 0.106 },
+            250: { r: 0.0991, x: 0.104 },
+            325: { r: 0.0783, x: 0.102 }
+        };
+        function loadHvCables() {
+            try { const raw = localStorage.getItem(HV_CABLE_KEY); return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
+        }
+        function saveHvCables() {
+            try { localStorage.setItem(HV_CABLE_KEY, JSON.stringify(hvCables)); } catch (e) {}
+        }
+        let hvCables = loadHvCables();
+        function newHvCableId() { return 'hvc_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+
+        // Ω/km × L[m] → %Z (基準容量 Pn[MV·A], 電圧 V[kV])
+        // %Z = Z[Ω] × Pn[kVA] / (10 × V²[kV²])
+        function ohmToPercentZ(r_per_km, x_per_km, lengthM, pnMva, vKv) {
+            const L = (Number(lengthM) || 0) / 1000;
+            const Z_r = (Number(r_per_km) || 0) * L;
+            const Z_x = (Number(x_per_km) || 0) * L;
+            const pnKva = (Number(pnMva) || 10) * 1000;
+            const denom = 10 * vKv * vKv;
+            if (denom <= 0) return { r: 0, x: 0 };
+            return { r: Z_r * pnKva / denom, x: Z_x * pnKva / denom };
+        }
+
+        // ⑥-C 負荷ケーブル登録（F₇/F₈用）
+        const LOAD_CABLE_KEY = 'elecCalc:loadCables';
+        // VV-F 2.0mm-2C 実効抵抗（600V ビニル絶縁、60℃）— 建築設備設計基準 表2.1
+        const LOAD_CABLE_DEFAULT_RX = {
+            // VV-F 2心の概算値
+            'VV-F_1.6_2C': { r: 9.96, x: 0.098 },
+            'VV-F_2.0_2C': { r: 6.13, x: 0.0914 },
+            'VV-F_2.6_2C': { r: 3.65, x: 0.0879 },
+            // CV 2心
+            'CV_2_2C':     { r: 10.9, x: 0.0987 },
+            'CV_3.5_2C':   { r: 6.13, x: 0.0914 },
+            'CV_5.5_2C':   { r: 3.93, x: 0.0914 },
+            'CV_8_2C':     { r: 2.73, x: 0.0914 },
+            'CV_14_2C':    { r: 1.55, x: 0.0902 },
+            'CV_22_2C':    { r: 0.983, x: 0.0881 },
+            'CV_38_2C':    { r: 0.569, x: 0.0844 }
+        };
+        function loadLoadCables() {
+            try { const raw = localStorage.getItem(LOAD_CABLE_KEY); return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
+        }
+        function saveLoadCables() {
+            try { localStorage.setItem(LOAD_CABLE_KEY, JSON.stringify(loadCables)); } catch (e) {}
+        }
+        let loadCables = loadLoadCables();
+        function newLoadCableId() { return 'lc_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+
+        // 幹線 R/X を Ω/km から取得（CABLE_DATA には r,x 保持済み）
+        function feederOhmPerKm(feeder) {
+            const cableSize = Number(feeder.cable_size) || 0;
+            const entry = CABLE_DATA.find(c => c.size === cableSize);
+            if (!entry) return { r: 0, x: 0 };
+            return { r: Number(entry.r) || 0, x: Number(entry.x) || 0 };
+        }
+
+        // ============================================================
+        // 短絡電流計算エンジン 本体
+        // ============================================================
+        function runShortCircuitCalculation() {
+            const results = [];
+            const src = calcSourceImpedance();
+            const Pn = src.pn_mva;      // MV·A
+            const PnKva = Pn * 1000;
+            const V1 = src.v_kv;        // 高圧側 kV
+
+            // F₁: 高圧母線（受電地点）
+            const srcR = src.r;
+            const srcX = src.x;
+
+            // %Z₂: 高圧ケーブル（複数ある場合は直列合算）
+            let hvR = 0, hvX = 0;
+            hvCables.forEach(c => {
+                const pct = ohmToPercentZ(c.r_ohm_km, c.x_ohm_km, c.length_m, Pn, V1);
+                hvR += pct.r;
+                hvX += pct.x;
+            });
+            const f1_r = srcR + hvR;
+            const f1_x = srcX + hvX;
+            const f1_z = Math.sqrt(f1_r * f1_r + f1_x * f1_x);
+            const f1_In = PnKva / (Math.sqrt(3) * V1);
+            const f1_Is = f1_z > 0 ? (f1_In * 100 / f1_z) : 0;
+
+            results.push({
+                point: 'F₁', label: '高圧母線（受電地点直下）',
+                kind: 'HV', v_disp: (V1 * 1000).toFixed(0),
+                r: f1_r, x: f1_x, z: f1_z,
+                In: f1_In, Is_kA: f1_Is / 1000,
+                note: src.mode === 'pdf' ? 'PDF入力値' : `12.5kA仮置き`
+            });
+
+            // 電動機寄与（オプション）
+            const motorContribEnabled = document.getElementById('motorContribEnabled')?.checked || false;
+            const motorKva = parseFloat(document.getElementById('motorInputKva')?.value) || 0;
+            const motorContribThreshold = parseFloat(document.getElementById('motorContribThreshold')?.value) || 300;
+            let motorPctX = 0;
+            if (motorKva > 0) {
+                // %X₁₀ = 25 × Pn(kVA) / 電動機入力(kVA)
+                motorPctX = 25 * PnKva / motorKva;
+            }
+
+            // 各トランスについて F₂(動力Tr二次)/F₅(電灯Tr二次) を計算
+            transformers.forEach(tr => {
+                const kva = Number(tr.rated_kva) || 0;
+                if (kva <= 0) return;
+                const pctR_t = Number(tr.percent_r) || 0;
+                const pctX_t = Number(tr.percent_x) || 0;
+                const factor = PnKva / kva;
+                let trR = pctR_t * factor;
+                let trX = pctX_t * factor;
+                const isSinglePhase = (tr.phase === '単相2W' || tr.phase === '単相3W');
+                // 単相変圧器: 等価三相変換 %Z₃φ = (1/2) × %Z₁φ
+                if (isSinglePhase) { trR = trR / 2; trX = trX / 2; }
+
+                const V2 = (Number(tr.secondary_voltage) || 210) / 1000; // kV
+                const p_r = f1_r + trR;
+                const p_x = f1_x + trX;
+                const p_z = Math.sqrt(p_r * p_r + p_x * p_x);
+                const p_In = PnKva / (Math.sqrt(3) * V2);
+                let p_Is = p_z > 0 ? (p_In * 100 / p_z) : 0;
+                // 単相は三相計算 × √3/2 で二相短絡
+                if (isSinglePhase) p_Is = p_Is * Math.sqrt(3) / 2;
+
+                const label = (tr.usage === '電灯' || isSinglePhase) ? `F₅相当 ${tr.name} 二次母線` : `F₂相当 ${tr.name} 二次母線`;
+                results.push({
+                    point: isSinglePhase ? 'F₅' : 'F₂',
+                    label: label,
+                    kind: 'LV',
+                    transformerId: tr.id,
+                    transformerPhase: tr.phase,
+                    transformerUsage: tr.usage,
+                    v_disp: (V2 * 1000).toFixed(0),
+                    r: p_r, x: p_x, z: p_z,
+                    In: p_In, Is_kA: p_Is / 1000,
+                    pre_r: p_r, pre_x: p_x,
+                    note: `%Z_T = ${pctR_t.toFixed(2)}+j${pctX_t.toFixed(2)} × ${Pn*1000}/${kva}`
+                });
+            });
+
+            // 各幹線について、親（トランスor上位幹線）の%Zに加算してF₃/F₆を求める
+            // 幹線の%Z = 幹線ケーブル r,x から計算（ただし低圧側）
+            // インデックス：feeder ID → 合成 %Z (低圧側基準容量に換算済み)
+            const feederImp = {}; // feederId → {r, x, V_kV, rootTrId}
+
+            // トランス直下の幹線は transformer sourceから開始
+            feeders.forEach(f => {
+                const fd = localFeederData[f.id] || {};
+                const srcType = fd.source_type || 'cubicle';
+                if (srcType === 'transformer' && fd.source_transformer_id) {
+                    const tr = getTransformerById(fd.source_transformer_id);
+                    if (!tr) return;
+                    const trRes = results.find(r => r.transformerId === tr.id);
+                    if (!trRes) return;
+                    const V2kV = (Number(tr.secondary_voltage) || 210) / 1000;
+                    const rxKm = feederOhmPerKm(f);
+                    const len = Number(fd.branch_len_for_relax || f.length || 0);
+                    const pct = ohmToPercentZ(rxKm.r, rxKm.x, len, Pn, V2kV);
+                    feederImp[f.id] = {
+                        r: trRes.pre_r + pct.r,
+                        x: trRes.pre_x + pct.x,
+                        V_kV: V2kV,
+                        trId: tr.id,
+                        parentLabel: `${tr.name}`
+                    };
+                }
+            });
+            // 幹線分岐（feeder parent=feeder）を解決（複数段は反復）
+            for (let pass = 0; pass < 5; pass++) {
+                let changed = false;
+                feeders.forEach(f => {
+                    if (feederImp[f.id]) return;
+                    const fd = localFeederData[f.id] || {};
+                    if (fd.source_type === 'branch' && fd.source_circuit_id && feederImp[fd.source_circuit_id]) {
+                        const parent = feederImp[fd.source_circuit_id];
+                        const rxKm = feederOhmPerKm(f);
+                        const len = Number(fd.branch_len_for_relax || f.length || 0);
+                        const pct = ohmToPercentZ(rxKm.r, rxKm.x, len, Pn, parent.V_kV);
+                        feederImp[f.id] = {
+                            r: parent.r + pct.r,
+                            x: parent.x + pct.x,
+                            V_kV: parent.V_kV,
+                            trId: parent.trId,
+                            parentLabel: parent.parentLabel + '→分岐'
+                        };
+                        changed = true;
+                    }
+                });
+                if (!changed) break;
+            }
+
+            // 各幹線末端（分電盤主幹位置 F₃/F₆相当）を結果に追加
+            feeders.forEach(f => {
+                const imp = feederImp[f.id];
+                if (!imp) return;
+                const p_z = Math.sqrt(imp.r * imp.r + imp.x * imp.x);
+                const p_In = PnKva / (Math.sqrt(3) * imp.V_kV);
+                let p_Is = p_z > 0 ? (p_In * 100 / p_z) : 0;
+
+                // 電動機寄与：動力トランス系統かつ motorContrib適用条件
+                const tr = getTransformerById(imp.trId);
+                const isMotorTr = tr && (tr.usage === '動力' || tr.usage === '共用');
+                const autoEnable = isMotorTr && tr && Number(tr.rated_kva) >= motorContribThreshold;
+                const useMotor = (motorContribEnabled || autoEnable) && motorPctX > 0 && isMotorTr;
+                let motorIsAdd = 0;
+                if (useMotor) {
+                    // 電動機枝: %X₁₀ 並列 → 電動機分の短絡寄与 = Pn / %X₁₀ × In
+                    // 合成: 並列 Z = (Z_sys × Z_motor) / (Z_sys + Z_motor)
+                    // ここでは簡易に Is_total = Is_sys + In × 100/%X₁₀
+                    motorIsAdd = p_In * 100 / motorPctX;
+                    p_Is += motorIsAdd;
+                }
+
+                const isSinglePhase = tr && (tr.phase === '単相2W' || tr.phase === '単相3W');
+                const pointLabel = isSinglePhase ? 'F₆' : 'F₃';
+                results.push({
+                    point: pointLabel,
+                    label: `${pointLabel}相当 ${f.circuit_no || f.id} ${imp.parentLabel}`,
+                    kind: 'LV-FEEDER',
+                    feederId: f.id,
+                    v_disp: (imp.V_kV * 1000).toFixed(0),
+                    r: imp.r, x: imp.x, z: p_z,
+                    In: p_In, Is_kA: p_Is / 1000,
+                    pre_r: imp.r, pre_x: imp.x,
+                    note: useMotor ? `電動機寄与+${(motorIsAdd/1000).toFixed(2)}kA` : ''
+                });
+            });
+
+            // F₇/F₈: 負荷ケーブル（幹線末端にさらに負荷ケーブルを足した位置）
+            loadCables.forEach(lc => {
+                const parentFeeder = feederImp[lc.feeder_id];
+                if (!parentFeeder) return;
+                const V_kV = (Number(lc.voltage_v) || 200) / 1000;
+                const pct = ohmToPercentZ(lc.r_ohm_km, lc.x_ohm_km, lc.length_m, Pn, V_kV);
+                let rSum = parentFeeder.r + pct.r;
+                let xSum = parentFeeder.x + pct.x;
+
+                // 100V 単相負荷の場合は 巻線補正 r×1.44, x×1.2 を加算（参考書p.36）
+                const is100V = V_kV <= 0.12;
+                if (is100V) {
+                    // 親トランスが単相の場合、トランス分を半分・補正して加算
+                    const tr = getTransformerById(parentFeeder.trId);
+                    if (tr && (tr.phase === '単相2W' || tr.phase === '単相3W')) {
+                        const trKva = Number(tr.rated_kva) || 0;
+                        const pctR_t = Number(tr.percent_r) || 0;
+                        const pctX_t = Number(tr.percent_x) || 0;
+                        const factor = PnKva / trKva;
+                        // 半分 × 巻線補正
+                        rSum += 0.5 * pctR_t * factor * 1.44 - 0.5 * pctR_t * factor;
+                        xSum += 0.5 * pctX_t * factor * 1.2 - 0.5 * pctX_t * factor;
+                    }
+                }
+
+                const p_z = Math.sqrt(rSum * rSum + xSum * xSum);
+                const p_In = PnKva / (Math.sqrt(3) * V_kV);
+                let p_Is = p_z > 0 ? (p_In * 100 / p_z) : 0;
+                // 単相短絡変換 ×√3/2
+                const tr = getTransformerById(parentFeeder.trId);
+                const isSinglePhase = tr && (tr.phase === '単相2W' || tr.phase === '単相3W');
+                if (isSinglePhase) p_Is = p_Is * Math.sqrt(3) / 2;
+
+                results.push({
+                    point: is100V ? 'F₈' : 'F₇',
+                    label: `${is100V ? 'F₈' : 'F₇'} ${lc.name || '負荷末端'}`,
+                    kind: 'LOAD-END',
+                    v_disp: (V_kV * 1000).toFixed(0),
+                    r: rSum, x: xSum, z: p_z,
+                    In: p_In, Is_kA: p_Is / 1000,
+                    note: is100V ? '100V 巻線補正 r×1.44,x×1.2 適用' : ''
+                });
+            });
+
+            return results;
+        }
+
+        // ============================================================
+        // ⑥-A/B/C/D/E UIレンダリング
+        // ============================================================
+        function renderSourceImpUi() {
+            const m = sourceImp.mode || 'pdf';
+            const rPdf = document.getElementById('srcModePdf');
+            const rDir = document.getElementById('srcModeDirect');
+            const rFb = document.getElementById('srcModeFallback');
+            if (rPdf) rPdf.checked = (m === 'pdf');
+            if (rDir) rDir.checked = (m === 'direct');
+            if (rFb) rFb.checked = (m === 'fallback');
+            const pdfBox = document.getElementById('srcInputPdf');
+            const dirBox = document.getElementById('srcInputDirect');
+            const fbBox = document.getElementById('srcInputFallback');
+            if (pdfBox) pdfBox.style.display = (m === 'pdf') ? 'grid' : 'none';
+            if (dirBox) dirBox.style.display = (m === 'direct') ? 'grid' : 'none';
+            if (fbBox) fbBox.style.display = (m === 'fallback') ? 'grid' : 'none';
+            const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+            setVal('srcVkv', sourceImp.v_kv);
+            setVal('srcAC', sourceImp.ac);
+            setVal('srcBC', sourceImp.bc);
+            setVal('srcX0', sourceImp.x0);
+            setVal('srcPn', sourceImp.pn_mva);
+            setVal('srcVkvDir', sourceImp.dir_v_kv);
+            setVal('srcZaR', sourceImp.dir_za_r);
+            setVal('srcZaX', sourceImp.dir_za_x);
+            setVal('srcPnDir', sourceImp.dir_pn);
+            setVal('srcIkKa', sourceImp.fb_ika);
+            setVal('srcVmaxKv', sourceImp.fb_vmax);
+            setVal('srcPnFb', sourceImp.fb_pn);
+            updateSourceImpPreview();
+        }
+        function updateSourceImpPreview() {
+            const z = calcSourceImpedance();
+            const zMag = Math.sqrt(z.r * z.r + z.x * z.x);
+            const PnKva = z.pn_mva * 1000;
+            const In = PnKva / (Math.sqrt(3) * z.v_kv);
+            const Is_kA = zMag > 0 ? (In * 100 / zMag / 1000) : 0;
+            const el = document.getElementById('srcZ1Preview');
+            if (el) {
+                el.innerHTML = `%Z<sub>1</sub>（合成）= <b>${z.r.toFixed(3)} + j${z.x.toFixed(3)}</b> ［%／${z.pn_mva}MV·A基準］　　受電地点 I<sub>n</sub>=${In.toFixed(0)}A / <b>I<sub>s</sub> = ${Is_kA.toFixed(2)} kA</b>`;
+            }
+        }
+        function bindSourceImpInputs() {
+            const bind = (id, key, asNum = true) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('input', () => {
+                    sourceImp[key] = asNum ? (parseFloat(el.value) || 0) : el.value;
+                    saveSourceImp();
+                    updateSourceImpPreview();
+                });
+            };
+            bind('srcVkv', 'v_kv');
+            bind('srcAC', 'ac');
+            bind('srcBC', 'bc');
+            bind('srcX0', 'x0');
+            bind('srcPn', 'pn_mva');
+            bind('srcVkvDir', 'dir_v_kv');
+            bind('srcZaR', 'dir_za_r');
+            bind('srcZaX', 'dir_za_x');
+            bind('srcPnDir', 'dir_pn');
+            bind('srcIkKa', 'fb_ika');
+            bind('srcVmaxKv', 'fb_vmax');
+            bind('srcPnFb', 'fb_pn');
+            const rPdf = document.getElementById('srcModePdf');
+            const rDir = document.getElementById('srcModeDirect');
+            const rFb = document.getElementById('srcModeFallback');
+            if (rPdf) rPdf.addEventListener('change', () => { sourceImp.mode = 'pdf'; saveSourceImp(); renderSourceImpUi(); });
+            if (rDir) rDir.addEventListener('change', () => { sourceImp.mode = 'direct'; saveSourceImp(); renderSourceImpUi(); });
+            if (rFb) rFb.addEventListener('change', () => { sourceImp.mode = 'fallback'; saveSourceImp(); renderSourceImpUi(); });
+        }
+
+        function renderHvCableTable() {
+            const tbody = document.getElementById('hvCableBody');
+            if (!tbody) return;
+            if (hvCables.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="16" style="border:1px solid #ddd;padding:0.4rem;text-align:center;color:#999;">未登録（+ 高圧ケーブル追加 で登録）</td></tr>';
+                return;
+            }
+            const vKv = Number(sourceImp.v_kv) || 6.6;
+            const Pn = Number(sourceImp.pn_mva) || 10;
+            const METHOD_OPTS = [
+                { v:'air_s1',      label:'気中/暗きょ 単心' },
+                { v:'air_3c',      label:'気中/暗きょ 3心' },
+                { v:'air_trip',    label:'気中/暗きょ トリプ' },
+                { v:'buried_s1',   label:'直接埋設 単心' },
+                { v:'buried_3c',   label:'直接埋設 3心' },
+                { v:'buried_trip', label:'直接埋設 トリプ' },
+                { v:'duct_s1',     label:'管路式 単心' },
+                { v:'duct_3c',     label:'管路式 3心' },
+                { v:'duct_trip',   label:'管路式 トリプ' }
+            ];
+            const ARR_OPTS = [
+                { v:'Sd',  label:'S=d' },
+                { v:'S2d', label:'S=2d' },
+                { v:'S3d', label:'S=3d' }
+            ];
+            tbody.innerHTML = hvCables.map(c => {
+                const pct = ohmToPercentZ(c.r_ohm_km, c.x_ohm_km, c.length_m, Pn, vKv);
+                // 負荷電流
+                const Iload = (c.load_current_mode === 'manual')
+                    ? (Number(c.load_current_a) || 0)
+                    : hvAutoLoadCurrent(c);
+                // 短絡電流（F1点のIs[kA]を使用）
+                const IscKa = hvFetchIscKa(c);
+                const IscA = IscKa * 1000;
+                // 連続許容電流 at current size
+                const contAmp = hvContinuousAmpacity(c.size, c.install_method, c.ambient_c, c.arrangement, c.conductors);
+                const contOk = (contAmp != null && contAmp >= Iload);
+                const contText = contAmp != null
+                    ? `${Math.round(contAmp)}A<br><span style="color:${contOk?'#2e7d32':'#c62828'};font-weight:700;">${contOk?'○':'×'}</span>`
+                    : '表外';
+                // 短絡許容電流 at current size
+                const scAmp = hvShortCircuitAmpacity(c.size, c.ts_sec);
+                const scOk = (scAmp > 0 && scAmp >= IscA);
+                const scText = `${(scAmp/1000).toFixed(1)}kA<br><span style="color:${scOk?'#2e7d32':'#c62828'};font-weight:700;">${scOk?'○':'×'}</span>`;
+                // 推奨サイズ = max(連続条件, 短絡条件)
+                const sizeCont = hvPickSizeForContinuous(Iload, c.install_method, c.ambient_c, c.arrangement, c.conductors);
+                const sizeSc = hvPickSizeForShortCircuit(IscA, c.ts_sec);
+                let recSize = null;
+                if (sizeCont != null && sizeSc != null) recSize = Math.max(sizeCont, sizeSc);
+                else if (sizeCont != null) recSize = sizeCont;
+                else if (sizeSc != null) recSize = sizeSc;
+                const recColor = (recSize != null && Number(c.size) >= recSize) ? '#2e7d32' : '#c62828';
+                const recText = recSize != null ? `${recSize}mm²` : '—';
+
+                // トランス紐付けチェックリスト（auto時のみ）
+                const trList = (typeof transformers !== 'undefined' && Array.isArray(transformers))
+                    ? transformers.map(t => {
+                        const checked = (c.linked_tr_ids || []).includes(t.id);
+                        return `<label style="display:block;font-size:0.68rem;white-space:nowrap;"><input type="checkbox" data-hvc="${c.id}" data-f="linked_tr" data-tr-id="${t.id}" ${checked?'checked':''}> ${t.name||t.id}(${t.rated_kva}kVA)</label>`;
+                      }).join('')
+                    : '';
+
+                return `<tr>
+                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="text" data-hvc="${c.id}" data-f="name" value="${c.name || ''}" style="width:70px;"></td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;">
+                        <select data-hvc="${c.id}" data-f="role" style="width:75px;font-size:0.72rem;">
+                            <option value="intake" ${c.role==='intake'?'selected':''}>引込</option>
+                            <option value="branch" ${c.role==='branch'?'selected':''}>分岐</option>
+                        </select>
+                    </td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;">
+                        <select data-hvc="${c.id}" data-f="cable_type" style="width:60px;font-size:0.72rem;" title="${cableAbbrTitle(c.cable_type)}">
+                            <option value="CVT" ${c.cable_type==='CVT'?'selected':''} title="${cableAbbrTitle('CVT')}">CVT</option>
+                            <option value="CV" ${c.cable_type==='CV'?'selected':''} title="${cableAbbrTitle('CV')}">CV</option>
+                        </select>
+                    </td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;">
+                        <select data-hvc="${c.id}" data-f="size" style="width:70px;font-size:0.72rem;">
+                            ${HV_SIZE_STANDARD.map(s => `<option value="${s}" ${Number(c.size)===Number(s)?'selected':''}>${s}</option>`).join('')}
+                        </select>
+                        ${(() => {
+                            const sep = hvSeparationS(c.size, c.cable_type, c.arrangement);
+                            return sep ? `<div style="font-size:0.65rem;color:#888;margin-top:0.15rem;" title="仕上り外径 d=${sep.d_mm}mm（表5.6）／ 離隔距離 S=${sep.s_mm}mm">d=${sep.d_mm}<br>S=${sep.s_mm}mm</div>` : '';
+                        })()}
+                    </td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="number" step="1" data-hvc="${c.id}" data-f="length_m" value="${c.length_m || 0}" style="width:55px;"></td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;">
+                        <select data-hvc="${c.id}" data-f="install_method" style="width:125px;font-size:0.7rem;">
+                            ${METHOD_OPTS.map(o => `<option value="${o.v}" ${c.install_method===o.v?'selected':''}>${o.label}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="number" step="1" min="1" data-hvc="${c.id}" data-f="conductors" value="${c.conductors || 1}" style="width:45px;"></td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;">
+                        <select data-hvc="${c.id}" data-f="arrangement" style="width:65px;font-size:0.72rem;">
+                            ${ARR_OPTS.map(o => `<option value="${o.v}" ${c.arrangement===o.v?'selected':''}>${o.label}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="number" step="1" data-hvc="${c.id}" data-f="ambient_c" value="${c.ambient_c ?? 25}" style="width:50px;"></td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="number" step="0.01" data-hvc="${c.id}" data-f="ts_sec" value="${c.ts_sec ?? 0.2}" style="width:55px;"></td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;">
+                        <select data-hvc="${c.id}" data-f="load_current_mode" style="width:75px;font-size:0.7rem;">
+                            <option value="auto" ${c.load_current_mode==='auto'?'selected':''}>自動</option>
+                            <option value="manual" ${c.load_current_mode==='manual'?'selected':''}>手入力</option>
+                        </select>
+                        <div style="font-size:0.7rem;text-align:right;margin-top:0.2rem;">
+                            ${c.load_current_mode==='manual'
+                                ? `<input type="number" step="0.1" data-hvc="${c.id}" data-f="load_current_a" value="${c.load_current_a || 0}" style="width:60px;">A`
+                                : `<b>${Iload.toFixed(1)}A</b>`}
+                        </div>
+                        ${c.load_current_mode==='auto' ? `<div style="margin-top:0.25rem;border-top:1px dashed #ccc;padding-top:0.2rem;max-height:60px;overflow-y:auto;">${trList||'<span style="color:#999;font-size:0.68rem;">トランス未登録</span>'}</div>` : ''}
+                    </td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;text-align:right;background:#fff8e1;font-size:0.72rem;">${pct.r.toFixed(3)}<br>+j${pct.x.toFixed(3)}</td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;text-align:center;background:#fff3e0;font-size:0.72rem;">${contText}</td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;text-align:center;background:#fff3e0;font-size:0.72rem;">${scText}</td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;text-align:center;background:#fff3e0;font-size:0.78rem;color:${recColor};font-weight:700;">${recText}</td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;text-align:center;"><button class="btn-action" data-del-hvc="${c.id}" style="background:#c62828;color:#fff;font-size:0.7rem;padding:0.2rem 0.4rem;">削除</button></td>
+                </tr>`;
+            }).join('');
+        }
+        function addHvCable() {
+            const def = HV_CABLE_DEFAULT_RX[38];
+            hvCables.push({
+                id: newHvCableId(),
+                name: 'HV' + (hvCables.length + 1),
+                cable_type: 'CVT',
+                size: 38,
+                length_m: 50,
+                r_ohm_km: def.r,
+                x_ohm_km: def.x,
+                // 選定パラメータ
+                install_method: 'duct_trip', // 管路式 トリプレックス
+                conductors: 1,               // 条数
+                arrangement: 'S2d',          // 配列 S=2d
+                ambient_c: 25,               // 周囲温度 [℃]
+                role: 'intake',              // intake=引込, branch=分岐
+                ts_sec: 0.2,                 // 短絡継続時間 [秒]
+                load_current_mode: 'auto',   // auto=トランス紐付け / manual=手入力
+                load_current_a: 0,           // 手入力時の負荷電流 [A]
+                linked_tr_ids: []            // 紐付けトランスID
+            });
+            saveHvCables();
+            renderHvCableTable();
+        }
+        function bindHvCableEvents() {
+            const tbody = document.getElementById('hvCableBody');
+            if (!tbody) return;
+            const handler = (e) => {
+                const id = e.target.getAttribute('data-hvc');
+                const field = e.target.getAttribute('data-f');
+                if (!id || !field) return;
+                const c = hvCables.find(x => x.id === id);
+                if (!c) return;
+                // トランス紐付けチェックボックス
+                if (field === 'linked_tr') {
+                    const trId = e.target.getAttribute('data-tr-id');
+                    if (!trId) return;
+                    c.linked_tr_ids = Array.isArray(c.linked_tr_ids) ? c.linked_tr_ids.slice() : [];
+                    if (e.target.checked) {
+                        if (!c.linked_tr_ids.includes(trId)) c.linked_tr_ids.push(trId);
+                    } else {
+                        c.linked_tr_ids = c.linked_tr_ids.filter(x => x !== trId);
+                    }
+                    saveHvCables();
+                    renderHvCableTable();
+                    return;
+                }
+                let v = e.target.value;
+                const numFields = ['length_m','r_ohm_km','x_ohm_km','conductors','ambient_c','ts_sec','load_current_a'];
+                if (numFields.includes(field)) v = parseFloat(v);
+                if (field === 'conductors') v = Math.max(1, Math.round(v || 1));
+                if (field === 'size') {
+                    v = parseFloat(v) || 0;
+                    const def = HV_CABLE_DEFAULT_RX[v];
+                    if (def) { c.r_ohm_km = def.r; c.x_ohm_km = def.x; }
+                }
+                // role 切替時 ts 自動更新
+                if (field === 'role') {
+                    c.ts_sec = (v === 'intake') ? 0.2 : 0.15;
+                }
+                if (numFields.includes(field) && !isFinite(v)) v = 0;
+                c[field] = v;
+                saveHvCables();
+                renderHvCableTable();
+            };
+            tbody.addEventListener('input', handler);
+            tbody.addEventListener('change', handler);
+            tbody.addEventListener('click', (e) => {
+                const delId = e.target.getAttribute('data-del-hvc');
+                if (!delId) return;
+                hvCables = hvCables.filter(x => x.id !== delId);
+                saveHvCables();
+                renderHvCableTable();
+            });
+            document.getElementById('btnAddHvCable')?.addEventListener('click', addHvCable);
+        }
+
+        // ============================================================
+        // 高圧ケーブル選定（建築設備設計基準 令和7年版 Chap.5 準拠）
+        // ============================================================
+        // 表5.3 6kV CVケーブルの許容電流値 [A]
+        //   行 = 公称断面積 [mm²]、列 = 布設方法 × 形状 × 条数
+        //   方式コード:
+        //     air_s1      : 気中/暗きょ式 単心 3条布設 S=2d
+        //     air_3c      : 気中/暗きょ式 3心 1条布設
+        //     air_trip    : 気中/暗きょ式 トリプレックス 1条布設
+        //     buried_s1   : 直接埋設式 単心 3条布設 S=d
+        //     buried_3c   : 直接埋設式 3心 1条布設
+        //     buried_trip : 直接埋設式 トリプレックス 1条布設
+        //     duct_s1     : 管路式 単心 4孔3条布設
+        //     duct_3c     : 管路式 3心 4孔4条布設
+        //     duct_trip   : 管路式 トリプレックス 4孔4条布設
+        const HV_AMPACITY_TABLE = {
+            //  size:  air_s1 air_3c air_trip buried_s1 buried_3c buried_trip duct_s1 duct_3c duct_trip
+            8:   { air_s1:78,  air_3c:61,  air_trip:null, buried_s1:110, buried_3c:90,  buried_trip:null, duct_s1:100, duct_3c:66,  duct_trip:null },
+            14:  { air_s1:105, air_3c:83,  air_trip:120,  buried_s1:140, buried_3c:120, buried_trip:135,  duct_s1:130, duct_3c:84,  duct_trip:115 },
+            22:  { air_s1:140, air_3c:105, air_trip:145,  buried_s1:190, buried_3c:160, buried_trip:180,  duct_s1:180, duct_3c:110, duct_trip:160 },
+            38:  { air_s1:195, air_3c:145, air_trip:225,  buried_s1:250, buried_3c:210, buried_trip:235,  duct_s1:235, duct_3c:140, duct_trip:205 },
+            60:  { air_s1:260, air_3c:195, air_trip:310,  buried_s1:330, buried_3c:280, buried_trip:310,  duct_s1:310, duct_3c:190, duct_trip:270 },
+            100: { air_s1:355, air_3c:265, air_trip:405,  buried_s1:415, buried_3c:350, buried_trip:390,  duct_s1:390, duct_3c:235, duct_trip:335 },
+            150: { air_s1:455, air_3c:345, air_trip:485,  buried_s1:485, buried_3c:405, buried_trip:450,  duct_s1:455, duct_3c:275, duct_trip:395 },
+            200: { air_s1:540, air_3c:410, air_trip:560,  buried_s1:545, buried_3c:455, buried_trip:510,  duct_s1:515, duct_3c:310, duct_trip:440 },
+            250: { air_s1:615, air_3c:470, air_trip:560,  buried_s1:630, buried_3c:525, buried_trip:585,  duct_s1:595, duct_3c:360, duct_trip:510 },
+            325: { air_s1:720, air_3c:550, air_trip:660,  buried_s1:720, buried_3c:null, buried_trip:650, duct_s1:665, duct_3c:null, duct_trip:565 },
+            400: { air_s1:810, air_3c:null, air_trip:750, buried_s1:705, buried_3c:null, buried_trip:650, duct_s1:665, duct_3c:null, duct_trip:565 },
+            500: { air_s1:930, air_3c:null, air_trip:855, buried_s1:790, buried_3c:null, buried_trip:725, duct_s1:745, duct_3c:null, duct_trip:635 },
+            600: { air_s1:1040,air_3c:null, air_trip:950, buried_s1:865, buried_3c:null, buried_trip:785, duct_s1:820, duct_3c:null, duct_trip:695 },
+            800: { air_s1:1295,air_3c:null, air_trip:null,buried_s1:1045,buried_3c:null, buried_trip:null,duct_s1:990, duct_3c:null, duct_trip:830 },
+            1000:{ air_s1:1480,air_3c:null, air_trip:null,buried_s1:1170,buried_3c:null, buried_trip:null,duct_s1:1105,duct_3c:null, duct_trip:925 }
+        };
+        // 基底温度 T2 [℃]
+        const HV_BASE_TEMP = {
+            air_s1:40, air_3c:40, air_trip:40,
+            buried_s1:25, buried_3c:25, buried_trip:25,
+            duct_s1:25, duct_3c:25, duct_trip:25
+        };
+        // 表5.4 多条布設の電流低減率 k₀
+        //   配列方式 'Sd'(S=d), 'S2d'(S=2d), 'S3d'(S=3d) × 条数
+        const HV_DERATING_K0 = {
+            'Sd':  { 1:1.00, 2:0.85, 3:0.80, 4:0.70, 6:0.60, 8:null, 9:null, 12:null },
+            'S2d': { 1:1.00, 2:0.95, 3:0.95, 4:0.90, 6:0.90, 8:0.85, 9:0.80, 12:0.80 },
+            'S3d': { 1:1.00, 2:1.00, 3:1.00, 4:0.95, 6:0.95, 8:0.90, 9:0.85, 12:0.85 }
+        };
+        // 導体許容温度 T1 = 90℃ (架橋ポリエチレン CV)
+        const HV_T1 = 90;
+
+        // 表5.6 ケーブル構造データ（建築設備設計基準 令和7年版）
+        //   od_mm = 仕上り外径 [mm]
+        const CABLE_DIMENSION_TABLE = {
+            // (a) 600V CVT ケーブル
+            '600V_CVT': {
+                14: { od_mm: 21 }, 22: { od_mm: 24 }, 38: { od_mm: 28 }, 60: { od_mm: 33 },
+                100: { od_mm: 41 }, 150: { od_mm: 47 }, 200: { od_mm: 55 }, 250: { od_mm: 60 },
+                325: { od_mm: 66 }, 400: { od_mm: 72 }
+            },
+            // (b) 600V CV 3心ケーブル
+            '600V_CV3C': {
+                2.0: { od_mm: 11.0 }, 3.5: { od_mm: 12.5 }, 5.5: { od_mm: 14.5 },
+                8:   { od_mm: 16.0 }, 14:  { od_mm: 18.5 }, 22:  { od_mm: 22 },
+                38:  { od_mm: 26 },   60:  { od_mm: 33 },   100: { od_mm: 42 },
+                150: { od_mm: 49 },   200: { od_mm: 57 },   250: { od_mm: 62 }, 325: { od_mm: 69 }
+            },
+            // (c) 6600V CVT ケーブル
+            '6600V_CVT': {
+                22: { od_mm: 42 }, 38: { od_mm: 46 }, 60: { od_mm: 50 }, 100: { od_mm: 57 },
+                150: { od_mm: 65 }, 200: { od_mm: 72 }, 250: { od_mm: 76 }, 325: { od_mm: 85 },
+                400: { od_mm: 89 }, 500: { od_mm: 98 }, 600: { od_mm: 106 }
+            },
+            // (d) 6600V CV 3心ケーブル
+            '6600V_CV3C': {
+                8:   { od_mm: 32 }, 14:  { od_mm: 35 }, 22:  { od_mm: 38 }, 38:  { od_mm: 42 },
+                60:  { od_mm: 47 }, 100: { od_mm: 54 }, 150: { od_mm: 62 }, 200: { od_mm: 69 },
+                250: { od_mm: 74 }, 325: { od_mm: 81 }
+            }
+        };
+        // 6600V系 仕上り外径 [mm]
+        function hvCableOuterDiameter(size, cable_type) {
+            const key = cable_type === 'CV' ? '6600V_CV3C' : '6600V_CVT';
+            const row = CABLE_DIMENSION_TABLE[key]?.[Number(size)];
+            return row ? row.od_mm : null;
+        }
+        // 多条布設 離隔距離 S [mm]
+        function hvSeparationS(size, cable_type, arrangement) {
+            const d = hvCableOuterDiameter(size, cable_type);
+            if (d == null) return null;
+            const mul = (arrangement === 'Sd') ? 1 : (arrangement === 'S3d') ? 3 : 2;
+            return { d_mm: d, s_mm: d * mul };
+        }
+
+        // 表5.7 各種電線略記号辞書
+        const CABLE_ABBR_DICT = {
+            'A': '軟銅線（より線を含む）',
+            'AAl': '軟アルミ線',
+            'ACSR': '鋼心アルミより線',
+            'ACSR-DV': '引込用鋼心アルミ導体ビニル絶縁電線',
+            'ACSR-OC': '屋外用鋼心アルミ導体架橋ポリエチレン絶縁電線',
+            'ACSR-OE': '屋外用鋼心アルミ導体ポリエチレン絶縁電線',
+            'ACSR-OW': '屋外用鋼心アルミ導体ビニル絶縁電線',
+            'Al-DV': '引込用アルミ導体ビニル絶縁電線',
+            'Al-IV': '屋内用アルミ導体ビニル絶縁電線',
+            'Al-OC': '屋外用アルミ導体架橋ポリエチレン絶縁電線',
+            'Al-OE': '屋外用アルミ導体ポリエチレン絶縁電線',
+            'Al-OW': '屋外用アルミ導体ビニル絶縁電線',
+            'AE': '警報用ポリエチレン絶縁ビニルシースケーブル',
+            'CA-VV': '銅覆アルミ導体ビニル絶縁ビニルシースケーブル',
+            'CE': '架橋ポリエチレン絶縁ポリエチレンシースケーブル',
+            'CE/F': '600V 架橋ポリエチレン絶縁耐燃性ポリエチレンシースケーブル',
+            'CS': '銅覆鋼線',
+            'CSC': '複合銅覆鋼より線',
+            'CV': '架橋ポリエチレン絶縁ビニルシースケーブル',
+            'CVT': 'トリプレックス形架橋ポリエチレン絶縁ビニルシースケーブル',
+            'CVQ': 'カドラプレックス形架橋ポリエチレン絶縁ビニルシースケーブル',
+            'CVV': '制御用ビニル絶縁ビニルシースケーブル',
+            'DV': '引込用ビニル絶縁電線',
+            'DVF': '引込用ビニル絶縁平形電線',
+            'EE': 'ポリエチレン絶縁ポリエチレンシースケーブル',
+            'EE/F': '600V ポリエチレン絶縁耐燃性ポリエチレンシースケーブル',
+            'EEE/F': '600V ポリエチレン絶縁耐燃性ポリエチレンシースケーブル平形',
+            'EV': 'ポリエチレン絶縁ビニルシースケーブル',
+            'EM-CE': '600V 架橋ポリエチレン絶縁耐燃性ポリエチレンシースケーブル（エコケーブル）',
+            'EM-CET': 'トリプレックス形 EM-CE',
+            'EM-EEF': 'ポリエチレン絶縁耐燃性ポリエチレンシースケーブル（エコケーブル平形）',
+            'EM-IE': '600V 架橋ポリエチレン絶縁電線（エコケーブル）',
+            'FF': 'ゴム絶縁袋打コード',
+            'FL': '蛍光放電灯用電線',
+            'FP': '耐火ケーブル',
+            'FP-C': 'FP制御用',
+            'H': '硬銅線（より線を含む）',
+            'HA': '半硬銅線',
+            'HAl': '硬アルミ線（より線を含む）',
+            'HAAl': '半硬アルミ線',
+            'HIV': '600V 二種ビニル絶縁電線',
+            'HP': '耐熱電線',
+            'IV': '600V ビニル絶縁電線',
+            'IE/F': '600V 耐燃性ポリエチレン絶縁電線',
+            'IC/F': '600V 耐燃性架橋ポリエチレン絶縁電線',
+            'KGB': 'ケイ素ゴム絶縁ガラス編組電線',
+            'MI': '無機絶縁ケーブル',
+            'OW': '屋外用ビニル絶縁電線',
+            'OC': '屋外用架橋ポリエチレン絶縁電線',
+            'OE': '屋外用ポリエチレン絶縁電線',
+            'PDB': '高圧引下用ブチルゴム絶縁電線',
+            'PDC': '高圧引下用架橋ポリエチレン絶縁電線',
+            'PDE': '高圧引下用ポリエチレン絶縁電線',
+            'PDP': '高圧引下用エチレンプロピレンゴム絶縁電線',
+            'VV': 'ビニル絶縁ビニルシースケーブル',
+            'VVR': 'ビニル絶縁ビニルシースケーブル丸形',
+            'VVF': 'ビニル絶縁ビニルシースケーブル平形',
+            'VCT': 'ビニルキャブタイヤケーブル',
+            'VCTF': 'ビニルキャブタイヤコード'
+        };
+        function cableAbbrTitle(abbr) {
+            return CABLE_ABBR_DICT[abbr] || '';
+        }
+
+        // 周囲温度補正係数 α = √((T1-T3)/(T1-T2))
+        function hvAmbientCorrection(methodKey, ambientC) {
+            const T2 = HV_BASE_TEMP[methodKey] ?? 40;
+            const T3 = Number(ambientC);
+            if (!isFinite(T3)) return 1.0;
+            const num = HV_T1 - T3;
+            const den = HV_T1 - T2;
+            if (den <= 0 || num <= 0) return 1.0;
+            return Math.sqrt(num / den);
+        }
+        // 多条低減率 k0
+        function hvDeratingK0(arr, n) {
+            const row = HV_DERATING_K0[arr || 'S2d'];
+            if (!row) return 1.0;
+            const n0 = Number(n) || 1;
+            // 表にない条数は近い下位に丸める
+            const keys = Object.keys(row).map(Number).sort((a,b)=>a-b);
+            let k = 1.0;
+            for (const k_ of keys) {
+                if (k_ <= n0 && row[k_] != null) k = row[k_];
+            }
+            return k;
+        }
+        // 連続許容電流 = 表値 × α × k0
+        function hvContinuousAmpacity(size, methodKey, ambientC, arr, n) {
+            const row = HV_AMPACITY_TABLE[Number(size)];
+            if (!row) return null;
+            const base = row[methodKey];
+            if (base == null) return null;
+            const alpha = hvAmbientCorrection(methodKey, ambientC);
+            const k0 = hvDeratingK0(arr, n);
+            return base * alpha * k0;
+        }
+        // 短絡時許容電流 I = 135 × Ac / √ts  [A] （架橋ポリエチレン 銅導体, 式5.5）
+        function hvShortCircuitAmpacity(size, ts) {
+            const Ac = Number(size);
+            const tsv = Number(ts) || 0.2;
+            if (Ac <= 0 || tsv <= 0) return 0;
+            return 135 * Ac / Math.sqrt(tsv);
+        }
+        // 短絡時必要断面積 Ac = √ts/135 × I  [mm²]（式5.6）
+        function hvRequiredAreaBySc(Isc_A, ts) {
+            const I = Number(Isc_A) || 0;
+            const tsv = Number(ts) || 0.2;
+            return Math.sqrt(tsv) / 135 * I;
+        }
+        // 標準サイズ列（表5.3 に載っている値）
+        const HV_SIZE_STANDARD = [8, 14, 22, 38, 60, 100, 150, 200, 250, 325, 400, 500, 600, 800, 1000];
+        // 連続電流 Iload[A] を満たす最小サイズ
+        function hvPickSizeForContinuous(Iload, methodKey, ambientC, arr, n) {
+            for (const s of HV_SIZE_STANDARD) {
+                const amp = hvContinuousAmpacity(s, methodKey, ambientC, arr, n);
+                if (amp != null && amp >= Iload) return s;
+            }
+            return null;
+        }
+        // 短絡電流 Isc[A] を耐える最小サイズ
+        function hvPickSizeForShortCircuit(Isc_A, ts) {
+            const req = hvRequiredAreaBySc(Isc_A, ts);
+            for (const s of HV_SIZE_STANDARD) {
+                if (s >= req) return s;
+            }
+            return null;
+        }
+        // 判定ラベル
+        function hvJudge(currentSize, needSize) {
+            if (needSize == null) return { ok:false, text:'表外' };
+            if (Number(currentSize) >= Number(needSize)) return { ok:true,  text:'○' };
+            return { ok:false, text:'×' };
+        }
+
+        // 接続トランス kVA 合計から負荷電流を推定（I = ΣkVA / (√3×V)）
+        function hvAutoLoadCurrent(cable) {
+            // cable.linked_tr_ids: 紐付けたトランスID配列
+            const ids = Array.isArray(cable?.linked_tr_ids) ? cable.linked_tr_ids : [];
+            if (ids.length === 0) return 0;
+            let sumKva = 0;
+            if (typeof transformers !== 'undefined' && Array.isArray(transformers)) {
+                transformers.forEach(t => {
+                    if (ids.includes(t.id)) sumKva += Number(t.rated_kva) || 0;
+                });
+            }
+            const V = 6.6; // 高圧側
+            if (V <= 0) return 0;
+            return (sumKva * 1000) / (Math.sqrt(3) * V * 1000); // [A]
+        }
+
+        // 短絡電流 [kA] をSC計算結果から取得（引込=F1, 分岐=親トランス一次側≒F1）
+        function hvFetchIscKa(cable) {
+            try {
+                if (typeof scLastResult !== 'undefined' && scLastResult && scLastResult.f1) {
+                    return Number(scLastResult.f1.is_ka) || 12.5;
+                }
+            } catch(e){}
+            // fallback: 12.5 kA 仮置き
+            return 12.5;
+        }
+
+        function renderLoadCableTable() {
+            const tbody = document.getElementById('loadCableBody');
+            if (!tbody) return;
+            if (loadCables.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="border:1px solid #ddd;padding:0.4rem;text-align:center;color:#999;">未登録（F₇/F₈計算する場合のみ追加）</td></tr>';
+                return;
+            }
+            tbody.innerHTML = loadCables.map(c => {
+                return `<tr>
+                    <td style="border:1px solid #ddd;padding:0.25rem;"><input type="text" data-lc="${c.id}" data-f="name" value="${c.name || ''}" style="width:100%;"></td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;">
+                        <select data-lc="${c.id}" data-f="feeder_id" style="width:100%;font-size:0.75rem;">
+                            <option value="">-</option>
+                            ${feeders.map(f => `<option value="${f.id}" ${c.feeder_id===f.id?'selected':''}>${f.circuit_no || f.id}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;">
+                        <select data-lc="${c.id}" data-f="type_key" style="width:100%;font-size:0.75rem;">
+                            ${Object.keys(LOAD_CABLE_DEFAULT_RX).map(k => `<option value="${k}" ${c.type_key===k?'selected':''}>${k}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;"><input type="text" data-lc="${c.id}" data-f="size_label" value="${c.size_label || ''}" style="width:100%;"></td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;"><input type="number" step="0.1" data-lc="${c.id}" data-f="length_m" value="${c.length_m || 0}" style="width:100%;"></td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;"><input type="number" step="1" data-lc="${c.id}" data-f="voltage_v" value="${c.voltage_v || 200}" style="width:100%;"></td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;"><input type="number" step="0.001" data-lc="${c.id}" data-f="r_ohm_km" value="${c.r_ohm_km || 0}" style="width:100%;"></td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;"><input type="number" step="0.001" data-lc="${c.id}" data-f="x_ohm_km" value="${c.x_ohm_km || 0}" style="width:100%;"></td>
+                    <td style="border:1px solid #ddd;padding:0.25rem;text-align:center;"><button class="btn-action" data-del-lc="${c.id}" style="background:#c62828;color:#fff;font-size:0.75rem;padding:0.2rem 0.5rem;">削除</button></td>
+                </tr>`;
+            }).join('');
+        }
+        function addLoadCable() {
+            const def = LOAD_CABLE_DEFAULT_RX['VV-F_2.0_2C'];
+            loadCables.push({ id: newLoadCableId(), name: 'L' + (loadCables.length + 1), feeder_id: '', type_key: 'VV-F_2.0_2C', size_label: '2.0mm-2C', length_m: 30, voltage_v: 200, r_ohm_km: def.r, x_ohm_km: def.x });
+            saveLoadCables();
+            renderLoadCableTable();
+        }
+        function bindLoadCableEvents() {
+            const tbody = document.getElementById('loadCableBody');
+            if (!tbody) return;
+            tbody.addEventListener('input', (e) => {
+                const id = e.target.getAttribute('data-lc');
+                const field = e.target.getAttribute('data-f');
+                if (!id || !field) return;
+                const c = loadCables.find(x => x.id === id);
+                if (!c) return;
+                let v = e.target.value;
+                if (['length_m','voltage_v','r_ohm_km','x_ohm_km'].includes(field)) v = parseFloat(v) || 0;
+                if (field === 'type_key') {
+                    const def = LOAD_CABLE_DEFAULT_RX[v];
+                    if (def) { c.r_ohm_km = def.r; c.x_ohm_km = def.x; }
+                }
+                c[field] = v;
+                saveLoadCables();
+                renderLoadCableTable();
+            });
+            tbody.addEventListener('click', (e) => {
+                const delId = e.target.getAttribute('data-del-lc');
+                if (!delId) return;
+                loadCables = loadCables.filter(x => x.id !== delId);
+                saveLoadCables();
+                renderLoadCableTable();
+            });
+            document.getElementById('btnAddLoadCable')?.addEventListener('click', addLoadCable);
+        }
+
+        // SC計算結果グローバル保持（高圧ケーブル選定から参照）
+        let scLastResult = null;
+        function renderShortCircuitResults() {
+            const tbody = document.getElementById('shortCircuitResultBody');
+            if (!tbody) return;
+            let results;
+            try { results = runShortCircuitCalculation(); }
+            catch (e) {
+                console.error('SC calc error:', e);
+                tbody.innerHTML = `<tr><td colspan="9" style="border:1px solid #ddd;padding:0.6rem;color:#c62828;">計算エラー: ${e.message}</td></tr>`;
+                return;
+            }
+            // 結果を f1/f2... キーでも保持
+            try {
+                scLastResult = { list: results };
+                results.forEach(r => {
+                    const key = (r.point || '').toString().toLowerCase().replace(/[^a-z0-9]/g,'');
+                    if (key) scLastResult[key] = r;
+                });
+                if (!scLastResult.f1 && results.length > 0) scLastResult.f1 = results[0];
+            } catch(e){}
+            // 高圧ケーブル選定の判定列を再描画
+            try { if (typeof renderHvCableTable === 'function') renderHvCableTable(); } catch(e){}
+            if (!results || results.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="border:1px solid #ddd;padding:0.6rem;text-align:center;color:#999;">結果なし（トランスか幹線を登録してください）</td></tr>';
+                return;
+            }
+            tbody.innerHTML = results.map(r => `
+                <tr>
+                    <td style="border:1px solid #ddd;padding:0.3rem;"><b>${r.point}</b></td>
+                    <td style="border:1px solid #ddd;padding:0.3rem;">${r.label}</td>
+                    <td style="border:1px solid #ddd;padding:0.3rem;text-align:right;">${r.v_disp}</td>
+                    <td style="border:1px solid #ddd;padding:0.3rem;text-align:right;">${r.r.toFixed(2)}</td>
+                    <td style="border:1px solid #ddd;padding:0.3rem;text-align:right;">${r.x.toFixed(2)}</td>
+                    <td style="border:1px solid #ddd;padding:0.3rem;text-align:right;">${r.z.toFixed(2)}</td>
+                    <td style="border:1px solid #ddd;padding:0.3rem;text-align:right;">${r.In.toFixed(0)}</td>
+                    <td style="border:1px solid #ddd;padding:0.3rem;text-align:right;background:#ffebee;font-weight:bold;color:#c62828;">${r.Is_kA.toFixed(2)}</td>
+                    <td style="border:1px solid #ddd;padding:0.3rem;font-size:0.72rem;color:#555;">${r.note || ''}</td>
+                </tr>
+            `).join('');
+        }
+
         // 回路用クライアント専用データ（category等、Supabaseに無いフィールド）
         // localStorageへ永続化しページリロード後も復元する
         const LOCAL_CIRCUIT_DATA_KEY = 'elecCalc:localCircuitData';
@@ -3412,6 +4749,10 @@
             document.getElementById('motorPb').addEventListener('input', updateTransformerCalculation);
             document.getElementById('motorPc').addEventListener('input', updateTransformerCalculation);
             document.getElementById('highVoltageMotor').addEventListener('input', updateTransformerCalculation);
+            ['imbalRS', 'imbalST', 'imbalTR'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', updateTransformerCalculation);
+            });
 
             // トランス登録 UI 初期化
             initTransformerRegistryUI();
@@ -6984,10 +8325,12 @@
                     <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="current" value="${current.toFixed(2)}" readonly />
                 </td>
                 <td>
-                    <select class="feeder-select" data-id="${feeder.id}" data-field="cable_type" title="CV:単心撚合 / CVT:トリプレックス / FP:耐火ケーブル(消防用・非常用)">
+                    <select class="feeder-select" data-id="${feeder.id}" data-field="cable_type" title="CV:単心撚合 / CVT:トリプレックス / FP:耐火 / EM-CE・EM-CET:エコケーブル(ノンハロゲン難燃PE)">
                         <option value="CV" ${cableType === 'CV' ? 'selected' : ''}>CV</option>
                         <option value="CVT" ${cableType === 'CVT' ? 'selected' : ''}>CVT</option>
                         <option value="FP" ${cableType === 'FP' ? 'selected' : ''}>FP(耐火)</option>
+                        <option value="EM-CE" ${cableType === 'EM-CE' ? 'selected' : ''}>EM-CE(エコ)</option>
+                        <option value="EM-CET" ${cableType === 'EM-CET' ? 'selected' : ''}>EM-CET(エコ)</option>
                     </select>
                 </td>
                 <td style="font-size:0.65rem;">
@@ -7591,22 +8934,29 @@
 
         // TRANSFORMER FUNCTIONS
         // 補正係数テーブル（図2-1 電灯負荷、図2-2 動力負荷）- Excelマスターデータ準拠
+        // 建築設備設計基準（国交省 電気設備工事編 令和7年版）
+        // 第8章 受変電設備 2-1 負荷容量の算定 図2-1（電灯変圧器補正係数）
+        //   f1: 照明 ΣL / f2: コンセント ΣC(OA・FC除く) / f3: ファンコイル用ΣFC
+        //   横軸は各負荷の合計容量[kVA]
         const CORRECTION_TABLE_LIGHTING = [
-            { kva: 0, f1: 1.00, f2: 1.00, f3: 1.00 },
-            { kva: 10, f1: 1.00, f2: 1.00, f3: 1.00 },
-            { kva: 20, f1: 0.94, f2: 0.86, f3: 0.86 },
-            { kva: 40, f1: 0.86, f2: 0.81, f3: 0.81 },
-            { kva: 80, f1: 0.81, f2: 0.78, f3: 0.78 },
-            { kva: 120, f1: 0.78, f2: 0.76, f3: 0.76 },
-            { kva: 160, f1: 0.76, f2: 0.75, f3: 0.75 },
-            { kva: 200, f1: 0.75, f2: 0.68, f3: 0.68 }
+            { kva: 0,   f1: 1.00, f2: 0.80, f3: 0.60 },
+            { kva: 10,  f1: 0.94, f2: 0.78, f3: 0.55 },
+            { kva: 20,  f1: 0.86, f2: 0.76, f3: 0.40 },
+            { kva: 40,  f1: 0.81, f2: 0.74, f3: 0.34 },
+            { kva: 80,  f1: 0.78, f2: 0.72, f3: 0.30 },
+            { kva: 120, f1: 0.76, f2: 0.70, f3: 0.29 },
+            { kva: 160, f1: 0.75, f2: 0.69, f3: 0.28 },
+            { kva: 200, f1: 0.75, f2: 0.68, f3: 0.27 }
         ];
+        // 図2-2（動力変圧器補正係数）
+        //   f5: Pa=冷凍機・パッケージ形空調機・エレベーター
+        //   f6: Pb=空調及び換気（パッケージ形空調除く）
+        //   f7: Pc=衛生関係その他
         const CORRECTION_TABLE_MOTOR = [
-            { kva: 0, f5: 1.00, f6: 1.00, f7: 1.00 },
-            { kva: 10, f5: 0.98, f6: 0.83, f7: 0.21 },
-            { kva: 40, f5: 0.96, f6: 0.79, f7: 0.21 },
-            { kva: 80, f5: 0.96, f6: 0.79, f7: 0.21 },
-            { kva: 120, f5: 0.95, f6: 0.76, f7: 0.21 },
+            { kva: 0,   f5: 1.00, f6: 0.83, f7: 0.21 },
+            { kva: 40,  f5: 0.98, f6: 0.79, f7: 0.21 },
+            { kva: 80,  f5: 0.96, f6: 0.76, f7: 0.21 },
+            { kva: 120, f5: 0.95, f6: 0.75, f7: 0.21 },
             { kva: 160, f5: 0.94, f6: 0.75, f7: 0.21 },
             { kva: 200, f5: 0.94, f6: 0.75, f7: 0.21 }
         ];
@@ -7840,6 +9190,25 @@
             if (kvaSel) kvaSel.addEventListener('change', autoFillDefaultPercentZ);
             populateTransformerKvaOptions('三相3W');
             renderTransformerList();
+
+            // 短絡電流計算 UI 初期化
+            try {
+                renderSourceImpUi();
+                bindSourceImpInputs();
+                renderHvCableTable();
+                bindHvCableEvents();
+                renderLoadCableTable();
+                bindLoadCableEvents();
+                document.getElementById('btnRunShortCircuit')?.addEventListener('click', () => {
+                    renderShortCircuitResults();
+                    if (typeof renderFeeders === 'function') renderFeeders();
+                });
+                // ⑥-D 電動機寄与 入力 → プレビューだけ保持（計算はボタン押下時）
+                ['motorContribEnabled','motorContribThreshold','motorInputKva'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('input', () => {});
+                });
+            } catch (e) { console.error('SC UI init error:', e); }
         }
 
         function updateTransformerCalculation() {
@@ -7904,6 +9273,42 @@
 
             const recommended = TRANSFORMER_SIZES.find(size => size >= es) || TRANSFORMER_SIZES[TRANSFORMER_SIZES.length - 1];
             document.getElementById('recommendedValue').textContent = recommended + ' kVA';
+
+            // ⑤-2 設備不平衡率（1305-2）
+            updateImbalanceCalc(es);
+        }
+
+        function updateImbalanceCalc(esKva) {
+            const rs = parseFloat(document.getElementById('imbalRS')?.value) || 0;
+            const st = parseFloat(document.getElementById('imbalST')?.value) || 0;
+            const tr = parseFloat(document.getElementById('imbalTR')?.value) || 0;
+            const diff = Math.max(rs, st, tr) - Math.min(rs, st, tr);
+            const base = (Number(esKva) || 0) / 3;
+            const diffEl = document.getElementById('imbalDiff');
+            const baseEl = document.getElementById('imbalBase');
+            const rateEl = document.getElementById('imbalRate');
+            const judgeEl = document.getElementById('imbalJudge');
+            if (!diffEl || !baseEl || !rateEl || !judgeEl) return;
+            diffEl.textContent = diff.toFixed(2) + ' kVA';
+            baseEl.textContent = base.toFixed(2) + ' kVA';
+            if (base <= 0) {
+                rateEl.textContent = '-';
+                rateEl.style.color = '#555';
+                judgeEl.textContent = '-';
+                judgeEl.style.color = '#555';
+                return;
+            }
+            const rate = (diff / base) * 100;
+            rateEl.textContent = rate.toFixed(1) + ' %';
+            if (rate <= 30) {
+                rateEl.style.color = '#2e7d32';
+                judgeEl.textContent = '○ 適合（≦30%）';
+                judgeEl.style.color = '#2e7d32';
+            } else {
+                rateEl.style.color = '#c62828';
+                judgeEl.textContent = `× 不適合（${rate.toFixed(1)}% ＞ 30%）`;
+                judgeEl.style.color = '#c62828';
+            }
         }
 
         // DIAGRAM FUNCTIONS
@@ -7999,6 +9404,9 @@
                     <td>${cable.size}</td>
                     <td>${cable.cv}</td>
                     <td>${cable.cvt}</td>
+                    <td>${cable.fp}</td>
+                    <td>${cable.em}</td>
+                    <td>${cable.emc}</td>
                     <td>${cable.r}</td>
                     <td>${cable.x}</td>
                 `;
@@ -8042,6 +9450,425 @@
                 tbody.appendChild(row);
             });
         }
+
+        // ==================== 印刷レポート（A3横 PDF出力） ====================
+        // エル・エル・イー電気 / 電気設備計算書
+        const PRINT_PROJECT_KEY = 'elecCalc:printProjectName';
+
+        function openPrintView() {
+            const view = document.getElementById('printView');
+            const mainContainer = document.querySelector('.container');
+            if (mainContainer) mainContainer.style.display = 'none';
+            view.classList.add('active');
+            // 工事名称の復元
+            const saved = localStorage.getItem(PRINT_PROJECT_KEY) || '';
+            document.getElementById('printProjectName').value = saved;
+            // 作成日は今日
+            const today = new Date();
+            const ymd = `${today.getFullYear()}/${String(today.getMonth()+1).padStart(2,'0')}/${String(today.getDate()).padStart(2,'0')}`;
+            document.getElementById('printDate').value = ymd;
+            buildPrintReport();
+        }
+        function closePrintView() {
+            const view = document.getElementById('printView');
+            view.classList.remove('active');
+            const mainContainer = document.querySelector('.container');
+            if (mainContainer) mainContainer.style.display = '';
+        }
+
+        function esc(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+        function fx(v, n = 2) { return (Number(v) || 0).toFixed(n); }
+
+        function renderPrintHeader(title, pageNo, pageTotal) {
+            const project = esc(document.getElementById('printProjectName').value || '');
+            const date = esc(document.getElementById('printDate').value || '');
+            return `
+                <div class="print-header">
+                    <div class="ph-title">${esc(title)}</div>
+                    <div class="ph-meta">
+                        工事名称: <b>${project || '（未入力）'}</b><br>
+                        作成日: ${date} &nbsp;/&nbsp; ページ ${pageNo} / ${pageTotal}
+                    </div>
+                </div>
+            `;
+        }
+        function renderPrintFooter() {
+            return `
+                <div class="print-footer">
+                    <span>エル・エル・イー電気株式会社</span>
+                    <span>配盤・回路計算システム — 内線規程 JEAC8001 準拠</span>
+                </div>
+            `;
+        }
+
+        function buildPrintReport() {
+            const container = document.getElementById('printContent');
+            container.innerHTML = '';
+
+            // 対象盤（allPanels）と幹線（allFeeders）
+            const panels = [...allPanels].sort((a,b) => (a.sort_order||0) - (b.sort_order||0) || (a.id||0) - (b.id||0));
+            // ページ総数: 盤一覧1 + 各盤1 + 電灯1 + 動力1
+            const lightingFeeders = allFeeders.filter(f => (localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯') === '電灯');
+            const motorFeeders    = allFeeders.filter(f => (localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯') === '動力');
+            let pageTotal = 1 + panels.length;
+            if (lightingFeeders.length > 0) pageTotal += 1;
+            if (motorFeeders.length > 0) pageTotal += 1;
+            let pageNo = 0;
+
+            // ====== Page 1: 盤一覧サマリー ======
+            pageNo++;
+            container.appendChild(renderPanelListPage(panels, pageNo, pageTotal));
+
+            // ====== Page 2〜: 各盤の回路DB ======
+            panels.forEach(panel => {
+                pageNo++;
+                container.appendChild(renderPanelCircuitsPage(panel, pageNo, pageTotal));
+            });
+
+            // ====== 電灯幹線計算書 ======
+            if (lightingFeeders.length > 0) {
+                pageNo++;
+                container.appendChild(renderFeederPage('電灯幹線計算書', lightingFeeders, pageNo, pageTotal));
+            }
+            // ====== 動力幹線計算書 ======
+            if (motorFeeders.length > 0) {
+                pageNo++;
+                container.appendChild(renderFeederPage('動力幹線計算書', motorFeeders, pageNo, pageTotal));
+            }
+        }
+
+        function renderPanelListPage(panels, pageNo, pageTotal) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'print-page';
+            let rowsHtml = '';
+            panels.forEach(panel => {
+                const circuits = allCircuits.filter(c => c.panel_name === panel.name);
+                const s = calculatePanelSummaries(panel.name, circuits);
+                const demandRate = (typeof getDemandRate === 'function') ? getDemandRate(panel.name) : 100;
+                const dTotal = s.total * (demandRate / 100);
+                const dCurrent = s.current * (demandRate / 100);
+                const panelAT = Number(panel.at) || 0;
+                const atD = (panelAT > 0 && panelAT >= dCurrent) ? 'OK' : (panelAT > 0 ? '×' : '-');
+                const balanceTxt = s.balance !== null ? `${s.balance.toFixed(1)}% ${s.balance <= 40 ? 'OK' : '×'}` : '-';
+                rowsHtml += `
+                    <tr>
+                        <td style="text-align:left;font-weight:bold;">${esc(panel.name)}</td>
+                        <td>${esc(panel.elec_type || '')}</td>
+                        <td>${esc(panel.main_breaker || '')}</td>
+                        <td>${esc(panel.af || '')}</td>
+                        <td>${esc(panel.at || '')}</td>
+                        <td>${fx(s.lighting)}</td>
+                        <td>${fx(s.outlet)}</td>
+                        <td>${fx(s.fc)}</td>
+                        <td>${fx(s.oa)}</td>
+                        <td>${fx(s.feeder)}</td>
+                        <td style="font-weight:bold;">${fx(s.total)}</td>
+                        <td>${s.current} A</td>
+                        <td class="${s.atStatus === 'OK' ? 'status-ok' : 'status-ng'}">${s.atStatus}</td>
+                        <td>${demandRate}</td>
+                        <td style="background:#fffde7;font-weight:bold;">${fx(dTotal)}</td>
+                        <td style="background:#fffde7;">${dCurrent.toFixed(1)} A</td>
+                        <td class="${atD === 'OK' ? 'status-ok' : (atD === '×' ? 'status-ng' : '')}" style="background:#fffde7;">${atD}</td>
+                        <td>${balanceTxt}</td>
+                    </tr>
+                `;
+            });
+            pageDiv.innerHTML = `
+                ${renderPrintHeader('盤 一 覧 表', pageNo, pageTotal)}
+                <table>
+                    <thead>
+                        <tr>
+                            <th rowspan="2">盤名称</th>
+                            <th rowspan="2">種別</th>
+                            <th rowspan="2">主遮断器</th>
+                            <th rowspan="2">AF</th>
+                            <th rowspan="2">AT</th>
+                            <th colspan="5">設計負荷 [kVA]</th>
+                            <th rowspan="2">合計<br>[kVA]</th>
+                            <th rowspan="2">電流<br>[A]</th>
+                            <th rowspan="2">AT判定</th>
+                            <th rowspan="2">需要率<br>[%]</th>
+                            <th rowspan="2">需要後<br>[kVA]</th>
+                            <th rowspan="2">需要後<br>電流[A]</th>
+                            <th rowspan="2">需要後<br>AT判定</th>
+                            <th rowspan="2">平衡率</th>
+                        </tr>
+                        <tr>
+                            <th>照明</th><th>ｺﾝｾﾝﾄ</th><th>FC</th><th>OA</th><th>幹線分岐</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml || '<tr><td colspan="19">盤データなし</td></tr>'}</tbody>
+                </table>
+                ${renderPrintFooter()}
+            `;
+            return pageDiv;
+        }
+
+        function renderPanelCircuitsPage(panel, pageNo, pageTotal) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'print-page';
+            const circuits = allCircuits
+                .filter(c => c.panel_name === panel.name)
+                .sort((a, b) => {
+                    // 分岐を最後に、それ以外はcircuit_no順
+                    const aBr = a.symbol === '分岐' ? 1 : 0;
+                    const bBr = b.symbol === '分岐' ? 1 : 0;
+                    if (aBr !== bBr) return aBr - bBr;
+                    const an = Number(a.circuit_no) || 0;
+                    const bn = Number(b.circuit_no) || 0;
+                    return an - bn;
+                });
+            const s = calculatePanelSummaries(panel.name, circuits);
+
+            let rowsHtml = '';
+            if (circuits.length === 0) {
+                rowsHtml = '<tr><td colspan="16">回路データなし</td></tr>';
+            } else {
+                circuits.forEach(c => {
+                    const designTotal = (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0);
+                    const voltage = c.voltage || 100;
+                    const designVA = designTotal * 1000;
+                    const current = voltage > 0 ? (designVA / voltage) : 0;
+                    const atOk = (Number(c.at) || 0) >= current ? 'OK' : '×';
+                    rowsHtml += `
+                        <tr>
+                            <td>${esc(c.symbol || '')}</td>
+                            <td>${c.symbol === '分岐' ? '' : esc(c.circuit_no || '')}</td>
+                            <td>${esc(c.phase || '')}</td>
+                            <td>${esc(c.breaker_type || '')}</td>
+                            <td>${esc(c.af || '')}</td>
+                            <td>${esc(c.at || '')}</td>
+                            <td>${voltage}</td>
+                            <td style="text-align:left;">${esc(c.load_name || '')}</td>
+                            <td>${Math.round((c.lighting || 0) * 1000) || ''}</td>
+                            <td>${Math.round((c.outlet || 0) * 1000) || ''}</td>
+                            <td>${Math.round((c.fc || 0) * 1000) || ''}</td>
+                            <td>${Math.round((c.oa || 0) * 1000) || ''}</td>
+                            <td>${Math.round((c.feeder || 0) * 1000) || ''}</td>
+                            <td style="font-weight:bold;">${Math.round(designVA) || ''}</td>
+                            <td>${current > 0 ? current.toFixed(1) + ' A' : '-'}</td>
+                            <td class="${atOk === 'OK' ? 'status-ok' : 'status-ng'}">${current > 0 ? atOk : '-'}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            pageDiv.innerHTML = `
+                ${renderPrintHeader(`回路DB － ${panel.name}`, pageNo, pageTotal)}
+                <table style="margin-bottom:6px;">
+                    <tbody>
+                        <tr class="panel-subheader">
+                            <td colspan="8">
+                                盤名称: <b>${esc(panel.name)}</b> &nbsp;/&nbsp;
+                                種別: ${esc(panel.elec_type || '')} &nbsp;/&nbsp;
+                                主遮断器: ${esc(panel.main_breaker || '')} ${esc(panel.af || '')}AF/${esc(panel.at || '')}AT &nbsp;/&nbsp;
+                                合計負荷: <b>${fx(s.total)} kVA</b> &nbsp;/&nbsp;
+                                幹線電流: ${s.current} A &nbsp;/&nbsp;
+                                平衡率: ${s.balance !== null ? s.balance.toFixed(1) + '%' : '-'}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>記号</th>
+                            <th>回路No</th>
+                            <th>相</th>
+                            <th>ブレーカー</th>
+                            <th>AF</th>
+                            <th>AT</th>
+                            <th>電圧[V]</th>
+                            <th>負荷名称</th>
+                            <th>照明[VA]</th>
+                            <th>ｺﾝｾﾝﾄ[VA]</th>
+                            <th>FC[VA]</th>
+                            <th>OA[VA]</th>
+                            <th>幹線分岐[VA]</th>
+                            <th>設計[VA]</th>
+                            <th>電流</th>
+                            <th>AT判定</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+                ${renderPrintFooter()}
+            `;
+            return pageDiv;
+        }
+
+        function renderFeederPage(title, feeders, pageNo, pageTotal) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'print-page';
+
+            // 接地母線（1350-14）サイズ計算
+            const grpSizes = feeders.flatMap(f => {
+                const at = Number(f.breaker_at) || 0;
+                const t = judgeGroundType(Number(f.voltage) || 0);
+                if (at <= 0 || (t !== 'D' && t !== 'C')) return [];
+                const ld = localFeederData[f.id] || {};
+                const br = f.breaker_type || '';
+                const elbDef = /ELB|ELCB|漏電/i.test(br) ? 'on' : 'off';
+                const mD = ld.ground_d_mode || 'on';
+                const mE = ld.ground_elb_mode || elbDef;
+                const sz = calcGroundWireSize(at).size;
+                const arr = [];
+                if (mD === 'on') arr.push(sz);
+                if (mE === 'on') arr.push(sz);
+                return arr;
+            });
+            const busSize = calcGroundBusSize(grpSizes);
+
+            let rowsHtml = '';
+
+            // 接地母線行
+            rowsHtml += `
+                <tr class="bus-row">
+                    <td colspan="18">
+                        ⏚ 接地母線（キュービクル接地端子 → 配電盤）: 必要最小 = max(各幹線接地線) =
+                        <b>${busSize > 0 ? busSize + ' mm²' : '-'}</b>
+                        &nbsp;&nbsp;根拠: 内線規程 JEAC8001 1350-14
+                    </td>
+                </tr>
+            `;
+
+            feeders.forEach(feeder => {
+                const fd = localFeederData[feeder.id] || {};
+                const feederNo = fd.feeder_no || '';
+                const voltage = feeder.voltage || 100;
+                const phase = feeder.phase_type || '1φ2W';
+                const current = Number(fd.current) || 0;
+                const cableType = feeder.cable_type || 'CV';
+                const cableSize = Number(feeder.cable_size) || 0;
+                const length = Number(feeder.cable_length) || 0;
+                const breakerAF = Number(feeder.breaker_af) || 0;
+                const breakerAT = Number(feeder.breaker_at) || 0;
+                const vd = Number(fd.voltage_drop) || 0;
+                const vdPct = voltage > 0 ? (vd / voltage * 100) : 0;
+
+                // 自（起点）
+                let sourceLabel = 'キュービクル';
+                if (fd.source_type === 'branch' && fd.source_circuit_id) {
+                    const parent = allCircuits.find(c => c.id === fd.source_circuit_id);
+                    sourceLabel = parent ? `${parent.panel_name || '?'} / 分岐${parent.at || 0}AT` : '親回路なし';
+                } else if (fd.source_type === 'transformer' && fd.source_transformer_id) {
+                    sourceLabel = 'トランス';
+                }
+
+                rowsHtml += `
+                    <tr>
+                        <td>${esc(feederNo)}</td>
+                        <td style="text-align:left;">${esc(sourceLabel)}</td>
+                        <td style="text-align:left;font-weight:bold;">${esc(feeder.load_name || '')}</td>
+                        <td>${fx(Number(fd.load_capacity) || 0)}</td>
+                        <td>${feeder.demand_factor || 100}</td>
+                        <td>${fx(Number(fd.demand_capacity) || 0)}</td>
+                        <td>${esc(phase)}</td>
+                        <td>${voltage}</td>
+                        <td>${current.toFixed(1)}</td>
+                        <td>${esc(cableType)} ${cableSize}</td>
+                        <td>${length}</td>
+                        <td>${vd.toFixed(2)}</td>
+                        <td>${vdPct.toFixed(2)}</td>
+                        <td>${esc(feeder.breaker_type || '')}</td>
+                        <td>${breakerAF}</td>
+                        <td>${breakerAT}</td>
+                        <td>${fd.motor_total_kw || ''}</td>
+                        <td style="text-align:left;">${esc(feeder.destination || '')}</td>
+                    </tr>
+                `;
+
+                // 接地線サブ行
+                const gndType = judgeGroundType(voltage);
+                if (gndType === 'D' || gndType === 'C') {
+                    const gndCalc = calcGroundWireSize(breakerAT);
+                    const br = feeder.breaker_type || '';
+                    const elbDef = /ELB|ELCB|漏電/i.test(br) ? 'on' : 'off';
+                    const mD = fd.ground_d_mode || 'on';
+                    const mE = fd.ground_elb_mode || elbDef;
+                    const selD = Number(fd.ground_wire_size) || gndCalc.size || 0;
+                    const selE = Number(fd.elb_ground_wire_size) || gndCalc.size || 0;
+                    const gndRow = (label, mode, sel) => {
+                        if (mode === 'off') {
+                            return `
+                                <tr class="gnd-row">
+                                    <td colspan="2" style="text-align:right;">└ ${label}</td>
+                                    <td colspan="16" style="text-align:left;color:#9e9e9e;">— 不要 —</td>
+                                </tr>
+                            `;
+                        }
+                        return `
+                            <tr class="gnd-row">
+                                <td colspan="2" style="text-align:right;">└ ${label}</td>
+                                <td colspan="4" style="text-align:left;">${gndType}種接地 選定: <b>${sel}mm²</b></td>
+                                <td colspan="4" style="text-align:left;">必要最小: ${gndCalc.size || '-'}mm²</td>
+                                <td colspan="8" style="text-align:left;">A = 0.052 × ${breakerAT || 0} = ${(0.052 * (breakerAT || 0)).toFixed(2)}mm² → 直近上位 ${gndCalc.size || '-'}mm² (1350-3表/資料1-3-6)</td>
+                            </tr>
+                        `;
+                    };
+                    rowsHtml += gndRow('D種 (機器)', mD, selD);
+                    rowsHtml += gndRow('D種 (ELB二次側)', mE, selE);
+                }
+            });
+
+            pageDiv.innerHTML = `
+                ${renderPrintHeader(title, pageNo, pageTotal)}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>自（起点）</th>
+                            <th>負荷名称</th>
+                            <th>負荷<br>[kVA]</th>
+                            <th>需要率<br>[%]</th>
+                            <th>需要後<br>[kVA]</th>
+                            <th>相</th>
+                            <th>電圧</th>
+                            <th>電流[A]</th>
+                            <th>ケーブル</th>
+                            <th>こう長<br>[m]</th>
+                            <th>VD[V]</th>
+                            <th>VD率<br>[%]</th>
+                            <th>ﾌﾞﾚｰｶ種別</th>
+                            <th>AF</th>
+                            <th>AT</th>
+                            <th>動力<br>合計kW</th>
+                            <th>至（行先）</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+                <div style="margin-top:6px;font-size:8pt;color:#555;">
+                    根拠: 内線規程 JEAC8001 — 1305節(不平衡率)・1310節(電圧降下)・1340節(許容電流)・<b>1350節(接地)</b>・<b>1360-10条(幹線分岐OCPD省略)</b>・<b>3705-8条 第3項(幹線OCPD上限)</b>
+                </div>
+                ${renderPrintFooter()}
+            `;
+            return pageDiv;
+        }
+
+        // イベント配線（DOMContentLoaded 後に）
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnOpen = document.getElementById('btnOpenPrintView');
+            if (btnOpen) btnOpen.addEventListener('click', openPrintView);
+            const btnClose = document.getElementById('btnClosePrintView');
+            if (btnClose) btnClose.addEventListener('click', closePrintView);
+            const btnPrint = document.getElementById('btnDoPrint');
+            if (btnPrint) btnPrint.addEventListener('click', () => window.print());
+            const projectInput = document.getElementById('printProjectName');
+            if (projectInput) {
+                projectInput.addEventListener('input', (e) => {
+                    localStorage.setItem(PRINT_PROJECT_KEY, e.target.value);
+                    // ヘッダー内の工事名称をリアルタイム反映
+                    document.querySelectorAll('#printContent .ph-meta b').forEach(b => {
+                        b.textContent = e.target.value || '（未入力）';
+                    });
+                });
+            }
+        });
     </script>
 </body>
 </html>
