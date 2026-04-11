@@ -2648,7 +2648,7 @@
                         <div style="margin-bottom:0.5rem;">
                             <button type="button" class="btn-action" id="btnAddLoadCable" onclick="try{__uiAddLoadCable();}catch(e){alert('追加失敗: '+e.message);}" style="background:#43a047;color:#fff;">+ 負荷ケーブル追加</button>
                             <button type="button" class="btn-action" id="btnLoadCableAutoF1F8" onclick="try{__uiAddAllF1F8();}catch(e){alert('一括生成失敗: '+e.message);}" style="background:#1a1a2e;color:#fff;margin-left:0.3rem;" title="F₁〜F₈ すべての点に既定のケーブル雛形を一括で生成します">★ F₁〜F₈ 一括生成</button>
-                            <button type="button" class="btn-action" id="btnLoadCableFromSystem" onclick="try{__uiGenerateSystemCables();}catch(e){alert('システム生成失敗: '+e.message);}" style="background:#00695c;color:#fff;margin-left:0.3rem;" title="トランス→幹線→分電盤→回路を辿って実在の短絡点をすべて自動生成">★ システムから自動生成</button>
+                            <button type="button" class="btn-action" id="btnLoadCableFromSystem" onclick="try{__uiGenerateSystemCables();}catch(e){alert('システム生成失敗: '+e.message);}" style="background:#00695c;color:#fff;margin-left:0.3rem;" title="トランス→幹線を辿って各分電盤の主幹(幹線末端)短絡点を自動生成">★ システムから幹線末端を自動生成</button>
                             <button type="button" class="btn-action" id="btnLoadCablePresetF4" onclick="try{__uiAddPresetF('F4');}catch(e){alert(e.message);}" style="background:#1976d2;color:#fff;margin-left:0.3rem;" title="動力分岐 F₄用 CV22mm² 30m をセット">F₄雛形</button>
                             <button type="button" class="btn-action" id="btnLoadCablePresetF7" onclick="try{__uiAddPresetF('F7');}catch(e){alert(e.message);}" style="background:#7b1fa2;color:#fff;margin-left:0.3rem;" title="電灯分岐 F₇用 VV-F2.0 30m をセット">F₇雛形</button>
                             <button type="button" class="btn-action" id="btnLoadCablePresetF8" onclick="try{__uiAddPresetF('F8');}catch(e){alert(e.message);}" style="background:#d32f2f;color:#fff;margin-left:0.3rem;" title="100V末端 F₈用 VV-F1.6 20m をセット">F₈雛形</button>
@@ -3978,7 +3978,7 @@
             f1Steps.push(`【三相短絡電流】 I<sub>s</sub> = I<sub>n</sub> × 100 / %Z = ${f1_In.toFixed(1)} × 100 / ${f1_z.toFixed(4)} = <b>${(f1_Is/1000).toFixed(2)} kA</b>`);
 
             results.push({
-                point: 'F₁', label: '高圧母線（受電地点直下）',
+                point: '受電点', label: '高圧母線（受電地点直下）',
                 kind: 'HV', v_disp: (V1 * 1000).toFixed(0),
                 r: f1_r, x: f1_x, z: f1_z,
                 In: f1_In, Is_kA: f1_Is / 1000,
@@ -4018,7 +4018,8 @@
                 // 単相は三相計算 × √3/2 で二相短絡
                 if (isSinglePhase) p_Is = p_Is * Math.sqrt(3) / 2;
 
-                const label = (tr.usage === '電灯' || isSinglePhase) ? `F₅相当 ${tr.name} 二次母線` : `F₂相当 ${tr.name} 二次母線`;
+                const usageJp = (tr.usage === '電灯' || isSinglePhase) ? '電灯' : (tr.usage === '動力' ? '動力' : (tr.usage || ''));
+                const label = `${tr.name} 二次母線${usageJp?` [${usageJp}]`:''}`;
                 const trSteps = [];
                 trSteps.push(`【トランス %Z<sub>T</sub> (銘板値)】 ${tr.name} ${tr.phase} ${kva}kVA, %R=${pctR_t.toFixed(2)}, %X=${pctX_t.toFixed(2)}`);
                 trSteps.push(`【基準容量換算】 係数 = P<sub>n</sub>/kva = ${PnKva}/${kva} = ${factor.toFixed(3)}`);
@@ -4038,7 +4039,7 @@
                     trSteps.push(`【三相短絡】 I<sub>s</sub> = I<sub>n</sub>×100/%Z = <b>${(p_Is/1000).toFixed(2)} kA</b>`);
                 }
                 results.push({
-                    point: isSinglePhase ? 'F₅' : 'F₂',
+                    point: 'Tr二次',
                     label: label,
                     kind: 'LV',
                     transformerId: tr.id,
@@ -4059,6 +4060,8 @@
             const feederImp = {}; // feederId → {r, x, V_kV, rootTrId}
 
             // トランス直下の幹線は transformer sourceから開始
+            // ★ allFeeders を明示参照（bare `feeders` は window.feeders=HTMLCollection に化けるため）
+            const feeders = (typeof allFeeders !== 'undefined' && Array.isArray(allFeeders)) ? allFeeders : [];
             feeders.forEach(f => {
                 const fd = localFeederData[f.id] || {};
                 const srcType = fd.source_type || 'cubicle';
@@ -4141,7 +4144,7 @@
                 }
 
                 const isSinglePhase = tr && (tr.phase === '単相2W' || tr.phase === '単相3W');
-                const pointLabel = isSinglePhase ? 'F₆' : 'F₃';
+                const pointLabel = '幹線末端';
                 const fdSteps = (imp.steps || []).slice();
                 fdSteps.push(`【定格電流】 I<sub>n</sub> = ${PnKva}/(√3×${imp.V_kV}) = <b>${p_In.toFixed(1)} A</b>`);
                 if (isSinglePhase) {
@@ -4158,7 +4161,7 @@
                 }
                 results.push({
                     point: pointLabel,
-                    label: `${pointLabel}相当 ${f.circuit_no || f.id} ${imp.parentLabel}`,
+                    label: `幹線 ${f.circuit_no || ''} ${f.load_name || ''} (${imp.parentLabel||''}) 主幹`.replace(/\s+/g,' ').trim(),
                     kind: 'LV-FEEDER',
                     feederId: f.id,
                     v_disp: (imp.V_kV * 1000).toFixed(0),
@@ -4250,12 +4253,17 @@
 
                     loadCableImp[lc.id] = { r: rSum, x: xSum, V_kV: V_kV, trId: parent.trId };
 
-                    // 表示ラベル
+                    // 表示ラベル（ユーザー向けの分かりやすい名称）
                     const pointStr = String(lc.target_point || 'F7');
-                    const pointSub = pointStr.replace(/^F(\d)/, 'F₁F₂F₃F₄F₅F₆F₇F₈'.match(/.{2}/g)[parseInt(pointStr.slice(1),10)-1] || 'F₇');
-                    // ↑ポイント表記を F₁..F₈ にマップ
-                    const pointMap = { F1:'F₁', F2:'F₂', F3:'F₃', F4:'F₄', F5:'F₅', F6:'F₅', F6b:'F₆', F7:'F₇', F8:'F₈' };
-                    const pShow = { F1:'F₁', F2:'F₂', F3:'F₃', F4:'F₄', F5:'F₅', F6:'F₆', F7:'F₇', F8:'F₈' }[pointStr] || 'F₇';
+                    // 内部F番号 → 分かりやすい日本語名
+                    const FRIENDLY_POINT = {
+                        F1: '受電点',  F2: 'Tr二次', F3: '幹線末端', F4: '動力末端',
+                        F5: 'Tr二次', F6: '幹線末端', F7: '電灯末端', F8: '100V末端'
+                    };
+                    // 親種別で上書き（システム生成時の精度を上げる）
+                    let pShow = FRIENDLY_POINT[pointStr] || '末端';
+                    if (lc.parent_kind === 'transformer') pShow = 'Tr二次';
+                    else if (lc.parent_kind === 'feeder' && (lc.sys_key||'').startsWith('sys_feeder_')) pShow = '幹線末端';
 
                     const noteParts = [];
                     noteParts.push(`種別 ${lc.type_key || ''}`);
@@ -4285,9 +4293,11 @@
                     } else {
                         lcSteps.push(`【三相短絡】 I<sub>s</sub> = <b>${(p_Is/1000).toFixed(2)} kA</b>`);
                     }
+                    // 親種別を日本語に
+                    const parentJp = { source:'電源', transformer:'Tr二次', feeder:'幹線', load_cable:'負荷ｹｰﾌﾞﾙ' }[lc.parent_kind] || lc.parent_kind || '幹線';
                     results.push({
                         point: pShow,
-                        label: `${pShow} ${lc.name || '負荷末端'} (親:${lc.parent_kind || 'feeder'})`,
+                        label: `${lc.name || '負荷末端'} 〔親:${parentJp}〕`,
                         kind: 'LOAD-END',
                         loadCableId: lc.id,
                         v_disp: (V_kV * 1000).toFixed(0),
@@ -5135,33 +5145,12 @@
             };
 
             // ===== ① トランス2次母線 =====
-            trArr.forEach((tr, trIdx) => {
-                const sysKey = `sys_tr_${tr.id}`;
-                if (!force && existingSysKeys.has(sysKey)) return;
-                const vSec = Number(tr.secondary_voltage) || 210;
-                const tgt = classifyTargetPoint(vSec, 'tr_sec');
-                const defTypeKey = (vSec >= 400) ? 'CV_60_3C' : (vSec >= 200 ? 'CV_60_3C' : 'VV-F_2.0_2C');
-                const def = LOAD_CABLE_DEFAULT_RX[defTypeKey] || { r: 0.343, x: 0.0822 };
-                loadCables.push({
-                    id: newLoadCableId(),
-                    sys_key: sysKey,
-                    name: `【T${trIdx+1}】 ${tr.name || tr.id} 二次母線`,
-                    target_point: tgt,
-                    parent_kind: 'transformer',
-                    parent_id: tr.id,
-                    type_key: defTypeKey,
-                    size_label: `${tr.name||''} 二次直下`,
-                    length_m: 1,  // トランス二次直下 (%Z≒トランスの pre_r/pre_x のみ)
-                    conductors: 1,
-                    voltage_v: vSec,
-                    r_ohm_km: def.r,
-                    x_ohm_km: def.x,
-                    v100_correction: (vSec <= 120)
-                });
-                added.push(sysKey);
-            });
+            // 注: Tr二次は既に runShortCircuitCalculation がトランスごとに自動計算済み (results に push 済)
+            // ここで重複登録する必要は無いが、手動調整用の雛形として残しておきたい場合はこのブロックを有効化。
+            // 現仕様: ユーザー要望「幹線まででいい」→ 登録スキップ (二次は本体計算側で表示される)
 
-            // ===== ② 幹線末端 (分電盤主幹位置) =====
+            // ===== 幹線末端 (分電盤主幹位置) — これだけを登録 =====
+            // 要望「計算は幹線まででいい」に基づき、トランス二次(本体計算で既出)と分岐回路末端(不要)をスキップ。
             fArr.forEach((f, fIdx) => {
                 const sysKey = `sys_feeder_${f.id}`;
                 if (!force && existingSysKeys.has(sysKey)) return;
@@ -5176,7 +5165,7 @@
                 loadCables.push({
                     id: newLoadCableId(),
                     sys_key: sysKey,
-                    name: `【幹線${fno}】 ${rootTr ? rootTr.name : '親Tr未設定'} → ${panelName} 主幹`,
+                    name: `幹線 ${fno} → ${panelName} 主幹${rootTr?` (元Tr:${rootTr.name})`:''}`,
                     target_point: tgt,
                     parent_kind: 'feeder',
                     parent_id: f.id,
@@ -5190,43 +5179,6 @@
                     v100_correction: false
                 });
                 added.push(sysKey);
-            });
-
-            // ===== ③ 分岐回路末端 =====
-            fArr.forEach(f => {
-                const panelName = f.load_name || '';
-                if (!panelName) return;
-                const panelCircuits = cArr.filter(c => c.panel_name === panelName && c.symbol !== '分岐');
-                const rootTrId = resolveFeederRootTransformerId(f.id);
-                const rootTr = rootTrId ? trArr.find(t => t.id === rootTrId) : null;
-                const vSecDefault = rootTr ? (Number(rootTr.secondary_voltage) || 210) : 210;
-                panelCircuits.forEach(c => {
-                    const sysKey = `sys_circuit_${c.id}`;
-                    if (!force && existingSysKeys.has(sysKey)) return;
-                    const cV = Number(c.voltage) || vSecDefault;
-                    const is100V = (cV <= 120);
-                    const tgt = classifyTargetPoint(cV, 'circuit');
-                    const defTypeKey = is100V ? 'VV-F_2.0_2C' : 'CV_22_3C';
-                    const def = LOAD_CABLE_DEFAULT_RX[defTypeKey];
-                    const lenDefault = is100V ? 20 : 30;
-                    loadCables.push({
-                        id: newLoadCableId(),
-                        sys_key: sysKey,
-                        name: `${panelName}-${c.circuit_no || c.id} ${c.load_name || ''} 末端`.trim(),
-                        target_point: tgt,
-                        parent_kind: 'feeder',
-                        parent_id: f.id,
-                        type_key: defTypeKey,
-                        size_label: `${defTypeKey.replace(/_/g,' ')}`,
-                        length_m: lenDefault,
-                        conductors: 1,
-                        voltage_v: cV,
-                        r_ohm_km: def.r,
-                        x_ohm_km: def.x,
-                        v100_correction: is100V
-                    });
-                    added.push(sysKey);
-                });
             });
 
             saveLoadCables();
@@ -5244,10 +5196,10 @@
         }
         function __uiGenerateSystemCables() {
             if (loadCables.length > 0) {
-                if (!confirm('既存の負荷ケーブル ' + loadCables.length + ' 件は残したまま、システム(トランス→幹線→分電盤→回路)から未登録の短絡点を自動追加します。よろしいですか？')) return;
+                if (!confirm('既存の負荷ケーブル ' + loadCables.length + ' 件は残したまま、システム(トランス→幹線)から未登録の「幹線末端」短絡点を自動追加します。よろしいですか？\n\n※ トランス二次点は本体計算で自動表示されるためここでは追加しません。\n※ 分岐回路末端の計算は省略します（要望: 幹線まで）')) return;
             }
             const added = generateSystemLoadCables(false);
-            alert('システムから ' + added.length + ' 点の短絡点を追加しました。\n（トランス二次 + 幹線主幹 + 分岐回路末端）');
+            alert('システムから ' + added.length + ' 点の「幹線末端」短絡点を追加しました。\n\n結果は上部の短絡電流計算結果テーブルに表示されます。');
         }
         function __uiAddPresetF(fPoint) {
             const map = {
