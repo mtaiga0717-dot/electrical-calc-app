@@ -2956,6 +2956,18 @@
                     <input type="file" id="wcCsvFileInput" accept=".csv" style="display:none;" onchange="wcHandleCSVFile(event)">
                 </div>
 
+                <!-- 絞り込みフィルタ -->
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;font-size:0.82rem;align-items:center;background:#e0f2f1;padding:0.4rem 0.6rem;border-radius:4px;">
+                    <span style="font-weight:bold;color:#00695c;">🔍 絞り込み：</span>
+                    <div>工種：<select id="wcFilterKoushu" style="font-size:0.82rem;min-width:100px;" onchange="wcApplyFilter()"><option value="">すべて</option></select></div>
+                    <div>自の階：<select id="wcFilterFloor" style="font-size:0.82rem;min-width:80px;" onchange="wcApplyFilter()"><option value="">すべて</option></select></div>
+                    <div>配管：<select id="wcFilterHaikan" style="font-size:0.82rem;min-width:100px;" onchange="wcApplyFilter()"><option value="">すべて</option></select></div>
+                    <button class="btn-action" style="background:#78909c;color:#fff;font-size:0.75rem;padding:0.2rem 0.6rem;" onclick="wcClearFilter()">クリア</button>
+                </div>
+
+                <!-- ケーブル種類別こう長集計 -->
+                <div id="wcCableSummary" style="margin-bottom:0.5rem;font-size:0.8rem;display:none;"></div>
+
                 <!-- 注文書ヘッダ入力 -->
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;font-size:0.82rem;">
                     <div>宛先：<select id="wcAtesakiSelect" style="font-size:0.82rem;min-width:180px;" onchange="wcSaveData()"></select> 御中</div>
@@ -10130,7 +10142,7 @@
         // ================================================================
         const WC_KEY = 'elecCalc:weakCurrentData';
         const WC_SETTINGS_KEY = 'elecCalc:weakCurrentSettings';
-        const WC_KOUSHU_LIST = ['受変電','幹線','動力','計測','電灯','コンセント','換気','情報','交換','テレビ','誘導支援','拡声','映像音響','火報','警報'];
+        const WC_KOUSHU_LIST = ['受変電','幹線','動力','計測','電灯','コンセント','換気','情報','交換','テレビ','誘導支援','拡声','映像音響','火報','警報','監視カメラ'];
         const WC_CABLES_KEY = 'elecCalc:weakCurrentCables';
         const WC_HAIKAN_KEY = 'elecCalc:weakCurrentHaikan';
         function wcLoadCables() { try { const r = localStorage.getItem(WC_CABLES_KEY); return r ? JSON.parse(r) : []; } catch(e) { return []; } }
@@ -10333,6 +10345,120 @@
                 </tr>`;
             }).join('');
             wcBindEvents();
+            wcUpdateFilterOptions();
+            wcApplyFilter();
+        }
+
+        // フィルタ: ドロップダウンの選択肢をデータから動的生成
+        function wcUpdateFilterOptions() {
+            const koushuSet = new Set();
+            const floorSet = new Set();
+            const haikanSet = new Set();
+            wcData.rows.forEach(r => {
+                if (r.koushu) koushuSet.add(r.koushu);
+                const fl = r.floorFrom || r.floor || '';
+                if (fl) floorSet.add(fl);
+                const hk = Array.isArray(r.haikan) ? r.haikan : (r.haikan ? [r.haikan] : []);
+                hk.forEach(h => { if (h) haikanSet.add(h); });
+            });
+            const kSel = document.getElementById('wcFilterKoushu');
+            const fSel = document.getElementById('wcFilterFloor');
+            const hSel = document.getElementById('wcFilterHaikan');
+            if (kSel) {
+                const cur = kSel.value;
+                kSel.innerHTML = '<option value="">すべて</option>' + [...koushuSet].sort().map(k => `<option value="${k}" ${k===cur?'selected':''}>${k}</option>`).join('');
+            }
+            if (fSel) {
+                const cur = fSel.value;
+                const floors = [...floorSet].sort((a,b) => {
+                    const na = parseInt(a), nb = parseInt(b);
+                    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+                    return a.localeCompare(b);
+                });
+                fSel.innerHTML = '<option value="">すべて</option>' + floors.map(f => `<option value="${f}" ${f===cur?'selected':''}>${f}</option>`).join('');
+            }
+            if (hSel) {
+                const cur = hSel.value;
+                hSel.innerHTML = '<option value="">すべて</option>' + [...haikanSet].sort().map(h => `<option value="${h}" ${h===cur?'selected':''}>${h}</option>`).join('');
+            }
+        }
+
+        // フィルタ適用: 行の表示/非表示 + ケーブル集計
+        function wcApplyFilter() {
+            const koushuVal = document.getElementById('wcFilterKoushu')?.value || '';
+            const floorVal = document.getElementById('wcFilterFloor')?.value || '';
+            const haikanVal = document.getElementById('wcFilterHaikan')?.value || '';
+            const tbody = document.getElementById('wcBody');
+            if (!tbody) return;
+            const rows = tbody.querySelectorAll('tr');
+            const visibleIndices = [];
+            wcData.rows.forEach((r, i) => {
+                const fl = r.floorFrom || r.floor || '';
+                const hk = Array.isArray(r.haikan) ? r.haikan : (r.haikan ? [r.haikan] : []);
+                const matchK = !koushuVal || r.koushu === koushuVal;
+                const matchF = !floorVal || fl === floorVal;
+                const matchH = !haikanVal || hk.includes(haikanVal);
+                const visible = matchK && matchF && matchH;
+                if (rows[i]) rows[i].style.display = visible ? '' : 'none';
+                if (visible) visibleIndices.push(i);
+            });
+            // ケーブル種類別こう長集計
+            wcRenderCableSummary(visibleIndices);
+        }
+
+        function wcClearFilter() {
+            const kSel = document.getElementById('wcFilterKoushu');
+            const fSel = document.getElementById('wcFilterFloor');
+            const hSel = document.getElementById('wcFilterHaikan');
+            if (kSel) kSel.value = '';
+            if (fSel) fSel.value = '';
+            if (hSel) hSel.value = '';
+            wcApplyFilter();
+        }
+
+        // ケーブル種類別こう長集計
+        function wcRenderCableSummary(visibleIndices) {
+            const panel = document.getElementById('wcCableSummary');
+            if (!panel) return;
+            const cableTotals = {};
+            const indices = visibleIndices || wcData.rows.map((_, i) => i);
+            indices.forEach(i => {
+                const r = wcData.rows[i];
+                if (!r) return;
+                const len = parseFloat(r.length_m) || 0;
+                if (len <= 0) return;
+                const cables = Array.isArray(r.haisen) ? r.haisen.filter(c => c) : (r.haisen ? [r.haisen] : []);
+                cables.forEach(cable => {
+                    if (!cable) return;
+                    if (!cableTotals[cable]) cableTotals[cable] = 0;
+                    cableTotals[cable] += len;
+                });
+            });
+            const entries = Object.entries(cableTotals).sort((a,b) => a[0].localeCompare(b[0]));
+            if (entries.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+            const totalAll = entries.reduce((s, e) => s + e[1], 0);
+            panel.style.display = 'block';
+            panel.innerHTML = `<div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:4px;padding:0.4rem 0.6rem;">
+                <b style="color:#e65100;">📊 ケーブル種類別こう長集計</b>
+                <span style="color:#999;font-size:0.75rem;margin-left:0.5rem;">(${indices.length}行対象)</span>
+                <table style="margin-top:0.3rem;border-collapse:collapse;font-size:0.8rem;width:auto;">
+                    <tr style="background:#ffe0b2;">
+                        <th style="border:1px solid #ffb74d;padding:0.2rem 0.8rem;text-align:left;">ケーブル名</th>
+                        <th style="border:1px solid #ffb74d;padding:0.2rem 0.8rem;text-align:right;">こう長合計 [m]</th>
+                    </tr>
+                    ${entries.map(([name, total]) => `<tr>
+                        <td style="border:1px solid #ffcc80;padding:0.2rem 0.8rem;">${name}</td>
+                        <td style="border:1px solid #ffcc80;padding:0.2rem 0.8rem;text-align:right;font-weight:bold;">${total.toFixed(1)}</td>
+                    </tr>`).join('')}
+                    <tr style="background:#ffe0b2;font-weight:bold;">
+                        <td style="border:1px solid #ffb74d;padding:0.2rem 0.8rem;">合計</td>
+                        <td style="border:1px solid #ffb74d;padding:0.2rem 0.8rem;text-align:right;">${totalAll.toFixed(1)}</td>
+                    </tr>
+                </table>
+            </div>`;
         }
 
         function wcBindEvents() {
