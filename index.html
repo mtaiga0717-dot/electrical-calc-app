@@ -2969,7 +2969,7 @@
                             <th style="border:1px solid #aaa;padding:0.3rem;width:130px;">自</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;width:130px;">至</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;min-width:120px;">配線</th>
-                            <th style="border:1px solid #aaa;padding:0.3rem;width:80px;">配管</th>
+                            <th style="border:1px solid #aaa;padding:0.3rem;min-width:130px;">配管</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;width:70px;">こう長[m]</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;width:50px;">注文済</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;width:40px;">操作</th>
@@ -10047,15 +10047,20 @@
                     <td style="${td}">
                         ${wcMultiSelect(r, 'haisen', wcCableOptions, 'haisen', 'haisen', 'wcPromptNewCable')}
                     </td>
-                    ${isMerged ? '' : `<td style="${td}vertical-align:top;" ${spanInfo && spanInfo > 1 ? 'rowspan="'+spanInfo+'"' : ''}>
-                        ${wcMultiSelect(r, 'haikan', wcHaikanOptions, 'haikan', 'haikan', 'wcPromptNewHaikan')}
-                        ${i < wcData.rows.length - 1 ? `<div style="margin-top:3px;text-align:center;">
-                            <button data-wc-merge-toggle="${r.id}" data-dir="down" style="font-size:0.55rem;padding:1px 4px;background:#7b1fa2;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="下の行と配管結合">↓結合</button>
-                        </div>` : ''}
-                        ${spanInfo && spanInfo > 1 ? `<div style="margin-top:2px;text-align:center;">
-                            <button data-wc-merge-split="${r.id}" style="font-size:0.55rem;padding:1px 4px;background:#e65100;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="配管結合を解除">解除</button>
-                        </div>` : ''}
-                    </td>`}
+                    ${isMerged ? '' : (function(){
+                        const merged = spanInfo && spanInfo > 1;
+                        const canMergeMore = (function(){ let e=i+1; while(e<wcData.rows.length && wcData.rows[e].haikanMerge) e++; return e<wcData.rows.length; })();
+                        const bgColor = merged ? 'background:#e8eaf6;border:2px solid #5c6bc0;' : '';
+                        const badge = merged ? `<div style="font-size:0.6rem;color:#5c6bc0;font-weight:bold;margin-bottom:2px;">▋${spanInfo}行結合</div>` : '';
+                        return `<td style="${td}vertical-align:top;${bgColor}" ${merged ? 'rowspan="'+spanInfo+'"' : ''}>
+                            ${badge}
+                            ${wcMultiSelect(r, 'haikan', wcHaikanOptions, 'haikan', 'haikan', 'wcPromptNewHaikan')}
+                            <div style="margin-top:3px;display:flex;gap:3px;justify-content:center;">
+                                ${canMergeMore ? `<button data-wc-merge-toggle="${r.id}" style="font-size:0.6rem;padding:1px 5px;background:#5c6bc0;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="下の行と配管結合">↓結合</button>` : ''}
+                                ${merged ? `<button data-wc-merge-split="${r.id}" style="font-size:0.6rem;padding:1px 5px;background:#ef6c00;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="配管結合を解除">解除</button>` : ''}
+                            </div>
+                        </td>`;
+                    })()}
                     <td style="${td}"><input type="number" data-wc="${r.id}" data-f="length_m" value="${r.length_m||''}" style="width:60px;font-size:0.75rem;text-align:right;" step="0.1"></td>
                     <td style="${td}text-align:center;">
                         <input type="checkbox" data-wc="${r.id}" data-f="ordered" ${r.ordered?'checked':''} style="transform:scale(1.2);">
@@ -10145,13 +10150,19 @@
                         return;
                     }
                 }
-                // 配管結合（下の行と結合）
+                // 配管結合（グループ末尾の次の行を結合）
                 const mergeId = btn.getAttribute('data-wc-merge-toggle');
                 if (mergeId) {
                     const idx = wcData.rows.findIndex(x => x.id === mergeId);
-                    if (idx >= 0 && idx < wcData.rows.length - 1) {
-                        wcData.rows[idx + 1].haikanMerge = true;
-                        wcSaveData(); wcRenderTable();
+                    if (idx >= 0) {
+                        // グループの末尾を探す
+                        let end = idx + 1;
+                        while (end < wcData.rows.length && wcData.rows[end].haikanMerge) end++;
+                        // 末尾の次の行を結合
+                        if (end < wcData.rows.length) {
+                            wcData.rows[end].haikanMerge = true;
+                            wcSaveData(); wcRenderTable();
+                        }
                     }
                     return;
                 }
