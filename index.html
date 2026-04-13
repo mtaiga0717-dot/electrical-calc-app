@@ -10244,6 +10244,74 @@
         // 注文書PDF出力 (ブラウザ印刷ベース)
         function wcExportOrder() {
             if (wcData.rows.length === 0) { alert('データがありません'); return; }
+            // 項目選択ダイアログを表示
+            wcShowOrderSelectDialog();
+        }
+
+        function wcShowOrderSelectDialog() {
+            // 既存ダイアログがあれば削除
+            const old = document.getElementById('wcOrderSelectDialog');
+            if (old) old.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = 'wcOrderSelectDialog';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+            const dialog = document.createElement('div');
+            dialog.style.cssText = 'background:#fff;border-radius:8px;padding:20px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+
+            let listHtml = '<div style="font-size:14px;font-weight:bold;margin-bottom:12px;">注文書に出力する項目を選択</div>';
+            listHtml += '<div style="margin-bottom:10px;"><label style="font-size:12px;cursor:pointer;"><input type="checkbox" id="wcOrderSelAll" checked style="transform:scale(1.2);margin-right:4px;">すべて選択</label></div>';
+            listHtml += '<div style="border:1px solid #ddd;border-radius:4px;max-height:50vh;overflow-y:auto;">';
+            listHtml += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+            listHtml += '<tr style="background:#e0f2f1;position:sticky;top:0;"><th style="padding:6px;text-align:left;width:30px;"></th><th style="padding:6px;text-align:left;width:30px;">No</th><th style="padding:6px;text-align:left;">記号</th><th style="padding:6px;text-align:left;">配線</th><th style="padding:6px;text-align:right;width:60px;">数量</th></tr>';
+
+            wcData.rows.forEach((r, i) => {
+                const cables = Array.isArray(r.haisen) ? r.haisen.filter(h=>h).join(', ') : (r.haisen||'');
+                const bg = i % 2 === 1 ? 'background:#f5f5f5;' : '';
+                const alreadyOrdered = r.ordered ? ' (注文済)' : '';
+                listHtml += `<tr style="${bg}">
+                    <td style="padding:4px 6px;"><input type="checkbox" class="wcOrderCheck" data-idx="${i}" ${r.ordered ? '' : 'checked'} style="transform:scale(1.2);"></td>
+                    <td style="padding:4px 6px;text-align:center;">${i+1}</td>
+                    <td style="padding:4px 6px;">${r.kigou||''}<span style="color:#999;font-size:10px;">${alreadyOrdered}</span></td>
+                    <td style="padding:4px 6px;">${cables}</td>
+                    <td style="padding:4px 6px;text-align:right;">${r.length_m||''}</td>
+                </tr>`;
+            });
+            listHtml += '</table></div>';
+
+            listHtml += '<div style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end;">';
+            listHtml += '<button id="wcOrderCancel" style="padding:8px 20px;border:1px solid #999;background:#fff;border-radius:4px;cursor:pointer;font-size:13px;">キャンセル</button>';
+            listHtml += '<button id="wcOrderConfirm" style="padding:8px 20px;background:#00695c;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;">注文書出力</button>';
+            listHtml += '</div>';
+
+            dialog.innerHTML = listHtml;
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+
+            // 全選択チェックボックス
+            document.getElementById('wcOrderSelAll').addEventListener('change', (e) => {
+                document.querySelectorAll('.wcOrderCheck').forEach(cb => cb.checked = e.target.checked);
+            });
+
+            // キャンセル
+            document.getElementById('wcOrderCancel').addEventListener('click', () => overlay.remove());
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+            // 出力
+            document.getElementById('wcOrderConfirm').addEventListener('click', () => {
+                const selectedIdx = [];
+                document.querySelectorAll('.wcOrderCheck').forEach(cb => {
+                    if (cb.checked) selectedIdx.push(parseInt(cb.getAttribute('data-idx')));
+                });
+                if (selectedIdx.length === 0) { alert('項目を選択してください'); return; }
+                overlay.remove();
+                wcDoExportOrder(selectedIdx);
+            });
+        }
+
+        function wcDoExportOrder(selectedIdx) {
+            const selectedRows = selectedIdx.map(i => wcData.rows[i]);
             const h = wcData.header || {};
             const atesaki = h.atesaki || document.getElementById('wcAtesakiSelect')?.value || '';
             const tantou = h.tantou || document.getElementById('wcTantouSelect')?.value || '';
@@ -10255,7 +10323,7 @@
             // 配線を1本ずつ展開 — No.は連番、数量・単位は全行同じ値
             const flatRows = [];
             let seqNo = 0;
-            wcData.rows.forEach((r) => {
+            selectedRows.forEach((r) => {
                 const cables = Array.isArray(r.haisen) ? r.haisen.filter(h=>h) : (r.haisen ? [r.haisen] : []);
                 if (cables.length === 0) cables.push('');
                 cables.forEach((cable) => {
@@ -10333,6 +10401,13 @@
             </table>
             </body></html>`);
             win.document.close();
+
+            // 出力した項目の注文済チェックを自動ON
+            selectedIdx.forEach(i => {
+                wcData.rows[i].ordered = true;
+            });
+            wcSaveData();
+            wcRenderTable();
         }
 
         // 初期化
