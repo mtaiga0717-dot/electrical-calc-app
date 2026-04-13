@@ -5744,6 +5744,7 @@
             const { data, error } = await db
                 .from('panels')
                 .select('*')
+                .eq('project_id', projectGetCurrent())
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
@@ -5756,6 +5757,7 @@
             const { data, error } = await db
                 .from('circuits')
                 .select('*')
+                .eq('project_id', projectGetCurrent())
                 .order('sort_order', { ascending: true });
 
             if (error) throw error;
@@ -5809,6 +5811,7 @@
             const { data, error } = await db
                 .from('feeders')
                 .select('*')
+                .eq('project_id', projectGetCurrent())
                 .order('sort_order', { ascending: true, nullsFirst: true })
                 .order('id', { ascending: true });
 
@@ -6149,6 +6152,7 @@
                     if (error) throw error;
                 } else {
                     // panels テーブルには sort_order 列が無いので created_at ASC で自然に末尾に入る
+                    data.project_id = projectGetCurrent();
                     const { error } = await db
                         .from('panels')
                         .insert([data]);
@@ -6177,7 +6181,8 @@
                 const { error: circuitError } = await db
                     .from('circuits')
                     .delete()
-                    .eq('panel_name', panel.name);
+                    .eq('panel_name', panel.name)
+                    .eq('project_id', projectGetCurrent());
 
                 if (circuitError) throw circuitError;
 
@@ -7490,7 +7495,8 @@
                 breaker_type: breaker,
                 breaker_af: 50,
                 breaker_at: parent.at || 30,
-                destination: ''
+                destination: '',
+                project_id: projectGetCurrent()
             };
             try {
                 const { data, error } = await db
@@ -8001,7 +8007,8 @@
                 feeder: 0,
                 load_name: '',
                 remocon: 0,
-                sort_order: newSortOrder
+                sort_order: newSortOrder,
+                project_id: projectGetCurrent()
             };
 
             try {
@@ -8073,7 +8080,8 @@
                 const { data: existingRcs, error: selErr } = await db
                     .from('circuits')
                     .select('id')
-                    .eq('type', 'RC');
+                    .eq('type', 'RC')
+                    .eq('project_id', projectGetCurrent());
                 if (selErr) throw selErr;
                 const rcIds = (existingRcs || []).map(r => r.id);
                 if (rcIds.length > 0) {
@@ -8131,7 +8139,8 @@
                             feeder: 0,
                             load_name: '',
                             remocon: 0,
-                            sort_order: (m.sort_order || 0) + (j + 1)
+                            sort_order: (m.sort_order || 0) + (j + 1),
+                            project_id: projectGetCurrent()
                         });
                         totalSub++;
                     }
@@ -8160,7 +8169,8 @@
                 const { error } = await db
                     .from('circuits')
                     .delete()
-                    .eq('type', 'RC');
+                    .eq('type', 'RC')
+                    .eq('project_id', projectGetCurrent());
 
                 if (error) throw error;
                 await loadCircuits();
@@ -8704,7 +8714,8 @@
                         phase_type: phase,
                         demand_factor: 100,
                         cable_type: 'CV',
-                        cable_length: 0
+                        cable_length: 0,
+                        project_id: projectGetCurrent()
                     }).select().single();
                     if (error) { console.error('autoSync create feeder:', error); continue; }
                     // 動力盤なら feeder_category='動力'
@@ -9646,7 +9657,8 @@
                 breaker_af: 30,
                 breaker_at: 20,
                 destination: '',
-                sort_order: allFeeders.reduce((m, f) => Math.max(m, f.sort_order || 0), 0) + 1000
+                sort_order: allFeeders.reduce((m, f) => Math.max(m, f.sort_order || 0), 0) + 1000,
+                project_id: projectGetCurrent()
             };
 
             try {
