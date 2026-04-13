@@ -2964,12 +2964,12 @@
                         <tr style="background:#00695c;color:#fff;">
                             <th style="border:1px solid #aaa;padding:0.3rem;width:30px;">No.</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;width:80px;">工種</th>
-                            <th style="border:1px solid #aaa;padding:0.3rem;width:90px;">記号</th>
-                            <th style="border:1px solid #aaa;padding:0.3rem;width:120px;">負荷名称</th>
-                            <th style="border:1px solid #aaa;padding:0.3rem;width:100px;">自</th>
-                            <th style="border:1px solid #aaa;padding:0.3rem;width:100px;">至</th>
-                            <th style="border:1px solid #aaa;padding:0.3rem;min-width:160px;">配線</th>
-                            <th style="border:1px solid #aaa;padding:0.3rem;width:70px;">配管</th>
+                            <th style="border:1px solid #aaa;padding:0.3rem;width:110px;">記号</th>
+                            <th style="border:1px solid #aaa;padding:0.3rem;width:150px;">負荷名称</th>
+                            <th style="border:1px solid #aaa;padding:0.3rem;width:130px;">自</th>
+                            <th style="border:1px solid #aaa;padding:0.3rem;width:130px;">至</th>
+                            <th style="border:1px solid #aaa;padding:0.3rem;min-width:120px;">配線</th>
+                            <th style="border:1px solid #aaa;padding:0.3rem;width:80px;">配管</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;width:70px;">こう長[m]</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;width:50px;">注文済</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;width:40px;">操作</th>
@@ -9938,7 +9938,7 @@
                 fusho: preset.fusho || '',
                 from: preset.from || '',
                 to: preset.to || '',
-                haisen: preset.haisen || '',
+                haisen: preset.haisen ? (Array.isArray(preset.haisen) ? preset.haisen : [preset.haisen]) : [''],
                 haikan: preset.haikan || '',
                 length_m: preset.length_m || '',
                 ordered: false
@@ -9995,7 +9995,16 @@
                     <td style="border:1px solid #ddd;padding:0.2rem;"><input type="text" data-wc="${r.id}" data-f="fusho" value="${(r.fusho||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
                     <td style="border:1px solid #ddd;padding:0.2rem;"><input type="text" data-wc="${r.id}" data-f="from" value="${(r.from||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
                     <td style="border:1px solid #ddd;padding:0.2rem;"><input type="text" data-wc="${r.id}" data-f="to" value="${(r.to||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="text" list="wcCableList" data-wc="${r.id}" data-f="haisen" value="${(r.haisen||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
+                    <td style="border:1px solid #ddd;padding:0.2rem;">
+                        ${(function(){
+                            const arr = Array.isArray(r.haisen) ? r.haisen : (r.haisen ? [r.haisen] : ['']);
+                            return arr.map((h, hi) => `<div style="display:flex;align-items:center;gap:2px;${hi>0?'margin-top:2px':''}">
+                                <input type="text" list="wcCableList" data-wc="${r.id}" data-f="haisen" data-hi="${hi}" value="${(h||'').replace(/"/g,'&quot;')}" style="flex:1;font-size:0.75rem;min-width:0;">
+                                ${hi===0?`<button data-wc-haisen-add="${r.id}" style="font-size:0.65rem;padding:0 3px;background:#26a69a;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="配線追加">+</button>`
+                                        :`<button data-wc-haisen-del="${r.id}" data-hi="${hi}" style="font-size:0.65rem;padding:0 3px;background:#e53935;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="削除">-</button>`}
+                            </div>`).join('');
+                        })()}
+                    </td>
                     <td style="border:1px solid #ddd;padding:0.2rem;"><input type="text" data-wc="${r.id}" data-f="haikan" value="${(r.haikan||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
                     <td style="border:1px solid #ddd;padding:0.2rem;"><input type="number" data-wc="${r.id}" data-f="length_m" value="${r.length_m||''}" style="width:60px;font-size:0.75rem;text-align:right;" step="0.1"></td>
                     <td style="border:1px solid #ddd;padding:0.2rem;text-align:center;">
@@ -10023,7 +10032,11 @@
                 if (!id || !f) return;
                 const row = wcData.rows.find(x => x.id === id);
                 if (!row) return;
-                if (f === 'length_m') row[f] = parseFloat(e.target.value) || '';
+                if (f === 'haisen') {
+                    const hi = parseInt(e.target.getAttribute('data-hi') || '0');
+                    if (!Array.isArray(row.haisen)) row.haisen = row.haisen ? [row.haisen] : [''];
+                    row.haisen[hi] = e.target.value;
+                } else if (f === 'length_m') row[f] = parseFloat(e.target.value) || '';
                 else if (f === 'ordered') row[f] = e.target.checked;
                 else row[f] = e.target.value;
                 wcSaveData();
@@ -10034,22 +10047,52 @@
                 if (!id || !f) return;
                 const row = wcData.rows.find(x => x.id === id);
                 if (!row) return;
-                if (f === 'ordered') row[f] = e.target.checked;
+                if (f === 'haisen') {
+                    const hi = parseInt(e.target.getAttribute('data-hi') || '0');
+                    if (!Array.isArray(row.haisen)) row.haisen = row.haisen ? [row.haisen] : [''];
+                    row.haisen[hi] = e.target.value;
+                    if (e.target.value.trim()) {
+                        wcAddCable(e.target.value);
+                        const dl = document.getElementById('wcCableList');
+                        if (dl) dl.innerHTML = wcCableDatalistHtml();
+                    }
+                } else if (f === 'ordered') row[f] = e.target.checked;
                 else row[f] = e.target.value;
-                // 配線で新規ケーブル名が入力されたら自動登録
-                if (f === 'haisen' && e.target.value.trim()) {
-                    wcAddCable(e.target.value);
-                    const dl = document.getElementById('wcCableList');
-                    if (dl) dl.innerHTML = wcCableDatalistHtml();
-                }
                 wcSaveData();
             });
             tbody.addEventListener('click', (e) => {
+                // 行削除
                 const delId = e.target.getAttribute('data-wc-del');
-                if (!delId) return;
-                wcData.rows = wcData.rows.filter(x => x.id !== delId);
-                wcSaveData();
-                wcRenderTable();
+                if (delId) {
+                    wcData.rows = wcData.rows.filter(x => x.id !== delId);
+                    wcSaveData();
+                    wcRenderTable();
+                    return;
+                }
+                // 配線追加
+                const addId = e.target.getAttribute('data-wc-haisen-add');
+                if (addId) {
+                    const row = wcData.rows.find(x => x.id === addId);
+                    if (row) {
+                        if (!Array.isArray(row.haisen)) row.haisen = row.haisen ? [row.haisen] : [''];
+                        row.haisen.push('');
+                        wcSaveData();
+                        wcRenderTable();
+                    }
+                    return;
+                }
+                // 配線削除
+                const delHId = e.target.getAttribute('data-wc-haisen-del');
+                if (delHId) {
+                    const hi = parseInt(e.target.getAttribute('data-hi') || '0');
+                    const row = wcData.rows.find(x => x.id === delHId);
+                    if (row && Array.isArray(row.haisen) && row.haisen.length > 1) {
+                        row.haisen.splice(hi, 1);
+                        wcSaveData();
+                        wcRenderTable();
+                    }
+                    return;
+                }
             });
         }
 
@@ -10081,7 +10124,7 @@
                     wcData.rows.push({
                         id: wcNewId(),
                         koushu: wcGuessKoushu(kigou, fusho),
-                        kigou, fusho, from, to, haisen, haikan,
+                        kigou, fusho, from, to, haisen: haisen ? [haisen] : [''], haikan,
                         length_m: '',
                         ordered: false
                     });
@@ -10100,7 +10143,8 @@
             if (wcData.rows.length === 0) { alert('データがありません'); return; }
             let csv = '工種,記号,負荷名称,自,至,配線,配管,こう長[m],注文済\n';
             wcData.rows.forEach(r => {
-                csv += [r.koushu, r.kigou, r.fusho, r.from, r.to, r.haisen, r.haikan, r.length_m||'', r.ordered?'済':''].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
+                const haisenStr = Array.isArray(r.haisen) ? r.haisen.join(' / ') : (r.haisen||'');
+                csv += [r.koushu, r.kigou, r.fusho, r.from, r.to, haisenStr, r.haikan, r.length_m||'', r.ordered?'済':''].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
             });
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
             const a = document.createElement('a');
@@ -10128,7 +10172,7 @@
                     <td style="border:1px solid #999;padding:3px;text-align:center;">${i+1}</td>
                     <td style="border:1px solid #999;padding:3px;text-align:center;">${r.koushu||''}</td>
                     <td style="border:1px solid #999;padding:3px;">${r.kigou||''}</td>
-                    <td style="border:1px solid #999;padding:3px;">${r.haisen||''}</td>
+                    <td style="border:1px solid #999;padding:3px;">${Array.isArray(r.haisen) ? r.haisen.filter(h=>h).join('<br>') : (r.haisen||'')}</td>
                     <td style="border:1px solid #999;padding:3px;">${r.haikan||''}</td>
                     <td style="border:1px solid #999;padding:3px;text-align:right;">${r.length_m||''}</td>
                     <td style="border:1px solid #999;padding:3px;text-align:center;">${orderedMark}</td>
