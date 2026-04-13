@@ -2962,6 +2962,7 @@
                     <div>工種：<select id="wcFilterKoushu" style="font-size:0.82rem;min-width:100px;" onchange="wcApplyFilter()"><option value="">すべて</option></select></div>
                     <div>自の階：<select id="wcFilterFloor" style="font-size:0.82rem;min-width:80px;" onchange="wcApplyFilter()"><option value="">すべて</option></select></div>
                     <div>配管：<select id="wcFilterHaikan" style="font-size:0.82rem;min-width:100px;" onchange="wcApplyFilter()"><option value="">すべて</option></select></div>
+                    <div>自/至検索：<input type="text" id="wcFilterFromTo" style="font-size:0.82rem;width:80px;" placeholder="例：外" oninput="wcApplyFilter()"></div>
                     <button class="btn-action" style="background:#78909c;color:#fff;font-size:0.75rem;padding:0.2rem 0.6rem;" onclick="wcClearFilter()">クリア</button>
                 </div>
 
@@ -10388,6 +10389,7 @@
             const koushuVal = document.getElementById('wcFilterKoushu')?.value || '';
             const floorVal = document.getElementById('wcFilterFloor')?.value || '';
             const haikanVal = document.getElementById('wcFilterHaikan')?.value || '';
+            const fromToVal = (document.getElementById('wcFilterFromTo')?.value || '').trim();
             const tbody = document.getElementById('wcBody');
             if (!tbody) return;
             const rows = tbody.querySelectorAll('tr');
@@ -10398,7 +10400,12 @@
                 const matchK = !koushuVal || r.koushu === koushuVal;
                 const matchF = !floorVal || fl === floorVal;
                 const matchH = !haikanVal || hk.includes(haikanVal);
-                const visible = matchK && matchF && matchH;
+                let matchFT = true;
+                if (fromToVal) {
+                    const fields = [r.floorFrom, r.roomFrom, r.deviceFrom, r.from, r.floorTo, r.roomTo, r.deviceTo, r.to].map(v => v || '');
+                    matchFT = fields.some(v => v.includes(fromToVal));
+                }
+                const visible = matchK && matchF && matchH && matchFT;
                 if (rows[i]) rows[i].style.display = visible ? '' : 'none';
                 if (visible) visibleIndices.push(i);
             });
@@ -10410,9 +10417,11 @@
             const kSel = document.getElementById('wcFilterKoushu');
             const fSel = document.getElementById('wcFilterFloor');
             const hSel = document.getElementById('wcFilterHaikan');
+            const ftSel = document.getElementById('wcFilterFromTo');
             if (kSel) kSel.value = '';
             if (fSel) fSel.value = '';
             if (hSel) hSel.value = '';
+            if (ftSel) ftSel.value = '';
             wcApplyFilter();
         }
 
