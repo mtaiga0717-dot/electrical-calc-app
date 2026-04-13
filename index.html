@@ -9878,6 +9878,7 @@
         const WC_SETTINGS_KEY = 'elecCalc:weakCurrentSettings';
         const WC_KOUSHU_LIST = ['受変電','幹線','動力','計測','電灯','コンセント','換気','情報','交換','テレビ','誘導支援','拡声','映像音響','火報','警報'];
         const WC_CABLES_KEY = 'elecCalc:weakCurrentCables';
+        const WC_HAIKAN_KEY = 'elecCalc:weakCurrentHaikan';
         function wcLoadCables() { try { const r = localStorage.getItem(WC_CABLES_KEY); return r ? JSON.parse(r) : []; } catch(e) { return []; } }
         function wcSaveCables(list) { localStorage.setItem(WC_CABLES_KEY, JSON.stringify(list)); }
         function wcAddCable(name) {
@@ -9885,8 +9886,26 @@
             const cables = wcLoadCables();
             if (!cables.includes(name.trim())) { cables.push(name.trim()); cables.sort(); wcSaveCables(cables); }
         }
-        function wcCableDatalistHtml() {
-            return wcLoadCables().map(c => `<option value="${c.replace(/"/g,'&quot;')}">`).join('');
+        function wcLoadHaikan() { try { const r = localStorage.getItem(WC_HAIKAN_KEY); return r ? JSON.parse(r) : []; } catch(e) { return []; } }
+        function wcSaveHaikan(list) { localStorage.setItem(WC_HAIKAN_KEY, JSON.stringify(list)); }
+        function wcAddHaikan(name) {
+            if (!name || !name.trim()) return;
+            const list = wcLoadHaikan();
+            if (!list.includes(name.trim())) { list.push(name.trim()); list.sort(); wcSaveHaikan(list); }
+        }
+        function wcCableOptions(sel) {
+            return '<option value="">-</option>' + wcLoadCables().map(c => `<option value="${c.replace(/"/g,'&quot;')}" ${sel===c?'selected':''}>${c}</option>`).join('');
+        }
+        function wcHaikanOptions(sel) {
+            return '<option value="">-</option>' + wcLoadHaikan().map(c => `<option value="${c.replace(/"/g,'&quot;')}" ${sel===c?'selected':''}>${c}</option>`).join('');
+        }
+        function wcPromptNewCable() {
+            const name = prompt('新規ケーブル名を入力：');
+            if (name && name.trim()) { wcAddCable(name.trim()); wcRenderTable(); }
+        }
+        function wcPromptNewHaikan() {
+            const name = prompt('新規配管名を入力：');
+            if (name && name.trim()) { wcAddHaikan(name.trim()); wcRenderTable(); }
         }
 
         function wcLoadData() {
@@ -9939,7 +9958,7 @@
                 from: preset.from || '',
                 to: preset.to || '',
                 haisen: preset.haisen ? (Array.isArray(preset.haisen) ? preset.haisen : [preset.haisen]) : [''],
-                haikan: preset.haikan || '',
+                haikan: preset.haikan ? (Array.isArray(preset.haikan) ? preset.haikan : [preset.haikan]) : [''],
                 length_m: preset.length_m || '',
                 ordered: false
             });
@@ -9982,43 +10001,70 @@
                 return;
             }
             const kOpts = WC_KOUSHU_LIST.map(k => `<option value="${k}">${k}</option>`).join('');
+            // helper: render multi-item select column (配線 or 配管)
+            function wcMultiSelect(r, field, optsFn, addBtnAttr, delBtnAttr, promptFn) {
+                const arr = Array.isArray(r[field]) ? r[field] : (r[field] ? [r[field]] : ['']);
+                return arr.map((v, hi) => `<div style="display:flex;align-items:center;gap:1px;${hi>0?'margin-top:1px':''}">
+                    <select data-wc="${r.id}" data-f="${field}" data-hi="${hi}" style="flex:1;font-size:0.7rem;min-width:0;padding:1px;">
+                        ${optsFn(v)}
+                    </select>
+                    ${hi===0?`<button data-wc-${addBtnAttr}-add="${r.id}" style="font-size:0.6rem;padding:0 2px;background:#26a69a;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="追加">+</button>
+                              <button onclick="${promptFn}()" style="font-size:0.6rem;padding:0 2px;background:#1565c0;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="新規登録">★</button>`
+                            :`<button data-wc-${delBtnAttr}-del="${r.id}" data-hi="${hi}" style="font-size:0.6rem;padding:0 2px;background:#e53935;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="削除">-</button>`}
+                </div>`).join('');
+            }
+
+            // 配管結合グループ計算
+            const haikanGroups = [];
+            let gi = 0;
+            while (gi < wcData.rows.length) {
+                const row = wcData.rows[gi];
+                if (row.haikanMerge && gi > 0) { gi++; continue; }
+                let span = 1;
+                while (gi + span < wcData.rows.length && wcData.rows[gi + span].haikanMerge) span++;
+                haikanGroups.push({ start: gi, span });
+                gi += span;
+            }
+            const haikanSpanMap = {};
+            haikanGroups.forEach(g => { haikanSpanMap[g.start] = g.span; });
+
             tbody.innerHTML = wcData.rows.map((r, i) => {
                 const bg = i % 2 === 1 ? 'background:#e0f2f1;' : '';
+                const isMerged = r.haikanMerge && i > 0;
+                const spanInfo = haikanSpanMap[i];
+                const td = 'border:1px solid #ddd;padding:0.2rem;';
                 return `<tr style="${bg}">
-                    <td style="border:1px solid #ddd;padding:0.2rem;text-align:center;">${i+1}</td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;">
+                    <td style="${td}text-align:center;">${i+1}</td>
+                    <td style="${td}">
                         <select data-wc="${r.id}" data-f="koushu" style="width:100%;font-size:0.75rem;">
                             <option value="">-</option>${WC_KOUSHU_LIST.map(k=>`<option value="${k}" ${r.koushu===k?'selected':''}>${k}</option>`).join('')}
                         </select>
                     </td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="text" data-wc="${r.id}" data-f="kigou" value="${(r.kigou||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="text" data-wc="${r.id}" data-f="fusho" value="${(r.fusho||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="text" data-wc="${r.id}" data-f="from" value="${(r.from||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="text" data-wc="${r.id}" data-f="to" value="${(r.to||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;">
-                        ${(function(){
-                            const arr = Array.isArray(r.haisen) ? r.haisen : (r.haisen ? [r.haisen] : ['']);
-                            return arr.map((h, hi) => `<div style="display:flex;align-items:center;gap:2px;${hi>0?'margin-top:2px':''}">
-                                <input type="text" list="wcCableList" data-wc="${r.id}" data-f="haisen" data-hi="${hi}" value="${(h||'').replace(/"/g,'&quot;')}" style="flex:1;font-size:0.75rem;min-width:0;">
-                                ${hi===0?`<button data-wc-haisen-add="${r.id}" style="font-size:0.65rem;padding:0 3px;background:#26a69a;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="配線追加">+</button>`
-                                        :`<button data-wc-haisen-del="${r.id}" data-hi="${hi}" style="font-size:0.65rem;padding:0 3px;background:#e53935;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="削除">-</button>`}
-                            </div>`).join('');
-                        })()}
+                    <td style="${td}"><input type="text" data-wc="${r.id}" data-f="kigou" value="${(r.kigou||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
+                    <td style="${td}"><input type="text" data-wc="${r.id}" data-f="fusho" value="${(r.fusho||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
+                    <td style="${td}"><input type="text" data-wc="${r.id}" data-f="from" value="${(r.from||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
+                    <td style="${td}"><input type="text" data-wc="${r.id}" data-f="to" value="${(r.to||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
+                    <td style="${td}">
+                        ${wcMultiSelect(r, 'haisen', wcCableOptions, 'haisen', 'haisen', 'wcPromptNewCable')}
                     </td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="text" data-wc="${r.id}" data-f="haikan" value="${(r.haikan||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;"><input type="number" data-wc="${r.id}" data-f="length_m" value="${r.length_m||''}" style="width:60px;font-size:0.75rem;text-align:right;" step="0.1"></td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;text-align:center;">
+                    ${isMerged ? '' : `<td style="${td}vertical-align:top;" ${spanInfo && spanInfo > 1 ? 'rowspan="'+spanInfo+'"' : ''}>
+                        ${wcMultiSelect(r, 'haikan', wcHaikanOptions, 'haikan', 'haikan', 'wcPromptNewHaikan')}
+                        ${i < wcData.rows.length - 1 ? `<div style="margin-top:3px;text-align:center;">
+                            <button data-wc-merge-toggle="${r.id}" data-dir="down" style="font-size:0.55rem;padding:1px 4px;background:#7b1fa2;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="下の行と配管結合">↓結合</button>
+                        </div>` : ''}
+                        ${spanInfo && spanInfo > 1 ? `<div style="margin-top:2px;text-align:center;">
+                            <button data-wc-merge-split="${r.id}" style="font-size:0.55rem;padding:1px 4px;background:#e65100;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="配管結合を解除">解除</button>
+                        </div>` : ''}
+                    </td>`}
+                    <td style="${td}"><input type="number" data-wc="${r.id}" data-f="length_m" value="${r.length_m||''}" style="width:60px;font-size:0.75rem;text-align:right;" step="0.1"></td>
+                    <td style="${td}text-align:center;">
                         <input type="checkbox" data-wc="${r.id}" data-f="ordered" ${r.ordered?'checked':''} style="transform:scale(1.2);">
                     </td>
-                    <td style="border:1px solid #ddd;padding:0.2rem;text-align:center;">
+                    <td style="${td}text-align:center;">
                         <button class="btn-action" data-wc-del="${r.id}" style="background:#e53935;color:#fff;font-size:0.7rem;padding:0.15rem 0.4rem;">×</button>
                     </td>
                 </tr>`;
             }).join('');
-            // datalist for cable autocomplete
-            let dl = document.getElementById('wcCableList');
-            if (!dl) { dl = document.createElement('datalist'); dl.id = 'wcCableList'; document.body.appendChild(dl); }
-            dl.innerHTML = wcCableDatalistHtml();
             wcBindEvents();
         }
 
@@ -10026,19 +10072,22 @@
             const tbody = document.getElementById('wcBody');
             if (!tbody || tbody._wcBound) return;
             tbody._wcBound = true;
+            // helper: update array field
+            function updateArr(row, field, hi, val) {
+                if (!Array.isArray(row[field])) row[field] = row[field] ? [row[field]] : [''];
+                row[field][hi] = val;
+            }
             tbody.addEventListener('input', (e) => {
                 const id = e.target.getAttribute('data-wc');
                 const f = e.target.getAttribute('data-f');
                 if (!id || !f) return;
                 const row = wcData.rows.find(x => x.id === id);
                 if (!row) return;
-                if (f === 'haisen') {
-                    const hi = parseInt(e.target.getAttribute('data-hi') || '0');
-                    if (!Array.isArray(row.haisen)) row.haisen = row.haisen ? [row.haisen] : [''];
-                    row.haisen[hi] = e.target.value;
-                } else if (f === 'length_m') row[f] = parseFloat(e.target.value) || '';
+                if (f === 'length_m') row[f] = parseFloat(e.target.value) || '';
                 else if (f === 'ordered') row[f] = e.target.checked;
-                else row[f] = e.target.value;
+                else if (f === 'haisen' || f === 'haikan') {
+                    updateArr(row, f, parseInt(e.target.getAttribute('data-hi')||'0'), e.target.value);
+                } else row[f] = e.target.value;
                 wcSaveData();
             });
             tbody.addEventListener('change', (e) => {
@@ -10047,49 +10096,75 @@
                 if (!id || !f) return;
                 const row = wcData.rows.find(x => x.id === id);
                 if (!row) return;
-                if (f === 'haisen') {
-                    const hi = parseInt(e.target.getAttribute('data-hi') || '0');
-                    if (!Array.isArray(row.haisen)) row.haisen = row.haisen ? [row.haisen] : [''];
-                    row.haisen[hi] = e.target.value;
+                if (f === 'haisen' || f === 'haikan') {
+                    const hi = parseInt(e.target.getAttribute('data-hi')||'0');
+                    updateArr(row, f, hi, e.target.value);
                     if (e.target.value.trim()) {
-                        wcAddCable(e.target.value);
-                        const dl = document.getElementById('wcCableList');
-                        if (dl) dl.innerHTML = wcCableDatalistHtml();
+                        if (f === 'haisen') wcAddCable(e.target.value);
+                        else wcAddHaikan(e.target.value);
                     }
                 } else if (f === 'ordered') row[f] = e.target.checked;
                 else row[f] = e.target.value;
                 wcSaveData();
             });
             tbody.addEventListener('click', (e) => {
+                const btn = e.target.closest('button');
+                if (!btn) return;
                 // 行削除
-                const delId = e.target.getAttribute('data-wc-del');
+                const delId = btn.getAttribute('data-wc-del');
                 if (delId) {
+                    // 結合グループの先頭行を削除する場合、次の行のhaikanMergeを解除
+                    const idx = wcData.rows.findIndex(x => x.id === delId);
+                    if (idx >= 0 && idx < wcData.rows.length - 1 && wcData.rows[idx + 1].haikanMerge) {
+                        wcData.rows[idx + 1].haikanMerge = false;
+                        wcData.rows[idx + 1].haikan = wcData.rows[idx].haikan;
+                    }
                     wcData.rows = wcData.rows.filter(x => x.id !== delId);
-                    wcSaveData();
-                    wcRenderTable();
-                    return;
+                    wcSaveData(); wcRenderTable(); return;
                 }
-                // 配線追加
-                const addId = e.target.getAttribute('data-wc-haisen-add');
-                if (addId) {
-                    const row = wcData.rows.find(x => x.id === addId);
-                    if (row) {
-                        if (!Array.isArray(row.haisen)) row.haisen = row.haisen ? [row.haisen] : [''];
-                        row.haisen.push('');
-                        wcSaveData();
-                        wcRenderTable();
+                // 配線追加 / 配管追加
+                for (const field of ['haisen','haikan']) {
+                    const addId = btn.getAttribute(`data-wc-${field}-add`);
+                    if (addId) {
+                        const row = wcData.rows.find(x => x.id === addId);
+                        if (row) {
+                            if (!Array.isArray(row[field])) row[field] = row[field] ? [row[field]] : [''];
+                            row[field].push('');
+                            wcSaveData(); wcRenderTable();
+                        }
+                        return;
+                    }
+                    const dId = btn.getAttribute(`data-wc-${field}-del`);
+                    if (dId) {
+                        const hi = parseInt(btn.getAttribute('data-hi')||'0');
+                        const row = wcData.rows.find(x => x.id === dId);
+                        if (row && Array.isArray(row[field]) && row[field].length > 1) {
+                            row[field].splice(hi, 1);
+                            wcSaveData(); wcRenderTable();
+                        }
+                        return;
+                    }
+                }
+                // 配管結合（下の行と結合）
+                const mergeId = btn.getAttribute('data-wc-merge-toggle');
+                if (mergeId) {
+                    const idx = wcData.rows.findIndex(x => x.id === mergeId);
+                    if (idx >= 0 && idx < wcData.rows.length - 1) {
+                        wcData.rows[idx + 1].haikanMerge = true;
+                        wcSaveData(); wcRenderTable();
                     }
                     return;
                 }
-                // 配線削除
-                const delHId = e.target.getAttribute('data-wc-haisen-del');
-                if (delHId) {
-                    const hi = parseInt(e.target.getAttribute('data-hi') || '0');
-                    const row = wcData.rows.find(x => x.id === delHId);
-                    if (row && Array.isArray(row.haisen) && row.haisen.length > 1) {
-                        row.haisen.splice(hi, 1);
-                        wcSaveData();
-                        wcRenderTable();
+                // 配管結合解除
+                const splitId = btn.getAttribute('data-wc-merge-split');
+                if (splitId) {
+                    const idx = wcData.rows.findIndex(x => x.id === splitId);
+                    if (idx >= 0) {
+                        for (let j = idx + 1; j < wcData.rows.length; j++) {
+                            if (!wcData.rows[j].haikanMerge) break;
+                            wcData.rows[j].haikanMerge = false;
+                        }
+                        wcSaveData(); wcRenderTable();
                     }
                     return;
                 }
@@ -10121,10 +10196,11 @@
                     const haisen = cols[4] || '';
                     const haikan = cols[5] || '';
                     if (haisen) wcAddCable(haisen);
+                    if (haikan) wcAddHaikan(haikan);
                     wcData.rows.push({
                         id: wcNewId(),
                         koushu: wcGuessKoushu(kigou, fusho),
-                        kigou, fusho, from, to, haisen: haisen ? [haisen] : [''], haikan,
+                        kigou, fusho, from, to, haisen: haisen ? [haisen] : [''], haikan: haikan ? [haikan] : [''],
                         length_m: '',
                         ordered: false
                     });
@@ -10144,7 +10220,8 @@
             let csv = '工種,記号,負荷名称,自,至,配線,配管,こう長[m],注文済\n';
             wcData.rows.forEach(r => {
                 const haisenStr = Array.isArray(r.haisen) ? r.haisen.join(' / ') : (r.haisen||'');
-                csv += [r.koushu, r.kigou, r.fusho, r.from, r.to, haisenStr, r.haikan, r.length_m||'', r.ordered?'済':''].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
+                const haikanStr = Array.isArray(r.haikan) ? r.haikan.join(' / ') : (r.haikan||'');
+                csv += [r.koushu, r.kigou, r.fusho, r.from, r.to, haisenStr, haikanStr, r.length_m||'', r.ordered?'済':''].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
             });
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
             const a = document.createElement('a');
@@ -10164,16 +10241,34 @@
             const today = new Date();
             const dateStr = today.getFullYear() + '/' + (today.getMonth()+1) + '/' + today.getDate();
 
+            // 配管結合グループ計算 (注文書用)
+            const orderHkGroups = [];
+            let ogi = 0;
+            while (ogi < wcData.rows.length) {
+                const row = wcData.rows[ogi];
+                if (row.haikanMerge && ogi > 0) { ogi++; continue; }
+                let span = 1;
+                while (ogi + span < wcData.rows.length && wcData.rows[ogi + span].haikanMerge) span++;
+                orderHkGroups.push({ start: ogi, span });
+                ogi += span;
+            }
+            const orderHkMap = {};
+            orderHkGroups.forEach(g => { orderHkMap[g.start] = g.span; });
+
             let rowsHtml = '';
             wcData.rows.forEach((r, i) => {
                 const bg = i % 2 === 1 ? 'background:#e8f5e9;' : '';
                 const orderedMark = r.ordered ? '<span style="color:green;font-weight:bold;">済</span>' : '';
+                const isMerged = r.haikanMerge && i > 0;
+                const spanInfo = orderHkMap[i];
+                const haisenDisp = Array.isArray(r.haisen) ? r.haisen.filter(h=>h).join('<br>') : (r.haisen||'');
+                const haikanDisp = Array.isArray(r.haikan) ? r.haikan.filter(h=>h).join('<br>') : (r.haikan||'');
                 rowsHtml += `<tr style="${bg}">
                     <td style="border:1px solid #999;padding:3px;text-align:center;">${i+1}</td>
                     <td style="border:1px solid #999;padding:3px;text-align:center;">${r.koushu||''}</td>
                     <td style="border:1px solid #999;padding:3px;">${r.kigou||''}</td>
-                    <td style="border:1px solid #999;padding:3px;">${Array.isArray(r.haisen) ? r.haisen.filter(h=>h).join('<br>') : (r.haisen||'')}</td>
-                    <td style="border:1px solid #999;padding:3px;">${r.haikan||''}</td>
+                    <td style="border:1px solid #999;padding:3px;">${haisenDisp}</td>
+                    ${isMerged ? '' : `<td style="border:1px solid #999;padding:3px;vertical-align:top;" ${spanInfo && spanInfo > 1 ? 'rowspan="'+spanInfo+'"' : ''}>${haikanDisp}</td>`}
                     <td style="border:1px solid #999;padding:3px;text-align:right;">${r.length_m||''}</td>
                     <td style="border:1px solid #999;padding:3px;text-align:center;">${orderedMark}</td>
                 </tr>`;
@@ -10182,7 +10277,7 @@
             const win = window.open('','_blank');
             win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>注文書</title>
             <style>
-                @page { size: A4 landscape; margin: 12mm; }
+                @page { size: A4 portrait; margin: 12mm; }
                 body { font-family: 'Yu Gothic', 'Meiryo', sans-serif; font-size: 10pt; }
                 h1 { text-align: center; font-size: 18pt; margin-bottom: 8px; }
                 .header { display: flex; justify-content: space-between; margin-bottom: 10px; }
