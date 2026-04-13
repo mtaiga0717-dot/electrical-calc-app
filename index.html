@@ -1602,6 +1602,13 @@
     <div id="mainApp" style="display: none;">
         <div class="nav-bar">
             <div class="nav-title">配盤・回路計算システム</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:0 0.5rem;background:#263238;border-radius:4px;height:32px;">
+                <span style="color:#b0bec5;font-size:0.75rem;white-space:nowrap;">工事：</span>
+                <select id="projectSelect" style="font-size:0.8rem;padding:2px 6px;border-radius:3px;border:1px solid #546e7a;background:#37474f;color:#fff;max-width:200px;"></select>
+                <button onclick="projectNew()" style="font-size:0.7rem;padding:2px 8px;background:#26a69a;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="新規工事">＋新規</button>
+                <button onclick="projectRename()" style="font-size:0.7rem;padding:2px 8px;background:#1565c0;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="名称変更">名称変更</button>
+                <button onclick="projectDelete()" style="font-size:0.7rem;padding:2px 8px;background:#c62828;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="工事削除">削除</button>
+            </div>
             <div class="nav-tabs">
                 <button class="nav-tab active" data-tab="panels">盤一覧</button>
                 <button class="nav-tab" data-tab="circuits">回路DB</button>
@@ -5564,6 +5571,7 @@
                 sessionStorage.setItem('authenticated', 'true');
                 document.getElementById('loginContainer').classList.add('hidden');
                 document.getElementById('mainApp').style.display = 'block';
+                projectInit();
                 setupEventListeners();
                 loadAllData();
             } else {
@@ -5579,6 +5587,7 @@
             } else {
                 document.getElementById('loginContainer').classList.add('hidden');
                 document.getElementById('mainApp').style.display = 'block';
+                projectInit();
                 setupEventListeners();
                 loadAllData();
             }
@@ -5586,6 +5595,11 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             checkAuthentication();
+        });
+
+        // ページ離脱時に現在のプロジェクトデータを自動保存
+        window.addEventListener('beforeunload', () => {
+            try { projectSaveCurrent(); } catch(e) {}
         });
 
         function setupEventListeners() {
@@ -9871,6 +9885,234 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        // ================================================================
+        // プロジェクト管理 — 工事ごとにデータを分離
+        // ================================================================
+        const PROJECT_LIST_KEY = 'elecCalc:projects';
+        const PROJECT_CURRENT_KEY = 'elecCalc:currentProject';
+        const PROJECT_DATA_PREFIX = 'elecCalc:projectData:';
+
+        // 管理対象の静的キー
+        const PROJECT_STATIC_KEYS = [
+            'elecCalc:localFeederData',
+            'elecCalc:transformers',
+            'elecCalc:sourceImpedance',
+            'elecCalc:hvCables',
+            'elecCalc:loadCables',
+            'elecCalc:localCircuitData',
+            'elecCalc:weakCurrentData',
+            'elecCalc:weakCurrentSettings',
+            'elecCalc:weakCurrentCables',
+            'elecCalc:weakCurrentHaikan',
+            'elecCalc:printProjectName'
+        ];
+        // 動的キーのプレフィックス
+        const PROJECT_DYNAMIC_PREFIXES = [
+            'actual_circuit_',
+            'elecCalc:motorMeta:',
+            'elecCalc:actualMotorMeta:',
+            'elecCalc:demandRate:'
+        ];
+
+        function projectGetList() {
+            try { return JSON.parse(localStorage.getItem(PROJECT_LIST_KEY)) || []; }
+            catch(e) { return []; }
+        }
+        function projectSaveList(list) {
+            localStorage.setItem(PROJECT_LIST_KEY, JSON.stringify(list));
+        }
+        function projectGetCurrent() {
+            return localStorage.getItem(PROJECT_CURRENT_KEY) || '';
+        }
+        function projectSetCurrent(id) {
+            localStorage.setItem(PROJECT_CURRENT_KEY, id);
+        }
+
+        // 現在のlocalStorageから対象キーを全て収集してスナップショットを返す
+        function projectCollectSnapshot() {
+            const snap = {};
+            PROJECT_STATIC_KEYS.forEach(k => {
+                const v = localStorage.getItem(k);
+                if (v !== null) snap[k] = v;
+            });
+            // 動的キー: localStorageの全キーを走査
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (PROJECT_DYNAMIC_PREFIXES.some(p => k.startsWith(p))) {
+                    snap[k] = localStorage.getItem(k);
+                }
+            }
+            return snap;
+        }
+
+        // スナップショットをlocalStorageに復元
+        function projectRestoreSnapshot(snap) {
+            // まず既存の対象キーをクリア
+            PROJECT_STATIC_KEYS.forEach(k => localStorage.removeItem(k));
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (PROJECT_DYNAMIC_PREFIXES.some(p => k.startsWith(p))) {
+                    keysToRemove.push(k);
+                }
+            }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+            // スナップショットを書き込み
+            if (snap) {
+                Object.keys(snap).forEach(k => {
+                    localStorage.setItem(k, snap[k]);
+                });
+            }
+        }
+
+        // 現在のプロジェクトデータを保存
+        function projectSaveCurrent() {
+            const curId = projectGetCurrent();
+            if (!curId) return;
+            const snap = projectCollectSnapshot();
+            localStorage.setItem(PROJECT_DATA_PREFIX + curId, JSON.stringify(snap));
+        }
+
+        // 指定プロジェクトのデータを読み込み
+        function projectLoadData(projectId) {
+            const raw = localStorage.getItem(PROJECT_DATA_PREFIX + projectId);
+            const snap = raw ? JSON.parse(raw) : {};
+            projectRestoreSnapshot(snap);
+        }
+
+        // プロジェクト切り替え
+        function projectSwitch(newId) {
+            const curId = projectGetCurrent();
+            if (curId && curId !== newId) {
+                projectSaveCurrent();
+            }
+            projectSetCurrent(newId);
+            projectLoadData(newId);
+            projectPopulateSelect();
+            // データ再読み込み
+            projectReloadApp();
+        }
+
+        // アプリ全体のデータを再読み込み
+        function projectReloadApp() {
+            try {
+                // 弱電データ再読み込み
+                if (typeof wcLoadData === 'function') wcLoadData();
+                if (typeof wcRenderTable === 'function') wcRenderTable();
+                // 幹線・回路・盤データ再読み込み
+                if (typeof loadAllData === 'function') loadAllData();
+            } catch(e) { console.error('projectReloadApp error:', e); }
+        }
+
+        // ドロップダウン更新
+        function projectPopulateSelect() {
+            const sel = document.getElementById('projectSelect');
+            if (!sel) return;
+            const list = projectGetList();
+            const curId = projectGetCurrent();
+            sel.innerHTML = '';
+            list.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name;
+                if (p.id === curId) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            // changeイベント
+            sel.onchange = function() {
+                const newId = sel.value;
+                if (newId && newId !== projectGetCurrent()) {
+                    projectSwitch(newId);
+                }
+            };
+        }
+
+        // 新規プロジェクト
+        function projectNew() {
+            const name = prompt('新規工事名を入力：');
+            if (!name || !name.trim()) return;
+            const id = 'proj_' + Date.now();
+            const list = projectGetList();
+            // 現在のプロジェクトを保存
+            projectSaveCurrent();
+            // 新規追加
+            list.push({ id: id, name: name.trim() });
+            projectSaveList(list);
+            // 空データで切り替え
+            projectSetCurrent(id);
+            projectRestoreSnapshot({}); // クリア
+            localStorage.setItem(PROJECT_DATA_PREFIX + id, JSON.stringify({}));
+            projectPopulateSelect();
+            projectReloadApp();
+        }
+
+        // 名称変更
+        function projectRename() {
+            const curId = projectGetCurrent();
+            if (!curId) { alert('プロジェクトが選択されていません'); return; }
+            const list = projectGetList();
+            const proj = list.find(p => p.id === curId);
+            if (!proj) return;
+            const newName = prompt('新しい工事名を入力：', proj.name);
+            if (!newName || !newName.trim()) return;
+            proj.name = newName.trim();
+            projectSaveList(list);
+            projectPopulateSelect();
+        }
+
+        // 削除
+        function projectDelete() {
+            const curId = projectGetCurrent();
+            if (!curId) { alert('プロジェクトが選択されていません'); return; }
+            const list = projectGetList();
+            const proj = list.find(p => p.id === curId);
+            if (!proj) return;
+            if (!confirm('「' + proj.name + '」を削除しますか？\nこの操作は元に戻せません。')) return;
+            // プロジェクトデータ削除
+            localStorage.removeItem(PROJECT_DATA_PREFIX + curId);
+            // リストから除外
+            const newList = list.filter(p => p.id !== curId);
+            projectSaveList(newList);
+            if (newList.length > 0) {
+                // 別のプロジェクトに切り替え
+                projectSetCurrent(newList[0].id);
+                projectLoadData(newList[0].id);
+            } else {
+                // プロジェクトが無くなった場合、デフォルト作成
+                const defId = 'proj_' + Date.now();
+                const defList = [{ id: defId, name: 'デフォルト工事' }];
+                projectSaveList(defList);
+                projectSetCurrent(defId);
+                projectRestoreSnapshot({});
+                localStorage.setItem(PROJECT_DATA_PREFIX + defId, JSON.stringify({}));
+            }
+            projectPopulateSelect();
+            projectReloadApp();
+        }
+
+        // 初期化：既存データのマイグレーション
+        function projectInit() {
+            let list = projectGetList();
+            let curId = projectGetCurrent();
+            if (list.length === 0) {
+                // 初回起動：既存データを「デフォルト工事」として保存
+                const defId = 'proj_default';
+                list = [{ id: defId, name: 'デフォルト工事' }];
+                projectSaveList(list);
+                curId = defId;
+                projectSetCurrent(defId);
+                // 既存のlocalStorageデータをスナップショットとして保存
+                const snap = projectCollectSnapshot();
+                localStorage.setItem(PROJECT_DATA_PREFIX + defId, JSON.stringify(snap));
+            } else if (!curId || !list.find(p => p.id === curId)) {
+                // currentが無効なら先頭を選択
+                curId = list[0].id;
+                projectSetCurrent(curId);
+                projectLoadData(curId);
+            }
+            projectPopulateSelect();
         }
 
         // ================================================================
