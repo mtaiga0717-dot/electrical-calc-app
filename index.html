@@ -10252,36 +10252,16 @@
             const today = new Date();
             const dateStr = today.getFullYear() + '/' + (today.getMonth()+1) + '/' + today.getDate();
 
-            // 配管結合グループ計算 (注文書用)
-            const orderHkGroups = [];
-            let ogi = 0;
-            while (ogi < wcData.rows.length) {
-                const row = wcData.rows[ogi];
-                if (row.haikanMerge && ogi > 0) { ogi++; continue; }
-                let span = 1;
-                while (ogi + span < wcData.rows.length && wcData.rows[ogi + span].haikanMerge) span++;
-                orderHkGroups.push({ start: ogi, span });
-                ogi += span;
-            }
-            const orderHkMap = {};
-            orderHkGroups.forEach(g => { orderHkMap[g.start] = g.span; });
-
             let rowsHtml = '';
             wcData.rows.forEach((r, i) => {
                 const bg = i % 2 === 1 ? 'background:#e8f5e9;' : '';
-                const orderedMark = r.ordered ? '<span style="color:green;font-weight:bold;">済</span>' : '';
-                const isMerged = r.haikanMerge && i > 0;
-                const spanInfo = orderHkMap[i];
                 const haisenDisp = Array.isArray(r.haisen) ? r.haisen.filter(h=>h).join('<br>') : (r.haisen||'');
-                const haikanDisp = Array.isArray(r.haikan) ? r.haikan.filter(h=>h).join('<br>') : (r.haikan||'');
                 rowsHtml += `<tr style="${bg}">
                     <td style="border:1px solid #999;padding:3px;text-align:center;">${i+1}</td>
-                    <td style="border:1px solid #999;padding:3px;text-align:center;">${r.koushu||''}</td>
                     <td style="border:1px solid #999;padding:3px;">${r.kigou||''}</td>
                     <td style="border:1px solid #999;padding:3px;">${haisenDisp}</td>
-                    ${isMerged ? '' : `<td style="border:1px solid #999;padding:3px;vertical-align:top;" ${spanInfo && spanInfo > 1 ? 'rowspan="'+spanInfo+'"' : ''}>${haikanDisp}</td>`}
                     <td style="border:1px solid #999;padding:3px;text-align:right;">${r.length_m||''}</td>
-                    <td style="border:1px solid #999;padding:3px;text-align:center;">${orderedMark}</td>
+                    <td style="border:1px solid #999;padding:3px;text-align:center;">m</td>
                 </tr>`;
             });
 
@@ -10319,7 +10299,7 @@
             </div>
             <table>
                 <thead><tr>
-                    <th>No.</th><th>工種</th><th>記号</th><th>配線</th><th>配管</th><th>こう長[m]</th><th>注文済</th>
+                    <th>No.</th><th>記号</th><th>配線</th><th>数量</th><th>単位</th>
                 </tr></thead>
                 <tbody>${rowsHtml}</tbody>
             </table>
