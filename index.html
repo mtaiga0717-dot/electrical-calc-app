@@ -10252,19 +10252,19 @@
             const today = new Date();
             const dateStr = today.getFullYear() + '/' + (today.getMonth()+1) + '/' + today.getDate();
 
-            // 配線を1本ずつ展開した行リストを作成
+            // 配線を1本ずつ展開 — No.は連番、数量・単位は全行同じ値
             const flatRows = [];
-            wcData.rows.forEach((r, i) => {
+            let seqNo = 0;
+            wcData.rows.forEach((r) => {
                 const cables = Array.isArray(r.haisen) ? r.haisen.filter(h=>h) : (r.haisen ? [r.haisen] : []);
                 if (cables.length === 0) cables.push('');
-                cables.forEach((cable, ci) => {
+                cables.forEach((cable) => {
+                    seqNo++;
                     flatRows.push({
-                        no: i + 1,
-                        kigou: ci === 0 ? (r.kigou||'') : '',
+                        no: seqNo,
+                        kigou: r.kigou || '',
                         haisen: cable,
-                        length_m: r.length_m || '',
-                        isFirst: ci === 0,
-                        cableCount: cables.length
+                        length_m: r.length_m || ''
                     });
                 });
             });
@@ -10272,13 +10272,13 @@
             const maxRows = 25; // A4縦 ヘッダー込みで収まる行数
             let rowsHtml = '';
             const tdS = 'border:1px solid #999;padding:3px 5px;height:18px;';
-            flatRows.forEach((fr, fi) => {
+            flatRows.forEach((fr) => {
                 rowsHtml += `<tr>
-                    <td style="${tdS}text-align:center;">${fr.isFirst ? fr.no : ''}</td>
+                    <td style="${tdS}text-align:center;">${fr.no}</td>
                     <td style="${tdS}">${fr.kigou}</td>
                     <td style="${tdS}">${fr.haisen}</td>
-                    <td style="${tdS}text-align:right;">${fr.isFirst ? fr.length_m : ''}</td>
-                    <td style="${tdS}text-align:center;">${fr.isFirst ? 'm' : ''}</td>
+                    <td style="${tdS}text-align:right;">${fr.length_m}</td>
+                    <td style="${tdS}text-align:center;">m</td>
                 </tr>`;
             });
             // 空白罫線行で残りを埋める
