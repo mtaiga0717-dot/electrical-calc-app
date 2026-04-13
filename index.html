@@ -2966,9 +2966,10 @@
                             <th style="border:1px solid #aaa;padding:0.3rem;width:80px;">工種</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;width:110px;">記号</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;width:150px;">負荷名称</th>
-                            <th style="border:1px solid #aaa;padding:0.3rem;width:40px;">階</th>
-                            <th style="border:1px solid #aaa;padding:0.3rem;width:120px;">自</th>
-                            <th style="border:1px solid #aaa;padding:0.3rem;width:120px;">至</th>
+                            <th style="border:1px solid #aaa;padding:0.3rem;width:35px;">階</th>
+                            <th style="border:1px solid #aaa;padding:0.3rem;width:110px;">自</th>
+                            <th style="border:1px solid #aaa;padding:0.3rem;width:35px;">階</th>
+                            <th style="border:1px solid #aaa;padding:0.3rem;width:110px;">至</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;min-width:120px;">配線</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;min-width:130px;">配管</th>
                             <th style="border:1px solid #aaa;padding:0.3rem;width:70px;">こう長[m]</th>
@@ -9956,7 +9957,8 @@
                 koushu: preset.koushu || '',
                 kigou: preset.kigou || '',
                 fusho: preset.fusho || '',
-                floor: preset.floor || '',
+                floorFrom: preset.floorFrom || preset.floor || '',
+                floorTo: preset.floorTo || '',
                 from: preset.from || '',
                 to: preset.to || '',
                 haisen: preset.haisen ? (Array.isArray(preset.haisen) ? preset.haisen : [preset.haisen]) : [''],
@@ -9999,7 +10001,7 @@
             const tbody = document.getElementById('wcBody');
             if (!tbody) return;
             if (wcData.rows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" style="border:1px solid #ddd;padding:0.6rem;text-align:center;color:#999;">データなし — 「+ 行追加」またはCSVインポートで登録してください</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" style="border:1px solid #ddd;padding:0.6rem;text-align:center;color:#999;">データなし — 「+ 行追加」またはCSVインポートで登録してください</td></tr>';
                 return;
             }
             const kOpts = WC_KOUSHU_LIST.map(k => `<option value="${k}">${k}</option>`).join('');
@@ -10044,8 +10046,9 @@
                     </td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="kigou" value="${(r.kigou||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="fusho" value="${(r.fusho||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
-                    <td style="${td}"><input type="text" data-wc="${r.id}" data-f="floor" value="${(r.floor||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;text-align:center;"></td>
+                    <td style="${td}"><input type="text" data-wc="${r.id}" data-f="floorFrom" value="${(r.floorFrom||r.floor||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;text-align:center;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="from" value="${(r.from||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
+                    <td style="${td}"><input type="text" data-wc="${r.id}" data-f="floorTo" value="${(r.floorTo||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;text-align:center;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="to" value="${(r.to||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
                     <td style="${td}">
                         ${wcMultiSelect(r, 'haisen', wcCableOptions, 'haisen', 'haisen', 'wcPromptNewCable')}
@@ -10231,11 +10234,11 @@
         // CSV エクスポート
         function wcExportCSV() {
             if (wcData.rows.length === 0) { alert('データがありません'); return; }
-            let csv = '工種,記号,負荷名称,階,自,至,配線,配管,こう長[m],注文済\n';
+            let csv = '工種,記号,負荷名称,階(自),自,階(至),至,配線,配管,こう長[m],注文済\n';
             wcData.rows.forEach(r => {
                 const haisenStr = Array.isArray(r.haisen) ? r.haisen.join(' / ') : (r.haisen||'');
                 const haikanStr = Array.isArray(r.haikan) ? r.haikan.join(' / ') : (r.haikan||'');
-                csv += [r.koushu, r.kigou, r.fusho, r.floor||'', r.from, r.to, haisenStr, haikanStr, r.length_m||'', r.ordered?'済':''].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
+                csv += [r.koushu, r.kigou, r.fusho, r.floorFrom||'', r.from, r.floorTo||'', r.to, haisenStr, haikanStr, r.length_m||'', r.ordered?'済':''].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
             });
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
             const a = document.createElement('a');
@@ -10269,18 +10272,21 @@
             listHtml += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
             listHtml += '<tr style="background:#e0f2f1;position:sticky;top:0;"><th style="padding:6px;text-align:left;width:30px;"></th><th style="padding:6px;text-align:left;width:30px;">No</th><th style="padding:6px;text-align:left;">記号</th><th style="padding:6px;text-align:left;">配線</th><th style="padding:6px;text-align:right;width:60px;">数量</th></tr>';
 
+            let visCount = 0;
             wcData.rows.forEach((r, i) => {
+                if (r.ordered) return; // 注文済は表示しない
+                visCount++;
                 const cables = Array.isArray(r.haisen) ? r.haisen.filter(h=>h).join(', ') : (r.haisen||'');
-                const bg = i % 2 === 1 ? 'background:#f5f5f5;' : '';
-                const alreadyOrdered = r.ordered ? ' (注文済)' : '';
+                const bg = visCount % 2 === 0 ? 'background:#f5f5f5;' : '';
                 listHtml += `<tr style="${bg}">
-                    <td style="padding:4px 6px;"><input type="checkbox" class="wcOrderCheck" data-idx="${i}" ${r.ordered ? '' : 'checked'} style="transform:scale(1.2);"></td>
+                    <td style="padding:4px 6px;"><input type="checkbox" class="wcOrderCheck" data-idx="${i}" checked style="transform:scale(1.2);"></td>
                     <td style="padding:4px 6px;text-align:center;">${i+1}</td>
-                    <td style="padding:4px 6px;">${r.kigou||''}<span style="color:#999;font-size:10px;">${alreadyOrdered}</span></td>
+                    <td style="padding:4px 6px;">${r.kigou||''}</td>
                     <td style="padding:4px 6px;">${cables}</td>
                     <td style="padding:4px 6px;text-align:right;">${r.length_m||''}</td>
                 </tr>`;
             });
+            if (visCount === 0) { alert('未注文の項目がありません'); return; }
             listHtml += '</table></div>';
 
             listHtml += '<div style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end;">';
