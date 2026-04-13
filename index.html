@@ -9990,20 +9990,14 @@
             }
             projectSetCurrent(newId);
             projectLoadData(newId);
-            projectPopulateSelect();
-            // データ再読み込み
-            projectReloadApp();
+            // const変数等を確実にリセットするためリロード
+            location.reload();
         }
 
         // アプリ全体のデータを再読み込み
         function projectReloadApp() {
-            try {
-                // 弱電データ再読み込み
-                if (typeof wcLoadData === 'function') wcLoadData();
-                if (typeof wcRenderTable === 'function') wcRenderTable();
-                // 幹線・回路・盤データ再読み込み
-                if (typeof loadAllData === 'function') loadAllData();
-            } catch(e) { console.error('projectReloadApp error:', e); }
+            // const変数やSupabaseキャッシュ等を確実にリセットするためページリロード
+            location.reload();
         }
 
         // ドロップダウン更新
@@ -10044,8 +10038,7 @@
             projectSetCurrent(id);
             projectRestoreSnapshot({}); // クリア
             localStorage.setItem(PROJECT_DATA_PREFIX + id, JSON.stringify({}));
-            projectPopulateSelect();
-            projectReloadApp();
+            location.reload();
         }
 
         // 名称変更
@@ -10088,8 +10081,7 @@
                 projectRestoreSnapshot({});
                 localStorage.setItem(PROJECT_DATA_PREFIX + defId, JSON.stringify({}));
             }
-            projectPopulateSelect();
-            projectReloadApp();
+            location.reload();
         }
 
         // 初期化：既存データのマイグレーション
