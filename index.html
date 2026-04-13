@@ -10252,23 +10252,39 @@
             const today = new Date();
             const dateStr = today.getFullYear() + '/' + (today.getMonth()+1) + '/' + today.getDate();
 
-            const totalRows = 30; // A4縦に収まる行数
-            let rowsHtml = '';
-            const tdS = 'border:1px solid #999;padding:4px 6px;';
+            // 配線を1本ずつ展開した行リストを作成
+            const flatRows = [];
             wcData.rows.forEach((r, i) => {
-                const haisenDisp = Array.isArray(r.haisen) ? r.haisen.filter(h=>h).join('<br>') : (r.haisen||'');
+                const cables = Array.isArray(r.haisen) ? r.haisen.filter(h=>h) : (r.haisen ? [r.haisen] : []);
+                if (cables.length === 0) cables.push('');
+                cables.forEach((cable, ci) => {
+                    flatRows.push({
+                        no: i + 1,
+                        kigou: ci === 0 ? (r.kigou||'') : '',
+                        haisen: cable,
+                        length_m: r.length_m || '',
+                        isFirst: ci === 0,
+                        cableCount: cables.length
+                    });
+                });
+            });
+
+            const maxRows = 25; // A4縦 ヘッダー込みで収まる行数
+            let rowsHtml = '';
+            const tdS = 'border:1px solid #999;padding:3px 5px;height:18px;';
+            flatRows.forEach((fr, fi) => {
                 rowsHtml += `<tr>
-                    <td style="${tdS}text-align:center;">${i+1}</td>
-                    <td style="${tdS}">${r.kigou||''}</td>
-                    <td style="${tdS}">${haisenDisp}</td>
-                    <td style="${tdS}text-align:right;">${r.length_m||''}</td>
-                    <td style="${tdS}text-align:center;">m</td>
+                    <td style="${tdS}text-align:center;">${fr.isFirst ? fr.no : ''}</td>
+                    <td style="${tdS}">${fr.kigou}</td>
+                    <td style="${tdS}">${fr.haisen}</td>
+                    <td style="${tdS}text-align:right;">${fr.isFirst ? fr.length_m : ''}</td>
+                    <td style="${tdS}text-align:center;">${fr.isFirst ? 'm' : ''}</td>
                 </tr>`;
             });
             // 空白罫線行で残りを埋める
-            for (let ei = wcData.rows.length; ei < totalRows; ei++) {
+            for (let ei = flatRows.length; ei < maxRows; ei++) {
                 rowsHtml += `<tr>
-                    <td style="${tdS}text-align:center;color:#ccc;">${ei+1}</td>
+                    <td style="${tdS}">&nbsp;</td>
                     <td style="${tdS}">&nbsp;</td>
                     <td style="${tdS}">&nbsp;</td>
                     <td style="${tdS}">&nbsp;</td>
@@ -10279,25 +10295,25 @@
             const win = window.open('','_blank');
             win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>注文書</title>
             <style>
-                @page { size: A4 portrait; margin: 15mm; }
-                body { font-family: 'Yu Gothic', 'Meiryo', sans-serif; font-size: 10pt; margin:0; }
-                h1 { text-align: center; font-size: 18pt; margin-bottom: 8px; }
-                .header { display: flex; justify-content: space-between; margin-bottom: 10px; }
-                .header-left { }
-                .header-right { text-align: right; font-size: 9pt; }
-                table { width: 100%; border-collapse: collapse; font-size: 9pt; }
-                th { background: #00695c; color: #fff; border: 1px solid #999; padding: 5px 6px; }
-                td { height: 20px; }
+                * { box-sizing: border-box; }
+                @page { size: 210mm 297mm; margin: 15mm 12mm; }
+                body { font-family: 'Yu Gothic', 'Meiryo', sans-serif; font-size: 9pt; margin:0; padding:0; width:186mm; }
+                h1 { text-align: center; font-size: 16pt; margin: 0 0 6px 0; }
+                .header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+                .header-left { font-size: 9pt; }
+                .header-right { text-align: right; font-size: 8pt; }
+                table { width: 100%; border-collapse: collapse; font-size: 8.5pt; table-layout: fixed; }
+                th { background: #00695c; color: #fff; border: 1px solid #999; padding: 4px; }
                 @media print { button { display:none; } }
             </style></head><body>
-            <button onclick="window.print()" style="margin-bottom:8px;padding:6px 16px;font-size:12pt;cursor:pointer;">印刷</button>
+            <button onclick="window.print()" style="margin-bottom:6px;padding:4px 12px;font-size:10pt;cursor:pointer;">印刷</button>
             <h1>注　文　書</h1>
             <div class="header">
                 <div class="header-left">
-                    <div style="font-size:14pt;margin-bottom:4px;"><b>${atesaki}</b>　御中</div>
+                    <div style="font-size:12pt;margin-bottom:3px;"><b>${atesaki}</b>　御中</div>
                     <div>工事件名：${koujiName}</div>
                     <div>工事番号：${koujiNo}</div>
-                    <div style="margin-top:6px;">下記の通り注文いたします</div>
+                    <div style="margin-top:4px;">下記の通り注文いたします</div>
                 </div>
                 <div class="header-right">
                     <div>作成日：${dateStr}</div>
@@ -10311,7 +10327,7 @@
             </div>
             <table>
                 <thead><tr>
-                    <th style="width:35px;">No.</th><th style="width:25%;">記号</th><th>配線</th><th style="width:60px;">数量</th><th style="width:45px;">単位</th>
+                    <th style="width:28px;">No.</th><th style="width:28%;">記号</th><th>配線</th><th style="width:50px;">数量</th><th style="width:38px;">単位</th>
                 </tr></thead>
                 <tbody>${rowsHtml}</tbody>
             </table>
