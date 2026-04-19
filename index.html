@@ -9778,6 +9778,8 @@
                     }
                 }
                 if (earthParts.length > 0) haisenName += ' + ' + earthParts.join(' + ');
+                // 配線マスタに自動登録（select候補に出るようにする）
+                wcAddCable(haisenName);
 
                 // こう長
                 const lengthM = feeder.cable_length || '';
