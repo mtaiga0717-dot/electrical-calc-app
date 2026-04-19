@@ -10658,6 +10658,25 @@
                 if (!Array.isArray(row[field])) row[field] = row[field] ? [row[field]] : [''];
                 row[field][hi] = val;
             }
+            // helper: 結合グループの範囲を取得（配管-1 or 配管-2で結合されている行群）
+            function wcGetMergeGroup(idx) {
+                // 先頭行を探す（haikanMerge or haikan2Merge で結合されている場合、先頭まで遡る）
+                let start = idx;
+                while (start > 0 && (wcData.rows[start].haikanMerge || wcData.rows[start].haikan2Merge)) start--;
+                // 末尾行を探す
+                let end = start + 1;
+                while (end < wcData.rows.length && (wcData.rows[end].haikanMerge || wcData.rows[end].haikan2Merge)) end++;
+                return { start, end, count: end - start };
+            }
+            // helper: グループ単位で移動
+            function wcMoveGroup(fromStart, groupCount, toIdx) {
+                const group = wcData.rows.splice(fromStart, groupCount);
+                // splice後のインデックス調整
+                const insertAt = toIdx > fromStart ? toIdx - groupCount : toIdx;
+                const clampedAt = Math.max(0, Math.min(wcData.rows.length, insertAt));
+                wcData.rows.splice(clampedAt, 0, ...group);
+                wcSaveData(); wcRenderTable();
+            }
             // NO入力で行移動（changeイベント = Enter or フォーカス外れ時）
             tbody.addEventListener('change', (e) => {
                 const noId = e.target.getAttribute('data-wc-no');
@@ -10667,10 +10686,9 @@
                 let toIdx = parseInt(e.target.value) - 1;
                 if (isNaN(toIdx)) { e.target.value = fromIdx + 1; return; }
                 toIdx = Math.max(0, Math.min(wcData.rows.length - 1, toIdx));
-                if (toIdx === fromIdx) { e.target.value = fromIdx + 1; return; }
-                const [moved] = wcData.rows.splice(fromIdx, 1);
-                wcData.rows.splice(toIdx, 0, moved);
-                wcSaveData(); wcRenderTable();
+                const grp = wcGetMergeGroup(fromIdx);
+                if (toIdx >= grp.start && toIdx < grp.end) { e.target.value = fromIdx + 1; return; }
+                wcMoveGroup(grp.start, grp.count, toIdx);
             });
             tbody.addEventListener('input', (e) => {
                 const id = e.target.getAttribute('data-wc');
@@ -10711,23 +10729,25 @@
             tbody.addEventListener('click', (e) => {
                 const btn = e.target.closest('button');
                 if (!btn) return;
-                // 行を上へ移動
+                // 行を上へ移動（結合グループごと）
                 const upId = btn.getAttribute('data-wc-up');
                 if (upId) {
                     const idx = wcData.rows.findIndex(x => String(x.id) === String(upId));
-                    if (idx > 0) {
-                        [wcData.rows[idx - 1], wcData.rows[idx]] = [wcData.rows[idx], wcData.rows[idx - 1]];
-                        wcSaveData(); wcRenderTable();
+                    if (idx < 0) return;
+                    const grp = wcGetMergeGroup(idx);
+                    if (grp.start > 0) {
+                        wcMoveGroup(grp.start, grp.count, grp.start - 1);
                     }
                     return;
                 }
-                // 行を下へ移動
+                // 行を下へ移動（結合グループごと）
                 const downId = btn.getAttribute('data-wc-down');
                 if (downId) {
                     const idx = wcData.rows.findIndex(x => String(x.id) === String(downId));
-                    if (idx >= 0 && idx < wcData.rows.length - 1) {
-                        [wcData.rows[idx], wcData.rows[idx + 1]] = [wcData.rows[idx + 1], wcData.rows[idx]];
-                        wcSaveData(); wcRenderTable();
+                    if (idx < 0) return;
+                    const grp = wcGetMergeGroup(idx);
+                    if (grp.end < wcData.rows.length) {
+                        wcMoveGroup(grp.start, grp.count, grp.end + 1);
                     }
                     return;
                 }
