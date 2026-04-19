@@ -2991,9 +2991,7 @@
                             <th colspan="3" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#00796b;text-align:center;">自</th>
                             <th colspan="6" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#37474f;text-align:center;">経由地</th>
                             <th colspan="3" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#004d40;text-align:center;">至</th>
-                            <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;min-width:120px;position:sticky;top:0;z-index:2;background:#00695c;">配線</th>
-                            <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;min-width:130px;position:sticky;top:0;z-index:2;background:#00695c;">配管</th>
-                            <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;width:70px;position:sticky;top:0;z-index:2;background:#00695c;">こう長[m]</th>
+                            <th colspan="3" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#bf360c;text-align:center;">こう長</th>
                             <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;width:50px;position:sticky;top:0;z-index:2;background:#00695c;">注文済</th>
                             <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;width:40px;position:sticky;top:0;z-index:2;background:#00695c;">操作</th>
                         </tr>
@@ -3010,6 +3008,9 @@
                             <th style="border:1px solid #aaa;padding:0.2rem;width:35px;position:sticky;top:28px;z-index:2;background:#004d40;">階</th>
                             <th style="border:1px solid #aaa;padding:0.2rem;width:80px;position:sticky;top:28px;z-index:2;background:#004d40;">部屋</th>
                             <th style="border:1px solid #aaa;padding:0.2rem;width:80px;position:sticky;top:28px;z-index:2;background:#004d40;">機器</th>
+                            <th style="border:1px solid #aaa;padding:0.2rem;min-width:120px;position:sticky;top:28px;z-index:2;background:#d84315;">ケーブル</th>
+                            <th style="border:1px solid #aaa;padding:0.2rem;min-width:130px;position:sticky;top:28px;z-index:2;background:#d84315;">配管</th>
+                            <th style="border:1px solid #aaa;padding:0.2rem;width:70px;position:sticky;top:28px;z-index:2;background:#d84315;">[m]</th>
                         </tr>
                     </thead>
                     <tbody id="wcBody"></tbody>
@@ -9761,34 +9762,28 @@
                 const local = localFeederData[feederId] || {};
                 const feederNo = local.feeder_no || '';
 
-                // ケーブル種別 + ケーブル[mm²] + アース を合体して配線名称にする
+                // ケーブル種別 + ケーブル[mm²] を配線1行目にする
                 const cableType = feeder.cable_type || 'CV';
                 const cableSize = feeder.cable_size || 0;
-                let haisenName = cableType + (cableSize ? ' ' + cableSize + 'mm²' : '');
-                // アース（接地線）情報を追加
+                const haisenName = cableType + (cableSize ? ' ' + cableSize + 'mm²' : '');
+                const haisenArr = [haisenName];
+                wcAddCable(haisenName);
+                // アース（接地線）を別行として追加
                 // ※ 幹線計算書と同じデフォルト判定: D種は既定on、ELBはブレーカ種別で判定
                 const brType = feeder.breaker_type || '';
                 const modeD = local.ground_d_mode || 'on';
                 const elbDefault = /ELB|ELCB|漏電/i.test(brType) ? 'on' : (local.ground_elb_mode || 'off');
                 const modeELB = local.ground_elb_mode || elbDefault;
-                // サイズ: 保存値 → 自動計算値にフォールバック
                 const breakerAT = feeder.breaker_at || 0;
                 const gndCalcSize = calcGroundWireSize(breakerAT).size || 0;
-                const earthParts = [];
                 if (modeD === 'on') {
                     const gSize = Number(local.ground_wire_size) || gndCalcSize;
-                    if (gSize > 0) earthParts.push('E ' + gSize + 'mm²');
+                    if (gSize > 0) { const n = 'E ' + gSize + 'mm²'; haisenArr.push(n); wcAddCable(n); }
                 }
                 if (modeELB === 'on') {
                     const eSize = Number(local.elb_ground_wire_size) || gndCalcSize;
-                    if (eSize > 0) {
-                        const label = 'E ' + eSize + 'mm²';
-                        if (!earthParts.includes(label)) earthParts.push(label);
-                    }
+                    if (eSize > 0) { const n = 'E ' + eSize + 'mm²'; if (!haisenArr.includes(n)) { haisenArr.push(n); wcAddCable(n); } }
                 }
-                if (earthParts.length > 0) haisenName += ' + ' + earthParts.join(' + ');
-                // 配線マスタに自動登録（select候補に出るようにする）
-                wcAddCable(haisenName);
 
                 // こう長
                 const lengthM = feeder.cable_length || '';
@@ -9829,7 +9824,7 @@
                     floorTo: '',
                     roomTo: '',
                     deviceTo: loadName,
-                    haisen: [haisenName],
+                    haisen: haisenArr,
                     haikan: [''],
                     length_m: lengthM,
                     ordered: false
