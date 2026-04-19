@@ -9750,10 +9750,7 @@
                 return;
             }
 
-            // 弱電幹線データを取得（初期化されていなければ初期化）
-            let wcDataStr = localStorage.getItem('elecCalc:weakCurrentData');
-            let wcData = wcDataStr ? JSON.parse(wcDataStr) : { nextId: 1, rows: [] };
-
+            // モジュールレベルの wcData に直接追加する（ローカル変数で上書きしない）
             const copiedNames = [];
 
             checkedBoxes.forEach(cb => {
@@ -9830,8 +9827,8 @@
                 copiedNames.push(feederNo || loadName || `ID:${feederId}`);
             });
 
-            // 保存
-            localStorage.setItem('elecCalc:weakCurrentData', JSON.stringify(wcData));
+            // 保存（モジュールレベルの wcData を使用）
+            wcSaveData();
 
             // チェック解除
             toggleAllFeederCheckboxes(false);
