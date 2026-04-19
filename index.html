@@ -2991,7 +2991,9 @@
                             <th colspan="3" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#00796b;text-align:center;">自</th>
                             <th colspan="6" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#37474f;text-align:center;">経由地</th>
                             <th colspan="3" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#004d40;text-align:center;">至</th>
-                            <th colspan="3" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#bf360c;text-align:center;">こう長</th>
+                            <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;min-width:120px;position:sticky;top:0;z-index:2;background:#00695c;">配線</th>
+                            <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;min-width:130px;position:sticky;top:0;z-index:2;background:#00695c;">配管</th>
+                            <th colspan="2" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#bf360c;text-align:center;">こう長</th>
                             <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;width:50px;position:sticky;top:0;z-index:2;background:#00695c;">注文済</th>
                             <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;width:40px;position:sticky;top:0;z-index:2;background:#00695c;">操作</th>
                         </tr>
@@ -3008,9 +3010,8 @@
                             <th style="border:1px solid #aaa;padding:0.2rem;width:35px;position:sticky;top:28px;z-index:2;background:#004d40;">階</th>
                             <th style="border:1px solid #aaa;padding:0.2rem;width:80px;position:sticky;top:28px;z-index:2;background:#004d40;">部屋</th>
                             <th style="border:1px solid #aaa;padding:0.2rem;width:80px;position:sticky;top:28px;z-index:2;background:#004d40;">機器</th>
-                            <th style="border:1px solid #aaa;padding:0.2rem;min-width:120px;position:sticky;top:28px;z-index:2;background:#d84315;">ケーブル</th>
-                            <th style="border:1px solid #aaa;padding:0.2rem;min-width:130px;position:sticky;top:28px;z-index:2;background:#d84315;">配管</th>
-                            <th style="border:1px solid #aaa;padding:0.2rem;width:70px;position:sticky;top:28px;z-index:2;background:#d84315;">[m]</th>
+                            <th style="border:1px solid #aaa;padding:0.2rem;width:70px;position:sticky;top:28px;z-index:2;background:#d84315;">ケーブル</th>
+                            <th style="border:1px solid #aaa;padding:0.2rem;width:70px;position:sticky;top:28px;z-index:2;background:#d84315;">配管</th>
                         </tr>
                     </thead>
                     <tbody id="wcBody"></tbody>
@@ -9827,6 +9828,7 @@
                     haisen: haisenArr,
                     haikan: [''],
                     length_m: lengthM,
+                    length_haikan: '',
                     ordered: false
                 };
                 wcData.rows.push(newRow);
@@ -10365,6 +10367,7 @@
                 haisen: preset.haisen ? (Array.isArray(preset.haisen) ? preset.haisen : [preset.haisen]) : [''],
                 haikan: preset.haikan ? (Array.isArray(preset.haikan) ? preset.haikan : [preset.haikan]) : [''],
                 length_m: preset.length_m || '',
+                length_haikan: preset.length_haikan || '',
                 ordered: false
             });
             wcSaveData();
@@ -10402,7 +10405,7 @@
             const tbody = document.getElementById('wcBody');
             if (!tbody) return;
             if (wcData.rows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="21" style="border:1px solid #ddd;padding:0.6rem;text-align:center;color:#999;">データなし — 「+ 行追加」またはCSVインポートで登録してください</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="22" style="border:1px solid #ddd;padding:0.6rem;text-align:center;color:#999;">データなし — 「+ 行追加」またはCSVインポートで登録してください</td></tr>';
                 return;
             }
             const kOpts = WC_KOUSHU_LIST.map(k => `<option value="${k}">${k}</option>`).join('');
@@ -10492,7 +10495,8 @@
                             </div>
                         </td>`;
                     })()}
-                    <td style="${td}"><input type="number" data-wc="${r.id}" data-f="length_m" value="${r.length_m||''}" style="width:60px;font-size:0.75rem;text-align:right;" step="0.1"></td>
+                    <td style="${td}"><input type="number" data-wc="${r.id}" data-f="length_m" value="${r.length_m||''}" style="width:60px;font-size:0.75rem;text-align:right;" step="0.1" title="ケーブルこう長[m]"></td>
+                    <td style="${td}"><input type="number" data-wc="${r.id}" data-f="length_haikan" value="${r.length_haikan||''}" style="width:60px;font-size:0.75rem;text-align:right;" step="0.1" title="配管こう長[m]"></td>
                     <td style="${td}text-align:center;">
                         <input type="checkbox" data-wc="${r.id}" data-f="ordered" ${r.ordered?'checked':''} style="transform:scale(1.2);">
                     </td>
@@ -10647,7 +10651,7 @@
                 if (!id || !f) return;
                 const row = wcData.rows.find(x => String(x.id) === String(id));
                 if (!row) return;
-                if (f === 'length_m') row[f] = parseFloat(e.target.value) || '';
+                if (f === 'length_m' || f === 'length_haikan') row[f] = parseFloat(e.target.value) || '';
                 else if (f === 'ordered') row[f] = e.target.checked;
                 else if (f === 'haisen' || f === 'haikan') {
                     updateArr(row, f, parseInt(e.target.getAttribute('data-hi')||'0'), e.target.value);
@@ -10775,6 +10779,7 @@
                         koushu: wcGuessKoushu(kigou, fusho),
                         kigou, fusho, from, to, haisen: haisen ? [haisen] : [''], haikan: haikan ? [haikan] : [''],
                         length_m: '',
+                        length_haikan: '',
                         ordered: false
                     });
                     added++;
@@ -10790,11 +10795,11 @@
         // CSV エクスポート
         function wcExportCSV() {
             if (wcData.rows.length === 0) { alert('データがありません'); return; }
-            let csv = '工種,記号,負荷名称,自_階,自_部屋,自_機器,経由地1,経由地2,経由地3,経由地4,経由地5,経由地6,至_階,至_部屋,至_機器,配線,配管,こう長[m],注文済\n';
+            let csv = '工種,記号,負荷名称,自_階,自_部屋,自_機器,経由地1,経由地2,経由地3,経由地4,経由地5,経由地6,至_階,至_部屋,至_機器,配線,配管,こう長_ケーブル[m],こう長_配管[m],注文済\n';
             wcData.rows.forEach(r => {
                 const haisenStr = Array.isArray(r.haisen) ? r.haisen.join(' / ') : (r.haisen||'');
                 const haikanStr = Array.isArray(r.haikan) ? r.haikan.join(' / ') : (r.haikan||'');
-                csv += [r.koushu, r.kigou, r.fusho, r.floorFrom||'', r.roomFrom||r.from||'', r.deviceFrom||'', r.via1||'', r.via2||'', r.via3||'', r.via4||'', r.via5||'', r.via6||'', r.floorTo||'', r.roomTo||r.to||'', r.deviceTo||'', haisenStr, haikanStr, r.length_m||'', r.ordered?'済':''].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
+                csv += [r.koushu, r.kigou, r.fusho, r.floorFrom||'', r.roomFrom||r.from||'', r.deviceFrom||'', r.via1||'', r.via2||'', r.via3||'', r.via4||'', r.via5||'', r.via6||'', r.floorTo||'', r.roomTo||r.to||'', r.deviceTo||'', haisenStr, haikanStr, r.length_m||'', r.length_haikan||'', r.ordered?'済':''].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
             });
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
             const a = document.createElement('a');
