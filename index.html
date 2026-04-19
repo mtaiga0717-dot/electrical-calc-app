@@ -10451,7 +10451,7 @@
                 const spanInfo2 = haikan2SpanMap[i];
                 const td = 'border:1px solid #ddd;padding:0.2rem;';
                 return `<tr style="${bg}">
-                    <td style="${td}text-align:center;">${i+1}</td>
+                    <td style="${td}text-align:center;"><input type="number" data-wc-no="${r.id}" value="${i+1}" min="1" max="${wcData.rows.length}" style="width:40px;font-size:0.75rem;text-align:center;border:1px solid #ccc;border-radius:2px;padding:1px;" title="行番号を変更して移動"></td>
                     <td style="${td}">
                         <select data-wc="${r.id}" data-f="koushu" style="width:100%;font-size:0.75rem;">
                             <option value="">-</option>${WC_KOUSHU_LIST.map(k=>`<option value="${k}" ${r.koushu===k?'selected':''}>${k}</option>`).join('')}
@@ -10658,6 +10658,20 @@
                 if (!Array.isArray(row[field])) row[field] = row[field] ? [row[field]] : [''];
                 row[field][hi] = val;
             }
+            // NO入力で行移動（changeイベント = Enter or フォーカス外れ時）
+            tbody.addEventListener('change', (e) => {
+                const noId = e.target.getAttribute('data-wc-no');
+                if (!noId) return;
+                const fromIdx = wcData.rows.findIndex(x => String(x.id) === String(noId));
+                if (fromIdx < 0) return;
+                let toIdx = parseInt(e.target.value) - 1;
+                if (isNaN(toIdx)) { e.target.value = fromIdx + 1; return; }
+                toIdx = Math.max(0, Math.min(wcData.rows.length - 1, toIdx));
+                if (toIdx === fromIdx) { e.target.value = fromIdx + 1; return; }
+                const [moved] = wcData.rows.splice(fromIdx, 1);
+                wcData.rows.splice(toIdx, 0, moved);
+                wcSaveData(); wcRenderTable();
+            });
             tbody.addEventListener('input', (e) => {
                 const id = e.target.getAttribute('data-wc');
                 const f = e.target.getAttribute('data-f');
