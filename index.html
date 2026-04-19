@@ -1616,7 +1616,7 @@
                 <button class="nav-tab" data-tab="transformer">トランス容量</button>
                 <button class="nav-tab" data-tab="diagram">系統図</button>
                 <button class="nav-tab" data-tab="master">マスターデータ</button>
-                <button class="nav-tab" data-tab="weakCurrent" style="background:#00695c;color:#fff;">弱電幹線</button>
+                <button class="nav-tab" data-tab="weakCurrent" style="background:#00695c;color:#fff;">外構・弱電幹線</button>
                 <button class="nav-tab" id="btnOpenPrintView" style="background:#e53935;color:#fff;margin-left:0.6rem;">🖨 印刷レポート</button>
             </div>
         </div>
@@ -2057,7 +2057,7 @@
                     <button class="btn-action" id="btnAutoSyncFeeders" style="background:#00897b;color:#fff;" title="盤一覧の各盤を幹線として、分岐回路から給電される盤を子幹線として自動反映します">🔄 盤一覧・回路DBから自動反映</button>
                     <button class="btn-action" id="btnFeedersExport">CSV出力</button>
                     <button class="btn-action" id="btnShowSystemDiagram" style="background:#6a1b9a;color:#fff;">🌳 系統図プレビュー</button>
-                    <button class="btn-action" id="btnCopyToWeakCurrent" style="background:#e65100;color:#fff;" title="チェックした幹線を弱電幹線集計表に複写します">📋 弱電幹線に複写</button>
+                    <button class="btn-action" id="btnCopyToWeakCurrent" style="background:#e65100;color:#fff;" title="チェックした幹線を外構・弱電幹線集計表に複写します">📋 外構・弱電幹線に複写</button>
                 </div>
 
                 <!-- 系統図プレビューモーダル -->
@@ -2928,7 +2928,7 @@
 
             <!-- ================== 弱電幹線集計表 Tab ================== -->
             <div id="weakCurrent" class="tab-content">
-                <h3 style="margin:0.5rem 0;">弱電幹線集計表</h3>
+                <h3 style="margin:0.5rem 0;">外構・弱電幹線集計表</h3>
 
                 <!-- 設定: 担当者・宛先 登録 -->
                 <details style="margin-bottom:0.8rem;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:0.5rem;">
@@ -2970,7 +2970,6 @@
                 </div>
 
                 <!-- ケーブル種類別こう長集計 -->
-                <div id="wcCableSummary" style="margin-bottom:0.5rem;font-size:0.8rem;display:none;"></div>
 
                 <!-- 注文書ヘッダ入力 -->
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;font-size:0.82rem;">
@@ -9765,10 +9764,23 @@
                 const local = localFeederData[feederId] || {};
                 const feederNo = local.feeder_no || '';
 
-                // ケーブル種別 + ケーブル[mm²] を合体して配線名称にする
+                // ケーブル種別 + ケーブル[mm²] + アース を合体して配線名称にする
                 const cableType = feeder.cable_type || 'CV';
                 const cableSize = feeder.cable_size || 0;
-                const haisenName = cableType + (cableSize ? ' ' + cableSize + 'mm²' : '');
+                let haisenName = cableType + (cableSize ? ' ' + cableSize + 'mm²' : '');
+                // アース（接地線）情報を追加
+                const earthParts = [];
+                if (local.ground_d_mode === 'on') {
+                    const gSize = Number(local.ground_wire_size) || 0;
+                    if (gSize > 0) earthParts.push('E ' + gSize + 'mm²');
+                }
+                if (local.ground_elb_mode === 'on') {
+                    const eSize = Number(local.elb_ground_wire_size) || 0;
+                    if (eSize > 0 && !earthParts.some(p => p === 'E ' + eSize + 'mm²')) {
+                        earthParts.push('E ' + eSize + 'mm²');
+                    }
+                }
+                if (earthParts.length > 0) haisenName += ' + ' + earthParts.join(' + ');
 
                 // こう長
                 const lengthM = feeder.cable_length || '';
@@ -9796,9 +9808,9 @@
                 // 負荷名称 → deviceTo
                 const loadName = feeder.load_name || '';
 
-                // 新しい弱電幹線行を作成
+                // 新しい外構・弱電幹線行を作成
                 const newRow = {
-                    id: wcData.nextId++,
+                    id: 'wc_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
                     koushu: '幹線',
                     kigou: feederNo,
                     fusho: loadName,
@@ -9826,7 +9838,7 @@
             const selectAll = document.getElementById('feederSelectAll');
             if (selectAll) selectAll.checked = false;
 
-            alert(`${copiedNames.length}件の幹線を弱電幹線に複写しました。\n（${copiedNames.join(', ')}）`);
+            alert(`${copiedNames.length}件の幹線を外構・弱電幹線に複写しました。\n（${copiedNames.join(', ')}）`);
 
             // 弱電幹線タブが表示中なら再描画
             if (document.getElementById('weakCurrent')?.style?.display !== 'none') {
@@ -10300,6 +10312,16 @@
         }
         let wcData = wcLoadData();
 
+        // 経由地datalistを動的に更新する関数
+        function wcUpdateViaDatalist() {
+            const dl = document.getElementById('wcViaDatalist');
+            if (!dl) return;
+            const vSet = new Set();
+            const vFields = ['via1','via2','via3','via4','via5','via6'];
+            wcData.rows.forEach(r => { vFields.forEach(f => { if (r[f]) vSet.add(r[f]); }); });
+            dl.innerHTML = [...vSet].sort().map(v => `<option value="${v.replace(/"/g,'&quot;')}">`).join('');
+        }
+
         function wcLoadSettings() {
             try { const r = localStorage.getItem(WC_SETTINGS_KEY); return r ? JSON.parse(r) : null; }
             catch(e) { return null; }
@@ -10394,6 +10416,14 @@
                 </div>`).join('');
             }
 
+            // 経由地の候補リストを全行から収集（datalist用）
+            const viaFields = ['via1','via2','via3','via4','via5','via6'];
+            const viaSet = new Set();
+            wcData.rows.forEach(r => {
+                viaFields.forEach(f => { if (r[f]) viaSet.add(r[f]); });
+            });
+            const viaSorted = [...viaSet].sort();
+
             // 配管結合グループ計算
             const haikanGroups = [];
             let gi = 0;
@@ -10407,6 +10437,14 @@
             }
             const haikanSpanMap = {};
             haikanGroups.forEach(g => { haikanSpanMap[g.start] = g.span; });
+
+            // datalist を tbody の前に配置（既存があれば除去して再生成）
+            let dlEl = document.getElementById('wcViaDatalist');
+            if (dlEl) dlEl.remove();
+            dlEl = document.createElement('datalist');
+            dlEl.id = 'wcViaDatalist';
+            dlEl.innerHTML = viaSorted.map(v => `<option value="${v.replace(/"/g,'&quot;')}">`).join('');
+            tbody.parentElement.appendChild(dlEl);
 
             tbody.innerHTML = wcData.rows.map((r, i) => {
                 const bg = i % 2 === 1 ? 'background:#e0f2f1;' : '';
@@ -10425,12 +10463,12 @@
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="floorFrom" value="${(r.floorFrom||r.floor||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;text-align:center;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="roomFrom" value="${(r.roomFrom||r.from||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="deviceFrom" value="${(r.deviceFrom||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via1" value="${(r.via1||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via2" value="${(r.via2||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via3" value="${(r.via3||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via4" value="${(r.via4||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via5" value="${(r.via5||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via6" value="${(r.via6||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via1" value="${(r.via1||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via2" value="${(r.via2||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via3" value="${(r.via3||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via4" value="${(r.via4||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via5" value="${(r.via5||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via6" value="${(r.via6||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="floorTo" value="${(r.floorTo||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;text-align:center;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="roomTo" value="${(r.roomTo||r.to||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="deviceTo" value="${(r.deviceTo||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
@@ -10530,8 +10568,6 @@
                 if (rows[i]) rows[i].style.display = visible ? '' : 'none';
                 if (visible) visibleIndices.push(i);
             });
-            // ケーブル種類別こう長集計
-            wcRenderCableSummary(visibleIndices);
         }
 
         function wcClearFilter() {
@@ -10606,7 +10642,7 @@
                 const id = e.target.getAttribute('data-wc');
                 const f = e.target.getAttribute('data-f');
                 if (!id || !f) return;
-                const row = wcData.rows.find(x => x.id === id);
+                const row = wcData.rows.find(x => String(x.id) === String(id));
                 if (!row) return;
                 if (f === 'length_m') row[f] = parseFloat(e.target.value) || '';
                 else if (f === 'ordered') row[f] = e.target.checked;
@@ -10619,7 +10655,7 @@
                 const id = e.target.getAttribute('data-wc');
                 const f = e.target.getAttribute('data-f');
                 if (!id || !f) return;
-                const row = wcData.rows.find(x => x.id === id);
+                const row = wcData.rows.find(x => String(x.id) === String(id));
                 if (!row) return;
                 if (f === 'haisen' || f === 'haikan') {
                     const hi = parseInt(e.target.getAttribute('data-hi')||'0');
@@ -10631,6 +10667,8 @@
                 } else if (f === 'ordered') row[f] = e.target.checked;
                 else row[f] = e.target.value;
                 wcSaveData();
+                // 経由地フィールド変更時はdatalistを更新
+                if (/^via[1-6]$/.test(f)) wcUpdateViaDatalist();
             });
             tbody.addEventListener('click', (e) => {
                 const btn = e.target.closest('button');
@@ -10639,19 +10677,20 @@
                 const delId = btn.getAttribute('data-wc-del');
                 if (delId) {
                     // 結合グループの先頭行を削除する場合、次の行のhaikanMergeを解除
-                    const idx = wcData.rows.findIndex(x => x.id === delId);
+                    // eslint-disable-next-line eqeqeq — 数値ID(旧)と文字列ID(新)の両方に対応
+                    const idx = wcData.rows.findIndex(x => String(x.id) === String(delId));
                     if (idx >= 0 && idx < wcData.rows.length - 1 && wcData.rows[idx + 1].haikanMerge) {
                         wcData.rows[idx + 1].haikanMerge = false;
                         wcData.rows[idx + 1].haikan = wcData.rows[idx].haikan;
                     }
-                    wcData.rows = wcData.rows.filter(x => x.id !== delId);
+                    wcData.rows = wcData.rows.filter(x => String(x.id) !== String(delId));
                     wcSaveData(); wcRenderTable(); return;
                 }
                 // 配線追加 / 配管追加
                 for (const field of ['haisen','haikan']) {
                     const addId = btn.getAttribute(`data-wc-${field}-add`);
                     if (addId) {
-                        const row = wcData.rows.find(x => x.id === addId);
+                        const row = wcData.rows.find(x => String(x.id) === String(addId));
                         if (row) {
                             if (!Array.isArray(row[field])) row[field] = row[field] ? [row[field]] : [''];
                             row[field].push('');
@@ -10662,7 +10701,7 @@
                     const dId = btn.getAttribute(`data-wc-${field}-del`);
                     if (dId) {
                         const hi = parseInt(btn.getAttribute('data-hi')||'0');
-                        const row = wcData.rows.find(x => x.id === dId);
+                        const row = wcData.rows.find(x => String(x.id) === String(dId));
                         if (row && Array.isArray(row[field]) && row[field].length > 1) {
                             row[field].splice(hi, 1);
                             wcSaveData(); wcRenderTable();
@@ -10757,7 +10796,7 @@
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = '弱電幹線集計_' + new Date().toISOString().slice(0,10) + '.csv';
+            a.download = '外構弱電幹線集計_' + new Date().toISOString().slice(0,10) + '.csv';
             a.click();
         }
 
