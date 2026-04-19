@@ -2992,7 +2992,8 @@
                             <th colspan="6" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#37474f;text-align:center;">経由地</th>
                             <th colspan="3" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#004d40;text-align:center;">至</th>
                             <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;min-width:120px;position:sticky;top:0;z-index:2;background:#00695c;">配線</th>
-                            <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;min-width:130px;position:sticky;top:0;z-index:2;background:#00695c;">配管</th>
+                            <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;min-width:120px;position:sticky;top:0;z-index:2;background:#00695c;">配管-1</th>
+                            <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;min-width:120px;position:sticky;top:0;z-index:2;background:#1a237e;color:#fff;">配管-2</th>
                             <th colspan="2" style="border:1px solid #aaa;padding:0.2rem;position:sticky;top:0;z-index:2;background:#bf360c;text-align:center;">こう長</th>
                             <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;width:50px;position:sticky;top:0;z-index:2;background:#00695c;">注文済</th>
                             <th rowspan="2" style="border:1px solid #aaa;padding:0.3rem;width:40px;position:sticky;top:0;z-index:2;background:#00695c;">操作</th>
@@ -9827,6 +9828,7 @@
                     deviceTo: loadName,
                     haisen: haisenArr,
                     haikan: [''],
+                    haikan2: [''],
                     length_m: lengthM,
                     length_haikan: '',
                     ordered: false
@@ -10317,16 +10319,6 @@
         }
         let wcData = wcLoadData();
 
-        // 経由地datalistを動的に更新する関数
-        function wcUpdateViaDatalist() {
-            const dl = document.getElementById('wcViaDatalist');
-            if (!dl) return;
-            const vSet = new Set();
-            const vFields = ['via1','via2','via3','via4','via5','via6'];
-            wcData.rows.forEach(r => { vFields.forEach(f => { if (r[f]) vSet.add(r[f]); }); });
-            dl.innerHTML = [...vSet].sort().map(v => `<option value="${v.replace(/"/g,'&quot;')}">`).join('');
-        }
-
         function wcLoadSettings() {
             try { const r = localStorage.getItem(WC_SETTINGS_KEY); return r ? JSON.parse(r) : null; }
             catch(e) { return null; }
@@ -10366,6 +10358,7 @@
                 deviceTo: preset.deviceTo || '',
                 haisen: preset.haisen ? (Array.isArray(preset.haisen) ? preset.haisen : [preset.haisen]) : [''],
                 haikan: preset.haikan ? (Array.isArray(preset.haikan) ? preset.haikan : [preset.haikan]) : [''],
+                haikan2: preset.haikan2 ? (Array.isArray(preset.haikan2) ? preset.haikan2 : [preset.haikan2]) : [''],
                 length_m: preset.length_m || '',
                 length_haikan: preset.length_haikan || '',
                 ordered: false
@@ -10405,7 +10398,7 @@
             const tbody = document.getElementById('wcBody');
             if (!tbody) return;
             if (wcData.rows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="22" style="border:1px solid #ddd;padding:0.6rem;text-align:center;color:#999;">データなし — 「+ 行追加」またはCSVインポートで登録してください</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="23" style="border:1px solid #ddd;padding:0.6rem;text-align:center;color:#999;">データなし — 「+ 行追加」またはCSVインポートで登録してください</td></tr>';
                 return;
             }
             const kOpts = WC_KOUSHU_LIST.map(k => `<option value="${k}">${k}</option>`).join('');
@@ -10422,15 +10415,7 @@
                 </div>`).join('');
             }
 
-            // 経由地の候補リストを全行から収集（datalist用）
-            const viaFields = ['via1','via2','via3','via4','via5','via6'];
-            const viaSet = new Set();
-            wcData.rows.forEach(r => {
-                viaFields.forEach(f => { if (r[f]) viaSet.add(r[f]); });
-            });
-            const viaSorted = [...viaSet].sort();
-
-            // 配管結合グループ計算
+            // 配管-1 結合グループ計算
             const haikanGroups = [];
             let gi = 0;
             while (gi < wcData.rows.length) {
@@ -10444,18 +10429,26 @@
             const haikanSpanMap = {};
             haikanGroups.forEach(g => { haikanSpanMap[g.start] = g.span; });
 
-            // datalist を tbody の前に配置（既存があれば除去して再生成）
-            let dlEl = document.getElementById('wcViaDatalist');
-            if (dlEl) dlEl.remove();
-            dlEl = document.createElement('datalist');
-            dlEl.id = 'wcViaDatalist';
-            dlEl.innerHTML = viaSorted.map(v => `<option value="${v.replace(/"/g,'&quot;')}">`).join('');
-            tbody.parentElement.appendChild(dlEl);
+            // 配管-2 結合グループ計算
+            const haikan2Groups = [];
+            let g2i = 0;
+            while (g2i < wcData.rows.length) {
+                const row = wcData.rows[g2i];
+                if (row.haikan2Merge && g2i > 0) { g2i++; continue; }
+                let span2 = 1;
+                while (g2i + span2 < wcData.rows.length && wcData.rows[g2i + span2].haikan2Merge) span2++;
+                haikan2Groups.push({ start: g2i, span: span2 });
+                g2i += span2;
+            }
+            const haikan2SpanMap = {};
+            haikan2Groups.forEach(g => { haikan2SpanMap[g.start] = g.span; });
 
             tbody.innerHTML = wcData.rows.map((r, i) => {
                 const bg = i % 2 === 1 ? 'background:#e0f2f1;' : '';
                 const isMerged = r.haikanMerge && i > 0;
                 const spanInfo = haikanSpanMap[i];
+                const isMerged2 = r.haikan2Merge && i > 0;
+                const spanInfo2 = haikan2SpanMap[i];
                 const td = 'border:1px solid #ddd;padding:0.2rem;';
                 return `<tr style="${bg}">
                     <td style="${td}text-align:center;">${i+1}</td>
@@ -10469,12 +10462,12 @@
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="floorFrom" value="${(r.floorFrom||r.floor||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;text-align:center;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="roomFrom" value="${(r.roomFrom||r.from||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="deviceFrom" value="${(r.deviceFrom||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via1" value="${(r.via1||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via2" value="${(r.via2||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via3" value="${(r.via3||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via4" value="${(r.via4||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via5" value="${(r.via5||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
-                    <td style="${td}background:#eceff1;"><input type="text" list="wcViaDatalist" data-wc="${r.id}" data-f="via6" value="${(r.via6||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via1" value="${(r.via1||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via2" value="${(r.via2||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via3" value="${(r.via3||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via4" value="${(r.via4||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via5" value="${(r.via5||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
+                    <td style="${td}background:#eceff1;"><input type="text" data-wc="${r.id}" data-f="via6" value="${(r.via6||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.72rem;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="floorTo" value="${(r.floorTo||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;text-align:center;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="roomTo" value="${(r.roomTo||r.to||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
                     <td style="${td}"><input type="text" data-wc="${r.id}" data-f="deviceTo" value="${(r.deviceTo||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:0.75rem;"></td>
@@ -10495,12 +10488,28 @@
                             </div>
                         </td>`;
                     })()}
+                    ${isMerged2 ? '' : (function(){
+                        const merged2 = spanInfo2 && spanInfo2 > 1;
+                        const canMerge2More = (function(){ let e=i+1; while(e<wcData.rows.length && wcData.rows[e].haikan2Merge) e++; return e<wcData.rows.length; })();
+                        const bgColor2 = merged2 ? 'background:#e8eaf6;border:2px solid #283593;' : '';
+                        const badge2 = merged2 ? `<div style="font-size:0.6rem;color:#283593;font-weight:bold;margin-bottom:2px;">▋${spanInfo2}行結合</div>` : '';
+                        return `<td style="${td}vertical-align:top;${bgColor2}" ${merged2 ? 'rowspan="'+spanInfo2+'"' : ''}>
+                            ${badge2}
+                            ${wcMultiSelect(r, 'haikan2', wcHaikanOptions, 'haikan2', 'haikan2', 'wcPromptNewHaikan')}
+                            <div style="margin-top:3px;display:flex;gap:3px;justify-content:center;">
+                                ${canMerge2More ? `<button data-wc-merge2-toggle="${r.id}" style="font-size:0.6rem;padding:1px 5px;background:#283593;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="下の行と配管-2結合">↓結合</button>` : ''}
+                                ${merged2 ? `<button data-wc-merge2-split="${r.id}" style="font-size:0.6rem;padding:1px 5px;background:#ef6c00;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="配管-2結合を解除">解除</button>` : ''}
+                            </div>
+                        </td>`;
+                    })()}
                     <td style="${td}"><input type="number" data-wc="${r.id}" data-f="length_m" value="${r.length_m||''}" style="width:60px;font-size:0.75rem;text-align:right;" step="0.1" title="ケーブルこう長[m]"></td>
                     <td style="${td}"><input type="number" data-wc="${r.id}" data-f="length_haikan" value="${r.length_haikan||''}" style="width:60px;font-size:0.75rem;text-align:right;" step="0.1" title="配管こう長[m]"></td>
                     <td style="${td}text-align:center;">
                         <input type="checkbox" data-wc="${r.id}" data-f="ordered" ${r.ordered?'checked':''} style="transform:scale(1.2);">
                     </td>
-                    <td style="${td}text-align:center;">
+                    <td style="${td}text-align:center;white-space:nowrap;">
+                        <button data-wc-up="${r.id}" style="font-size:0.65rem;padding:1px 4px;background:#1565c0;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="上へ移動">▲</button>
+                        <button data-wc-down="${r.id}" style="font-size:0.65rem;padding:1px 4px;background:#1565c0;color:#fff;border:none;border-radius:2px;cursor:pointer;" title="下へ移動">▼</button>
                         <button class="btn-action" data-wc-del="${r.id}" style="background:#e53935;color:#fff;font-size:0.7rem;padding:0.15rem 0.4rem;">×</button>
                     </td>
                 </tr>`;
@@ -10568,7 +10577,11 @@
                 }
                 let matchFT = true;
                 if (fromToVal) {
-                    const fields = [r.floorFrom, r.roomFrom, r.deviceFrom, r.from, r.floorTo, r.roomTo, r.deviceTo, r.to].map(v => v || '');
+                    // 現在のフィールド値のみ参照（旧 r.from / r.to はレガシー互換のため
+                    // roomFrom / roomTo が空のときだけフォールバック）
+                    const effRoomFrom = r.roomFrom || r.from || '';
+                    const effRoomTo = r.roomTo || r.to || '';
+                    const fields = [r.floorFrom||'', effRoomFrom, r.deviceFrom||'', r.floorTo||'', effRoomTo, r.deviceTo||''];
                     matchFT = fields.some(v => v.includes(fromToVal));
                 }
                 const visible = matchK && matchF && matchH && matchVia && matchFT;
@@ -10653,9 +10666,15 @@
                 if (!row) return;
                 if (f === 'length_m' || f === 'length_haikan') row[f] = parseFloat(e.target.value) || '';
                 else if (f === 'ordered') row[f] = e.target.checked;
-                else if (f === 'haisen' || f === 'haikan') {
+                else if (f === 'haisen' || f === 'haikan' || f === 'haikan2') {
                     updateArr(row, f, parseInt(e.target.getAttribute('data-hi')||'0'), e.target.value);
-                } else row[f] = e.target.value;
+                } else {
+                    row[f] = e.target.value;
+                    // 新フィールド入力時に旧レガシーフィールドをクリア（検索の二重ヒット防止）
+                    if (f === 'roomFrom' || f === 'floorFrom' || f === 'deviceFrom') delete row.from;
+                    if (f === 'roomTo' || f === 'floorTo' || f === 'deviceTo') delete row.to;
+                    if (f === 'floorFrom') delete row.floor;
+                }
                 wcSaveData();
             });
             tbody.addEventListener('change', (e) => {
@@ -10664,7 +10683,7 @@
                 if (!id || !f) return;
                 const row = wcData.rows.find(x => String(x.id) === String(id));
                 if (!row) return;
-                if (f === 'haisen' || f === 'haikan') {
+                if (f === 'haisen' || f === 'haikan' || f === 'haikan2') {
                     const hi = parseInt(e.target.getAttribute('data-hi')||'0');
                     updateArr(row, f, hi, e.target.value);
                     if (e.target.value.trim()) {
@@ -10674,27 +10693,51 @@
                 } else if (f === 'ordered') row[f] = e.target.checked;
                 else row[f] = e.target.value;
                 wcSaveData();
-                // 経由地フィールド変更時はdatalistを更新
-                if (/^via[1-6]$/.test(f)) wcUpdateViaDatalist();
             });
             tbody.addEventListener('click', (e) => {
                 const btn = e.target.closest('button');
                 if (!btn) return;
+                // 行を上へ移動
+                const upId = btn.getAttribute('data-wc-up');
+                if (upId) {
+                    const idx = wcData.rows.findIndex(x => String(x.id) === String(upId));
+                    if (idx > 0) {
+                        [wcData.rows[idx - 1], wcData.rows[idx]] = [wcData.rows[idx], wcData.rows[idx - 1]];
+                        wcSaveData(); wcRenderTable();
+                    }
+                    return;
+                }
+                // 行を下へ移動
+                const downId = btn.getAttribute('data-wc-down');
+                if (downId) {
+                    const idx = wcData.rows.findIndex(x => String(x.id) === String(downId));
+                    if (idx >= 0 && idx < wcData.rows.length - 1) {
+                        [wcData.rows[idx], wcData.rows[idx + 1]] = [wcData.rows[idx + 1], wcData.rows[idx]];
+                        wcSaveData(); wcRenderTable();
+                    }
+                    return;
+                }
                 // 行削除
                 const delId = btn.getAttribute('data-wc-del');
                 if (delId) {
                     // 結合グループの先頭行を削除する場合、次の行のhaikanMergeを解除
                     // eslint-disable-next-line eqeqeq — 数値ID(旧)と文字列ID(新)の両方に対応
                     const idx = wcData.rows.findIndex(x => String(x.id) === String(delId));
-                    if (idx >= 0 && idx < wcData.rows.length - 1 && wcData.rows[idx + 1].haikanMerge) {
-                        wcData.rows[idx + 1].haikanMerge = false;
-                        wcData.rows[idx + 1].haikan = wcData.rows[idx].haikan;
+                    if (idx >= 0 && idx < wcData.rows.length - 1) {
+                        if (wcData.rows[idx + 1].haikanMerge) {
+                            wcData.rows[idx + 1].haikanMerge = false;
+                            wcData.rows[idx + 1].haikan = wcData.rows[idx].haikan;
+                        }
+                        if (wcData.rows[idx + 1].haikan2Merge) {
+                            wcData.rows[idx + 1].haikan2Merge = false;
+                            wcData.rows[idx + 1].haikan2 = wcData.rows[idx].haikan2;
+                        }
                     }
                     wcData.rows = wcData.rows.filter(x => String(x.id) !== String(delId));
                     wcSaveData(); wcRenderTable(); return;
                 }
                 // 配線追加 / 配管追加
-                for (const field of ['haisen','haikan']) {
+                for (const field of ['haisen','haikan','haikan2']) {
                     const addId = btn.getAttribute(`data-wc-${field}-add`);
                     if (addId) {
                         const row = wcData.rows.find(x => String(x.id) === String(addId));
@@ -10732,7 +10775,7 @@
                     }
                     return;
                 }
-                // 配管結合解除
+                // 配管-1 結合解除
                 const splitId = btn.getAttribute('data-wc-merge-split');
                 if (splitId) {
                     const idx = wcData.rows.findIndex(x => x.id === splitId);
@@ -10740,6 +10783,33 @@
                         for (let j = idx + 1; j < wcData.rows.length; j++) {
                             if (!wcData.rows[j].haikanMerge) break;
                             wcData.rows[j].haikanMerge = false;
+                        }
+                        wcSaveData(); wcRenderTable();
+                    }
+                    return;
+                }
+                // 配管-2 結合
+                const merge2Id = btn.getAttribute('data-wc-merge2-toggle');
+                if (merge2Id) {
+                    const idx = wcData.rows.findIndex(x => String(x.id) === String(merge2Id));
+                    if (idx >= 0) {
+                        let end = idx + 1;
+                        while (end < wcData.rows.length && wcData.rows[end].haikan2Merge) end++;
+                        if (end < wcData.rows.length) {
+                            wcData.rows[end].haikan2Merge = true;
+                            wcSaveData(); wcRenderTable();
+                        }
+                    }
+                    return;
+                }
+                // 配管-2 結合解除
+                const split2Id = btn.getAttribute('data-wc-merge2-split');
+                if (split2Id) {
+                    const idx = wcData.rows.findIndex(x => String(x.id) === String(split2Id));
+                    if (idx >= 0) {
+                        for (let j = idx + 1; j < wcData.rows.length; j++) {
+                            if (!wcData.rows[j].haikan2Merge) break;
+                            wcData.rows[j].haikan2Merge = false;
                         }
                         wcSaveData(); wcRenderTable();
                     }
@@ -10777,7 +10847,7 @@
                     wcData.rows.push({
                         id: wcNewId(),
                         koushu: wcGuessKoushu(kigou, fusho),
-                        kigou, fusho, from, to, haisen: haisen ? [haisen] : [''], haikan: haikan ? [haikan] : [''],
+                        kigou, fusho, from, to, haisen: haisen ? [haisen] : [''], haikan: haikan ? [haikan] : [''], haikan2: [''],
                         length_m: '',
                         length_haikan: '',
                         ordered: false
