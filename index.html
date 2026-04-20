@@ -2967,6 +2967,7 @@
                     <div>経由地：<input type="text" id="wcFilterVia" style="font-size:0.82rem;width:80px;" placeholder="例：EPS" oninput="wcApplyFilter()"></div>
                     <div>自/至検索：<input type="text" id="wcFilterFromTo" style="font-size:0.82rem;width:80px;" placeholder="例：外" oninput="wcApplyFilter()"></div>
                     <button class="btn-action" style="background:#78909c;color:#fff;font-size:0.75rem;padding:0.2rem 0.6rem;" onclick="wcClearFilter()">クリア</button>
+                    <button class="btn-action" style="background:#4527a0;color:#fff;font-size:0.75rem;padding:0.2rem 0.6rem;margin-left:auto;" onclick="wcPrintReport()">🖨️ レポート出力</button>
                 </div>
 
                 <!-- ケーブル種類別こう長集計 -->
@@ -10986,6 +10987,190 @@
             a.href = URL.createObjectURL(blob);
             a.download = '外構弱電幹線集計_' + new Date().toISOString().slice(0,10) + '.csv';
             a.click();
+        }
+
+        // レポート出力（フィルタ状態を印刷用ページで表示）
+        function wcPrintReport() {
+            // 現在のフィルタ条件を取得
+            const koushuVal = document.getElementById('wcFilterKoushu')?.value || '';
+            const floorVal = document.getElementById('wcFilterFloor')?.value || '';
+            const haikanVal = document.getElementById('wcFilterHaikan')?.value || '';
+            const viaVal = (document.getElementById('wcFilterVia')?.value || '').trim();
+            const fromToVal = (document.getElementById('wcFilterFromTo')?.value || '').trim();
+
+            // フィルタ条件でデータ抽出
+            const filtered = wcData.rows.filter((r) => {
+                const fl = r.floorFrom || r.floor || '';
+                const hk = Array.isArray(r.haikan) ? r.haikan : (r.haikan ? [r.haikan] : []);
+                const matchK = !koushuVal || r.koushu === koushuVal;
+                const matchF = !floorVal || fl === floorVal;
+                const matchH = !haikanVal || hk.includes(haikanVal);
+                let matchVia = true;
+                if (viaVal) {
+                    const vias = [r.via1, r.via2, r.via3, r.via4, r.via5, r.via6].map(v => v || '');
+                    matchVia = vias.some(v => v === viaVal);
+                }
+                let matchFT = true;
+                if (fromToVal) {
+                    const effRoomFrom = r.roomFrom || r.from || '';
+                    const effRoomTo = r.roomTo || r.to || '';
+                    const fields = [r.floorFrom||'', effRoomFrom, r.deviceFrom||'', r.floorTo||'', effRoomTo, r.deviceTo||''];
+                    matchFT = fields.some(v => v.includes(fromToVal));
+                }
+                return matchK && matchF && matchH && matchVia && matchFT;
+            });
+
+            if (filtered.length === 0) { alert('表示対象のデータがありません'); return; }
+
+            // フィルタ条件の表示用テキスト
+            const conditions = [];
+            if (koushuVal) conditions.push('工種: ' + koushuVal);
+            if (floorVal) conditions.push('自の階: ' + floorVal);
+            if (haikanVal) conditions.push('配管: ' + haikanVal);
+            if (viaVal) conditions.push('経由地: ' + viaVal);
+            if (fromToVal) conditions.push('自/至検索: ' + fromToVal);
+            const condText = conditions.length > 0 ? conditions.join('　/　') : 'すべて（絞り込みなし）';
+
+            // プロジェクト名
+            const projName = (function(){
+                try {
+                    const pj = JSON.parse(localStorage.getItem('elecCalc:projects') || '[]');
+                    const cur = localStorage.getItem('elecCalc:currentProject') || 'proj_default';
+                    const found = pj.find(p => p.id === cur);
+                    return found ? found.name : '';
+                } catch(e) { return ''; }
+            })();
+            const koujiName = document.getElementById('wcKoujiName')?.value || '';
+            const koujiNo = document.getElementById('wcKoujiNo')?.value || '';
+
+            // 配管結合グループ計算（配管-1/2/3）
+            function calcMergeGroups(rows, mergeField) {
+                const groups = [];
+                let gi = 0;
+                while (gi < rows.length) {
+                    if (rows[gi][mergeField] && gi > 0) { gi++; continue; }
+                    let span = 1;
+                    while (gi + span < rows.length && rows[gi + span][mergeField]) span++;
+                    groups.push({ start: gi, span });
+                    gi += span;
+                }
+                const map = {};
+                groups.forEach(g => { map[g.start] = g.span; });
+                return map;
+            }
+            const h1Map = calcMergeGroups(filtered, 'haikanMerge');
+            const h2Map = calcMergeGroups(filtered, 'haikan2Merge');
+            const h3Map = calcMergeGroups(filtered, 'haikan3Merge');
+
+            // 行HTML生成
+            let rowsHtml = '';
+            filtered.forEach((r, i) => {
+                const bg = i % 2 === 1 ? 'background:#f5f5f5;' : '';
+                const haisenStr = Array.isArray(r.haisen) ? r.haisen.filter(v=>v).join('<br>') : (r.haisen||'');
+                const haikanStr = Array.isArray(r.haikan) ? r.haikan.filter(v=>v).join('<br>') : (r.haikan||'');
+                const haikan2Str = Array.isArray(r.haikan2) ? r.haikan2.filter(v=>v).join('<br>') : (r.haikan2||'');
+                const haikan3Str = Array.isArray(r.haikan3) ? r.haikan3.filter(v=>v).join('<br>') : (r.haikan3||'');
+                const vias = [r.via1,r.via2,r.via3,r.via4,r.via5,r.via6].filter(v=>v).join(' → ');
+                const td = 'border:1px solid #999;padding:2px 4px;font-size:8pt;';
+
+                const isMerged1 = r.haikanMerge && i > 0;
+                const span1 = h1Map[i];
+                const isMerged2 = r.haikan2Merge && i > 0;
+                const span2 = h2Map[i];
+                const isMerged3 = r.haikan3Merge && i > 0;
+                const span3 = h3Map[i];
+
+                const haikan1Cell = isMerged1 ? '' : `<td style="${td}${span1 > 1 ? 'background:#e8eaf6;font-weight:bold;' : ''}" ${span1 > 1 ? 'rowspan="'+span1+'"' : ''}>${haikanStr}</td>`;
+                const haikan2Cell = isMerged2 ? '' : `<td style="${td}${span2 > 1 ? 'background:#e8eaf6;font-weight:bold;' : ''}" ${span2 > 1 ? 'rowspan="'+span2+'"' : ''}>${haikan2Str}</td>`;
+                const haikan3Cell = isMerged3 ? '' : `<td style="${td}${span3 > 1 ? 'background:#f3e5f5;font-weight:bold;' : ''}" ${span3 > 1 ? 'rowspan="'+span3+'"' : ''}>${haikan3Str}</td>`;
+
+                rowsHtml += `<tr style="${bg}">
+                    <td style="${td}text-align:center;">${i+1}</td>
+                    <td style="${td}">${r.koushu||''}</td>
+                    <td style="${td}">${r.kigou||''}</td>
+                    <td style="${td}">${r.fusho||''}</td>
+                    <td style="${td}text-align:center;">${r.floorFrom||r.floor||''}</td>
+                    <td style="${td}">${r.roomFrom||r.from||''}</td>
+                    <td style="${td}">${r.deviceFrom||''}</td>
+                    <td style="${td}color:#666;">${vias}</td>
+                    <td style="${td}text-align:center;">${r.floorTo||''}</td>
+                    <td style="${td}">${r.roomTo||r.to||''}</td>
+                    <td style="${td}">${r.deviceTo||''}</td>
+                    <td style="${td}">${haisenStr}</td>
+                    ${haikan1Cell}
+                    ${haikan2Cell}
+                    ${haikan3Cell}
+                    <td style="${td}text-align:right;">${r.length_m||''}</td>
+                    <td style="${td}text-align:right;">${r.length_haikan||''}</td>
+                    <td style="${td}text-align:right;">${r.length_haikan2||''}</td>
+                    <td style="${td}text-align:right;">${r.length_haikan3||''}</td>
+                    <td style="${td}text-align:center;">${r.ordered ? '✓' : ''}</td>
+                </tr>`;
+            });
+
+            const now = new Date();
+            const dateStr = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate();
+
+            const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>外構・弱電幹線集計表 レポート</title>
+<style>
+@page { size: A4 landscape; margin: 10mm; }
+body { font-family: 'Meiryo','MS Gothic',sans-serif; font-size: 9pt; margin: 0; padding: 10px; }
+h1 { font-size: 14pt; margin: 0 0 4px 0; text-align: center; }
+.meta { font-size: 8pt; color: #555; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.filter-info { font-size: 8pt; background: #e8f5e9; padding: 3px 8px; border-radius: 3px; margin-bottom: 6px; }
+table { width: 100%; border-collapse: collapse; table-layout: auto; }
+th { background: #00695c; color: #fff; border: 1px solid #999; padding: 2px 4px; font-size: 7.5pt; white-space: nowrap; }
+th.sub { background: #00796b; }
+th.via { background: #37474f; }
+th.to { background: #004d40; }
+th.haikan2 { background: #1a237e; }
+th.haikan3 { background: #4a148c; }
+th.koucho { background: #bf360c; }
+td { vertical-align: top; }
+.footer { font-size: 7pt; color: #999; text-align: right; margin-top: 4px; }
+@media print { .no-print { display: none; } }
+</style></head><body>
+<div class="no-print" style="text-align:right;margin-bottom:8px;">
+    <button onclick="window.print()" style="font-size:11pt;padding:6px 20px;background:#00695c;color:#fff;border:none;border-radius:4px;cursor:pointer;">🖨️ 印刷 / PDF保存</button>
+    <button onclick="window.close()" style="font-size:11pt;padding:6px 20px;background:#78909c;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:8px;">閉じる</button>
+</div>
+<h1>外構・弱電幹線集計表</h1>
+<div class="meta">
+    <div>${projName ? 'プロジェクト: ' + projName : ''}${koujiName ? '　工事件名: ' + koujiName : ''}${koujiNo ? '　工事番号: ' + koujiNo : ''}</div>
+    <div>出力日: ${dateStr}　件数: ${filtered.length}件</div>
+</div>
+<div class="filter-info">📋 絞り込み条件: ${condText}</div>
+<table>
+    <thead>
+        <tr>
+            <th rowspan="2">No.</th>
+            <th rowspan="2">工種</th>
+            <th rowspan="2">記号</th>
+            <th rowspan="2">負荷名称</th>
+            <th class="sub" colspan="3">自</th>
+            <th class="via" rowspan="2">経由地</th>
+            <th class="to" colspan="3">至</th>
+            <th rowspan="2">配線</th>
+            <th rowspan="2">配管-1</th>
+            <th class="haikan2" rowspan="2">配管-2</th>
+            <th class="haikan3" rowspan="2">配管-3</th>
+            <th class="koucho" colspan="4">こう長</th>
+            <th rowspan="2">注文済</th>
+        </tr>
+        <tr>
+            <th class="sub">階</th><th class="sub">部屋</th><th class="sub">機器</th>
+            <th class="to">階</th><th class="to">部屋</th><th class="to">機器</th>
+            <th class="koucho">ケーブル</th><th class="koucho">配管-1</th><th class="koucho">配管-2</th><th class="koucho">配管-3</th>
+        </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+</table>
+<div class="footer">エル・エル・イー電気株式会社 — 外構・弱電幹線集計表レポート</div>
+</body></html>`;
+
+            const w = window.open('', '_blank');
+            w.document.write(html);
+            w.document.close();
         }
 
         // 注文書PDF出力 (ブラウザ印刷ベース)
