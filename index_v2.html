@@ -10837,11 +10837,33 @@
             });
             if (checkedIds.length === 0) { alert('行を選択してください'); return; }
             const selected = wcData.rows.filter(r => checkedIds.includes(String(r.id)));
-            let csv = '記号,自_階,自_部屋,自_機器,至_階,至_部屋,至_機器,配線,配管-1\n';
+            let csv = '記号,自,至,配線,配管-1\n';
             selected.forEach(r => {
                 const haisenStr = Array.isArray(r.haisen) ? r.haisen.filter(v=>v).join(' / ') : (r.haisen||'');
                 const haikanStr = Array.isArray(r.haikan) ? r.haikan.filter(v=>v).join(' / ') : (r.haikan||'');
-                csv += [r.kigou||'', r.floorFrom||r.floor||'', r.roomFrom||r.from||'', r.deviceFrom||'', r.floorTo||'', r.roomTo||r.to||'', r.deviceTo||'', haisenStr, haikanStr].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
+                // 自: 階+部屋+スペース+機器（階が「外」の場合はスペース+部屋名）
+                const fromFloor = r.floorFrom||r.floor||'';
+                const fromRoom = r.roomFrom||r.from||'';
+                const fromDevice = r.deviceFrom||'';
+                let fromStr = '';
+                if (fromFloor === '外') {
+                    fromStr = fromFloor + ' ' + fromRoom;
+                } else {
+                    fromStr = fromFloor + fromRoom;
+                }
+                if (fromDevice) fromStr += ' ' + fromDevice;
+                // 至: 同じルール
+                const toFloor = r.floorTo||'';
+                const toRoom = r.roomTo||r.to||'';
+                const toDevice = r.deviceTo||'';
+                let toStr = '';
+                if (toFloor === '外') {
+                    toStr = toFloor + ' ' + toRoom;
+                } else {
+                    toStr = toFloor + toRoom;
+                }
+                if (toDevice) toStr += ' ' + toDevice;
+                csv += [r.kigou||'', fromStr, toStr, haisenStr, haikanStr].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
             });
             const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
             const a = document.createElement('a');
