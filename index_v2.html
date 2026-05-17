@@ -10839,7 +10839,8 @@
             const selected = wcData.rows.filter(r => checkedIds.includes(String(r.id)));
             let csv = '記号,自,至,配線,配管\n';
             selected.forEach(r => {
-                const haisenStr = Array.isArray(r.haisen) ? r.haisen.filter(v=>v).join(' / ') : (r.haisen||'');
+                const haisenArr = Array.isArray(r.haisen) ? r.haisen.filter(v=>v) : (r.haisen ? [r.haisen] : ['']);
+                if (haisenArr.length === 0) haisenArr.push('');
                 const haikanStr = Array.isArray(r.haikan) ? r.haikan.filter(v=>v).join(' / ') : (r.haikan||'');
                 // 自: 階+部屋+スペース+機器（階が「外」の場合はスペース+部屋名）
                 const fromFloor = r.floorFrom||r.floor||'';
@@ -10863,7 +10864,14 @@
                     toStr = toFloor + toRoom;
                 }
                 if (toDevice) toStr += ' ' + toDevice;
-                csv += [r.kigou||'', fromStr, toStr, haisenStr, haikanStr].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
+                // 配線が複数ある場合は行を分けて出力（1行目に全情報、2行目以降は配線のみ）
+                haisenArr.forEach((h, idx) => {
+                    if (idx === 0) {
+                        csv += [r.kigou||'', fromStr, toStr, h, haikanStr].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
+                    } else {
+                        csv += ['', '', '', h, ''].map(v => '"'+(v||'').replace(/"/g,'""')+'"').join(',') + '\n';
+                    }
+                });
             });
             const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
             const a = document.createElement('a');
