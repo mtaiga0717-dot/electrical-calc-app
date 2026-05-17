@@ -10837,7 +10837,7 @@
             });
             if (checkedIds.length === 0) { alert('行を選択してください'); return; }
             const selected = wcData.rows.filter(r => checkedIds.includes(String(r.id)));
-            let csv = '記号,自,至,配線,配管-1\n';
+            let csv = '記号,自,至,配線,配管\n';
             selected.forEach(r => {
                 const haisenStr = Array.isArray(r.haisen) ? r.haisen.filter(v=>v).join(' / ') : (r.haisen||'');
                 const haikanStr = Array.isArray(r.haikan) ? r.haikan.filter(v=>v).join(' / ') : (r.haikan||'');
