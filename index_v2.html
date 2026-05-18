@@ -12051,18 +12051,75 @@ td { vertical-align: middle; }
             feeders.forEach((feeder, idx) => {
                 const fd = localFeederData[feeder.id] || {};
                 const feederNo = fd.feeder_no || '';
-                const voltage = feeder.voltage || 100;
-                const phase = feeder.phase_type || '1φ2W';
-                const current = Number(fd.current) || 0;
-                const cableType = feeder.cable_type || 'CV';
-                const cableSize = Number(feeder.cable_size) || 0;
-                const length = Number(feeder.cable_length) || 0;
-                const breakerAF = Number(feeder.breaker_af) || 0;
-                const breakerAT = Number(feeder.breaker_at) || 0;
-                const vd = Number(fd.voltage_drop) || 0;
-                const vdPct = voltage > 0 ? (vd / voltage * 100) : 0;
                 const cat = fd.feeder_category || feeder.feeder_category || '電灯';
 
+                // ---- 盤自動連携（createFeederRowと同じロジック） ----
+                let autoLoadCapacity = null, autoVoltage = null, autoPhase = null;
+                let autoMotorTotalKw = null, autoMotorMaxKw = null;
+                const matchedPanel = allPanels.find(p => p.name === feeder.load_name);
+                if (matchedPanel) {
+                    const panelCircuits = allCircuits.filter(c => c.panel_name === matchedPanel.name);
+                    const summaries = calculatePanelSummaries(matchedPanel.name, panelCircuits);
+                    autoLoadCapacity = summaries.total;
+                    const pElecType = matchedPanel.elec_type || matchedPanel.type;
+                    if (pElecType === '1φ3W') { autoVoltage = 200; autoPhase = '1φ3W'; }
+                    else if (pElecType === '1φ2W') { autoVoltage = 100; autoPhase = '1φ2W'; }
+                    else if (pElecType === '3φ3W') { autoVoltage = 200; autoPhase = '3φ3W'; }
+                    const motorCircuits = panelCircuits.filter(c => (c.category || '電灯') === '動力');
+                    if (motorCircuits.length > 0) {
+                        autoMotorTotalKw = motorCircuits.reduce((sum, c) => sum + (c.lighting||0) + (c.outlet||0) + (c.fc||0) + (c.oa||0) + (c.feeder||0), 0);
+                        autoMotorMaxKw = Math.max(...motorCircuits.map(c => (c.lighting||0) + (c.outlet||0) + (c.fc||0) + (c.oa||0) + (c.feeder||0)));
+                    }
+                }
+
+                // ---- 負荷・需要・電流計算 ----
+                const autoCapacity = (typeof getLoadCapacity === 'function') ? getLoadCapacity(feeder) : (autoLoadCapacity || 0);
+                const manualCapacity = Number(fd.load_capacity) || 0;
+                const capacity = autoCapacity > 0 ? autoCapacity : manualCapacity;
+                const demandFactor = feeder.demand_factor || (typeof getDemandFactor === 'function' ? getDemandFactor(capacity) : 100);
+                const demandCapacity = (capacity * demandFactor) / 100;
+                const voltage = autoVoltage || feeder.voltage || 100;
+                const phase = autoPhase || feeder.phase_type || '1φ2W';
+                const powerFactor = fd.power_factor || (cat === '動力' ? 0.8 : 1.0);
+
+                let current = 0;
+                if (phase === '3φ3W') { current = demandCapacity * 1000 / (Math.sqrt(3) * voltage); }
+                else if (phase === '1φ3W') { current = demandCapacity * 1000 / 200; }
+                else { current = demandCapacity * 1000 / voltage; }
+
+                // ---- ケーブル選定 ----
+                const cableType = feeder.cable_type || 'CV';
+                const ambientTemp = Number(fd.ambient_temp) || 30;
+                const groupingCount = Number(fd.grouping_count) || 1;
+                const installMethod = fd.install_method || 'rack_single';
+                const cableSizeCalc = (typeof selectCableSizeCorrected === 'function') ? selectCableSizeCorrected(current, cableType, ambientTemp, groupingCount, installMethod) : 0;
+                const cableSizeManual = Number(feeder.cable_size) || 0;
+                const cableAdopt = fd.cable_adopt || 'calc';
+                const cableSize = (cableAdopt === 'manual' && cableSizeManual > 0) ? cableSizeManual : cableSizeCalc;
+                const length = feeder.cable_length || 0;
+
+                // ---- 電圧降下計算 ----
+                const vd = (typeof calculateVoltageDrop === 'function') ? calculateVoltageDrop(current, length, cableSize, phase, powerFactor) : 0;
+                const vdPct = voltage > 0 ? (vd / voltage * 100) : 0;
+
+                // ---- ブレーカー選定 ----
+                const breakerCalc = (typeof selectBreaker === 'function') ? selectBreaker(current, feeder.breaker_type) : { af: 0, at: 0 };
+                const afManual = Number(feeder.breaker_af) || 0;
+                const atManual = Number(feeder.breaker_at) || 0;
+                const breakerAdopt = fd.breaker_adopt || 'calc';
+                const breakerAF = (breakerAdopt === 'manual' && afManual > 0) ? afManual : breakerCalc.af;
+                const breakerAT = (breakerAdopt === 'manual' && atManual > 0) ? atManual : breakerCalc.at;
+
+                // ---- 電動機 ----
+                const motorTotalKw = autoMotorTotalKw || fd.motor_total_kw || '';
+                const motorMaxKw = autoMotorMaxKw || fd.motor_max_kw || '';
+                let kiteiAT = '';
+                if (motorTotalKw && motorMaxKw && phase === '3φ3W' && typeof lookupMotorFeederBreaker200V === 'function') {
+                    const result = lookupMotorFeederBreaker200V(motorTotalKw, motorMaxKw);
+                    if (result) kiteiAT = result.breakerAT;
+                }
+
+                // ---- 起点 ----
                 let sourceLabel = 'キュービクル';
                 if (fd.source_type === 'branch' && fd.source_circuit_id) {
                     const parent = allCircuits.find(c => c.id === fd.source_circuit_id);
@@ -12072,8 +12129,8 @@ td { vertical-align: middle; }
                 }
 
                 // VD判定
-                const vdLimit = voltage >= 200 ? 4.0 : 2.0;
-                const vdOk = vdPct <= vdLimit ? 'OK' : '×';
+                const vdRule = (typeof getAllowedVdPercent === 'function') ? getAllowedVdPercent(feeder, length) : { allowed: (voltage >= 200 ? 4.0 : 2.0) };
+                const vdOk = vdPct <= vdRule.allowed ? 'OK' : '×';
                 // AT判定
                 const atOk = (breakerAT > 0 && breakerAT >= current) ? 'OK' : (breakerAT > 0 ? '×' : '-');
 
@@ -12089,9 +12146,9 @@ td { vertical-align: middle; }
                     <td style="${tdC}">${cat === '動力' ? '動力' : '電灯'}</td>
                     <td style="${td}">${e(sourceLabel)}</td>
                     <td style="${td}font-weight:bold;">${e(feeder.load_name||'')}</td>
-                    <td style="${tdR}">${f(Number(fd.load_capacity)||0)}</td>
-                    <td style="${tdC}">${feeder.demand_factor||100}</td>
-                    <td style="${tdR}">${f(Number(fd.demand_capacity)||0)}</td>
+                    <td style="${tdR}">${f(capacity)}</td>
+                    <td style="${tdC}">${demandFactor}</td>
+                    <td style="${tdR}">${f(demandCapacity)}</td>
                     <td style="${tdC}">${e(phase)}</td>
                     <td style="${tdC}">${voltage}</td>
                     <td style="${tdR}">${current.toFixed(1)}</td>
@@ -12104,9 +12161,9 @@ td { vertical-align: middle; }
                     <td style="${tdR}">${breakerAF}</td>
                     <td style="${tdR}">${breakerAT}</td>
                     <td style="${tdC}${atOk==='OK'?okStyle:(atOk==='×'?ngStyle:'')}">${atOk}</td>
-                    <td style="${tdR}">${fd.motor_total_kw||''}</td>
-                    <td style="${tdR}">${fd.motor_max_kw||''}</td>
-                    <td style="${tdR}">${fd.naisen_at||''}</td>
+                    <td style="${tdR}">${motorTotalKw}</td>
+                    <td style="${tdR}">${motorMaxKw}</td>
+                    <td style="${tdR}">${kiteiAT}</td>
                     <td style="${td}">${e(feeder.destination||'')}</td>
                 </tr>`;
             });
