@@ -10849,8 +10849,10 @@
                 let fromStr = '';
                 if (fromFloor === '外') {
                     fromStr = fromFloor + ' ' + fromRoom;
+                } else if (fromFloor) {
+                    fromStr = fromFloor + '階' + fromRoom;
                 } else {
-                    fromStr = fromFloor + fromRoom;
+                    fromStr = fromRoom;
                 }
                 if (fromDevice) fromStr += ' ' + fromDevice;
                 // 至: 同じルール
@@ -10860,8 +10862,10 @@
                 let toStr = '';
                 if (toFloor === '外') {
                     toStr = toFloor + ' ' + toRoom;
+                } else if (toFloor) {
+                    toStr = toFloor + '階' + toRoom;
                 } else {
-                    toStr = toFloor + toRoom;
+                    toStr = toRoom;
                 }
                 if (toDevice) toStr += ' ' + toDevice;
                 // 配線が複数ある場合は行を分けて出力（1行目に全情報、2行目以降は配線のみ）
