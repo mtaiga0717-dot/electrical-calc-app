@@ -12143,10 +12143,20 @@ td { vertical-align: middle; }
                 const modeELB = fd.ground_elb_mode || elbDefault;
                 const selGroundD = Number(fd.ground_wire_size) || gndCalc.size || 0;
                 const selGroundELB = Number(fd.elb_ground_wire_size) || gndCalc.size || 0;
-                const groundDSize = (modeD === 'on' && (gndType === 'D' || gndType === 'C')) ? selGroundD : 0;
-                const groundELBSize = (modeELB === 'on' && (gndType === 'D' || gndType === 'C')) ? selGroundELB : 0;
-                const groundDLabel = (modeD === 'on' && (gndType === 'D' || gndType === 'C')) ? gndType + '種' : '-';
-                const groundELBLabel = (modeELB === 'on' && (gndType === 'D' || gndType === 'C')) ? gndType + '種(ELB)' : '-';
+                const isGndActive = (gndType === 'D' || gndType === 'C');
+                const groundDSize = (modeD === 'on' && isGndActive) ? selGroundD : 0;
+                const groundELBSize = (modeELB === 'on' && isGndActive) ? selGroundELB : 0;
+                const groundDLabel = (modeD === 'on' && isGndActive) ? gndType + '種' : '-';
+                const groundELBLabel = (modeELB === 'on' && isGndActive) ? gndType + '種(ELB)' : '-';
+                // 判定: judgeGroundWire で選定サイズ >= 必要最小か判定
+                const groundDJudge = (modeD === 'on' && isGndActive && typeof judgeGroundWire === 'function')
+                    ? judgeGroundWire(selGroundD, breakerAT) : null;
+                const groundELBJudge = (modeELB === 'on' && isGndActive && typeof judgeGroundWire === 'function')
+                    ? judgeGroundWire(selGroundELB, breakerAT) : null;
+                const groundDStatus = groundDJudge ? groundDJudge.status : '-';
+                const groundELBStatus = groundELBJudge ? groundELBJudge.status : '-';
+                const groundDRequired = groundDJudge ? groundDJudge.required : 0;
+                const groundELBRequired = groundELBJudge ? groundELBJudge.required : 0;
 
                 return {
                     feederNo, cat, sourceLabel, loadName: feeder.load_name || '',
@@ -12155,7 +12165,9 @@ td { vertical-align: middle; }
                     breakerType: feeder.breaker_type || '', breakerAF, breakerAT, atOk,
                     motorTotalKw, motorMaxKw, kiteiAT,
                     destination: feeder.destination || '',
-                    groundDSize, groundELBSize, groundDLabel, groundELBLabel, gndCalc
+                    groundDSize, groundELBSize, groundDLabel, groundELBLabel,
+                    groundDStatus, groundELBStatus, groundDRequired, groundELBRequired,
+                    gndCalc
                 };
             }
 
@@ -12191,8 +12203,14 @@ td { vertical-align: middle; }
                     <td style="${tdR}">${d.motorMaxKw}</td>
                     <td style="${tdR}">${d.kiteiAT}</td>
                     <td style="${td}">${esc(d.destination)}</td>
-                    <td style="${tdC}">${d.groundDLabel !== '-' ? d.groundDSize + ' mm²' : '-'}</td>
-                    <td style="${tdC}">${d.groundELBLabel !== '-' ? d.groundELBSize + ' mm²' : '-'}</td>
+                    <td style="${tdC}">${d.groundDLabel}</td>
+                    <td style="${tdR}">${d.groundDSize > 0 ? d.groundDSize : '-'}</td>
+                    <td style="${tdR}">${d.groundDRequired > 0 ? d.groundDRequired : '-'}</td>
+                    <td style="${tdC}${d.groundDStatus==='OK'?okStyle:(d.groundDStatus==='×'?ngStyle:'')}">${d.groundDStatus}</td>
+                    <td style="${tdC}">${d.groundELBLabel}</td>
+                    <td style="${tdR}">${d.groundELBSize > 0 ? d.groundELBSize : '-'}</td>
+                    <td style="${tdR}">${d.groundELBRequired > 0 ? d.groundELBRequired : '-'}</td>
+                    <td style="${tdC}${d.groundELBStatus==='OK'?okStyle:(d.groundELBStatus==='×'?ngStyle:'')}">${d.groundELBStatus}</td>
                 </tr>`;
             }
 
@@ -12208,7 +12226,7 @@ td { vertical-align: middle; }
             // 接地母線サイズ
             const busSize = allGroundSizes.length > 0 ? Math.max(...allGroundSizes) : 0;
             const busSizeHtml = busSize > 0
-                ? `<tr style="background:#e8f5e9;font-weight:bold;"><td colspan="25" style="padding:4px 8px;color:#1b5e20;font-size:8pt;">⏚ 接地母線（1350-14）: ${busSize} mm²（各幹線接地線の最大値）</td></tr>`
+                ? `<tr style="background:#e8f5e9;font-weight:bold;"><td colspan="31" style="padding:4px 8px;color:#1b5e20;font-size:8pt;">⏚ 接地母線（1350-14）: ${busSize} mm²（各幹線接地線の最大値）</td></tr>`
                 : '';
 
             // ---- 需要率100%版を生成 ----
@@ -12222,7 +12240,7 @@ td { vertical-align: middle; }
             });
             const busSize100 = allGroundSizes100.length > 0 ? Math.max(...allGroundSizes100) : 0;
             const busSizeHtml100 = busSize100 > 0
-                ? `<tr style="background:#e8f5e9;font-weight:bold;"><td colspan="25" style="padding:4px 8px;color:#1b5e20;font-size:8pt;">⏚ 接地母線（1350-14）: ${busSize100} mm²（各幹線接地線の最大値）</td></tr>`
+                ? `<tr style="background:#e8f5e9;font-weight:bold;"><td colspan="31" style="padding:4px 8px;color:#1b5e20;font-size:8pt;">⏚ 接地母線（1350-14）: ${busSize100} mm²（各幹線接地線の最大値）</td></tr>`
                 : '';
 
             // ---- テーブルヘッダ ----
@@ -12242,7 +12260,8 @@ td { vertical-align: middle; }
                     <th class="breaker" colspan="4">遮断器</th>
                     <th class="motor" colspan="3">電動機</th>
                     <th rowspan="2">至（行先）</th>
-                    <th class="gnd" colspan="2">接地線</th>
+                    <th class="gnd" colspan="4">D種接地線</th>
+                    <th class="gnd2" colspan="4">ELB D種接地線</th>
                 </tr>
                 <tr>
                     <th class="load">容量<br>[kVA]</th><th class="load">需要率<br>[%]</th><th class="load">需要後<br>[kVA]</th>
@@ -12250,7 +12269,8 @@ td { vertical-align: middle; }
                     <th class="vd">VD[V]</th><th class="vd">VD率[%]</th><th class="vd">判定</th>
                     <th class="breaker">種別</th><th class="breaker">AF</th><th class="breaker">AT</th><th class="breaker">判定</th>
                     <th class="motor">合計kW</th><th class="motor">最大kW</th><th class="motor">内線AT</th>
-                    <th class="gnd">D種<br>[mm²]</th><th class="gnd">ELB D種<br>[mm²]</th>
+                    <th class="gnd">種別</th><th class="gnd">選定<br>[mm²]</th><th class="gnd">必要<br>[mm²]</th><th class="gnd">判定</th>
+                    <th class="gnd2">種別</th><th class="gnd2">選定<br>[mm²]</th><th class="gnd2">必要<br>[mm²]</th><th class="gnd2">判定</th>
                 </tr>
             </thead>`;
 
@@ -12271,6 +12291,7 @@ th.vd { background: #b71c1c; }
 th.breaker { background: #4a148c; }
 th.motor { background: #263238; }
 th.gnd { background: #2e7d32; }
+th.gnd2 { background: #558b2f; }
 td { vertical-align: middle; }
 .footer { font-size: 7pt; color: #999; text-align: right; margin-top: 6px; border-top: 1px solid #ccc; padding-top: 3px; }
 .note { margin-top: 6px; font-size: 7.5pt; color: #555; }
