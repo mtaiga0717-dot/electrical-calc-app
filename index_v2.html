@@ -12044,16 +12044,16 @@ td { vertical-align: middle; }
             const dateStr = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate();
             const filterLabel = filterVal ? filterVal + '幹線' : '全幹線（電灯＋動力）';
 
-            function e(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-            function f(v, n) { return (Number(v) || 0).toFixed(n === undefined ? 2 : n); }
+            function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+            function fmt(v, n) { return (Number(v) || 0).toFixed(n === undefined ? 2 : n); }
 
-            let rowsHtml = '';
-            feeders.forEach((feeder, idx) => {
+            // ---- 共通: 1幹線分のデータを計算する関数（forceDemand100: trueなら需要率100%で再計算） ----
+            function calcFeederData(feeder, forceDemand100) {
                 const fd = localFeederData[feeder.id] || {};
                 const feederNo = fd.feeder_no || '';
                 const cat = fd.feeder_category || feeder.feeder_category || '電灯';
 
-                // ---- 盤自動連携（createFeederRowと同じロジック） ----
+                // 盤自動連携
                 let autoLoadCapacity = null, autoVoltage = null, autoPhase = null;
                 let autoMotorTotalKw = null, autoMotorMaxKw = null;
                 const matchedPanel = allPanels.find(p => p.name === feeder.load_name);
@@ -12072,11 +12072,11 @@ td { vertical-align: middle; }
                     }
                 }
 
-                // ---- 負荷・需要・電流計算 ----
+                // 負荷・需要・電流
                 const autoCapacity = (typeof getLoadCapacity === 'function') ? getLoadCapacity(feeder) : (autoLoadCapacity || 0);
                 const manualCapacity = Number(fd.load_capacity) || 0;
                 const capacity = autoCapacity > 0 ? autoCapacity : manualCapacity;
-                const demandFactor = feeder.demand_factor || (typeof getDemandFactor === 'function' ? getDemandFactor(capacity) : 100);
+                const demandFactor = forceDemand100 ? 100 : (feeder.demand_factor || (typeof getDemandFactor === 'function' ? getDemandFactor(capacity) : 100));
                 const demandCapacity = (capacity * demandFactor) / 100;
                 const voltage = autoVoltage || feeder.voltage || 100;
                 const phase = autoPhase || feeder.phase_type || '1φ2W';
@@ -12087,7 +12087,7 @@ td { vertical-align: middle; }
                 else if (phase === '1φ3W') { current = demandCapacity * 1000 / 200; }
                 else { current = demandCapacity * 1000 / voltage; }
 
-                // ---- ケーブル選定 ----
+                // ケーブル選定
                 const cableType = feeder.cable_type || 'CV';
                 const ambientTemp = Number(fd.ambient_temp) || 30;
                 const groupingCount = Number(fd.grouping_count) || 1;
@@ -12098,11 +12098,11 @@ td { vertical-align: middle; }
                 const cableSize = (cableAdopt === 'manual' && cableSizeManual > 0) ? cableSizeManual : cableSizeCalc;
                 const length = feeder.cable_length || 0;
 
-                // ---- 電圧降下計算 ----
+                // 電圧降下
                 const vd = (typeof calculateVoltageDrop === 'function') ? calculateVoltageDrop(current, length, cableSize, phase, powerFactor) : 0;
                 const vdPct = voltage > 0 ? (vd / voltage * 100) : 0;
 
-                // ---- ブレーカー選定 ----
+                // ブレーカー
                 const breakerCalc = (typeof selectBreaker === 'function') ? selectBreaker(current, feeder.breaker_type) : { af: 0, at: 0 };
                 const afManual = Number(feeder.breaker_af) || 0;
                 const atManual = Number(feeder.breaker_at) || 0;
@@ -12110,7 +12110,7 @@ td { vertical-align: middle; }
                 const breakerAF = (breakerAdopt === 'manual' && afManual > 0) ? afManual : breakerCalc.af;
                 const breakerAT = (breakerAdopt === 'manual' && atManual > 0) ? atManual : breakerCalc.at;
 
-                // ---- 電動機 ----
+                // 電動機
                 const motorTotalKw = autoMotorTotalKw || fd.motor_total_kw || '';
                 const motorMaxKw = autoMotorMaxKw || fd.motor_max_kw || '';
                 let kiteiAT = '';
@@ -12119,7 +12119,7 @@ td { vertical-align: middle; }
                     if (result) kiteiAT = result.breakerAT;
                 }
 
-                // ---- 起点 ----
+                // 起点
                 let sourceLabel = 'キュービクル';
                 if (fd.source_type === 'branch' && fd.source_circuit_id) {
                     const parent = allCircuits.find(c => c.id === fd.source_circuit_id);
@@ -12134,45 +12134,132 @@ td { vertical-align: middle; }
                 // AT判定
                 const atOk = (breakerAT > 0 && breakerAT >= current) ? 'OK' : (breakerAT > 0 ? '×' : '-');
 
+                // 接地線（内線規程 1350節）
+                const gndType = (typeof judgeGroundType === 'function') ? judgeGroundType(voltage) : '-';
+                const gndCalc = (typeof calcGroundWireSize === 'function') ? calcGroundWireSize(breakerAT) : { size: 0 };
+                const brType = feeder.breaker_type || '';
+                const elbDefault = /ELB|ELCB|漏電/i.test(brType) ? 'on' : (fd.ground_elb_mode ? fd.ground_elb_mode : 'off');
+                const modeD = fd.ground_d_mode || 'on';
+                const modeELB = fd.ground_elb_mode || elbDefault;
+                const selGroundD = Number(fd.ground_wire_size) || gndCalc.size || 0;
+                const selGroundELB = Number(fd.elb_ground_wire_size) || gndCalc.size || 0;
+                const groundDSize = (modeD === 'on' && (gndType === 'D' || gndType === 'C')) ? selGroundD : 0;
+                const groundELBSize = (modeELB === 'on' && (gndType === 'D' || gndType === 'C')) ? selGroundELB : 0;
+                const groundDLabel = (modeD === 'on' && (gndType === 'D' || gndType === 'C')) ? gndType + '種' : '-';
+                const groundELBLabel = (modeELB === 'on' && (gndType === 'D' || gndType === 'C')) ? gndType + '種(ELB)' : '-';
+
+                return {
+                    feederNo, cat, sourceLabel, loadName: feeder.load_name || '',
+                    capacity, demandFactor, demandCapacity, phase, voltage, current,
+                    cableType, cableSize, length, vd, vdPct, vdOk,
+                    breakerType: feeder.breaker_type || '', breakerAF, breakerAT, atOk,
+                    motorTotalKw, motorMaxKw, kiteiAT,
+                    destination: feeder.destination || '',
+                    groundDSize, groundELBSize, groundDLabel, groundELBLabel, gndCalc
+                };
+            }
+
+            // ---- 行HTMLを生成 ----
+            function buildRowHtml(d, idx) {
                 const bg = idx % 2 === 1 ? 'background:#f5f5f5;' : '';
                 const td = 'border:1px solid #999;padding:2px 4px;font-size:8pt;';
                 const tdR = td + 'text-align:right;';
                 const tdC = td + 'text-align:center;';
                 const okStyle = 'color:#1b5e20;font-weight:bold;';
                 const ngStyle = 'color:#c62828;font-weight:bold;';
-
-                rowsHtml += `<tr style="${bg}">
-                    <td style="${tdC}">${e(feederNo)}</td>
-                    <td style="${tdC}">${cat === '動力' ? '動力' : '電灯'}</td>
-                    <td style="${td}">${e(sourceLabel)}</td>
-                    <td style="${td}font-weight:bold;">${e(feeder.load_name||'')}</td>
-                    <td style="${tdR}">${f(capacity)}</td>
-                    <td style="${tdC}">${demandFactor}</td>
-                    <td style="${tdR}">${f(demandCapacity)}</td>
-                    <td style="${tdC}">${e(phase)}</td>
-                    <td style="${tdC}">${voltage}</td>
-                    <td style="${tdR}">${current.toFixed(1)}</td>
-                    <td style="${tdC}">${e(cableType)} ${cableSize}</td>
-                    <td style="${tdR}">${length}</td>
-                    <td style="${tdR}">${vd.toFixed(2)}</td>
-                    <td style="${tdR}">${vdPct.toFixed(2)}</td>
-                    <td style="${tdC}${vdOk==='OK'?okStyle:ngStyle}">${vdOk}</td>
-                    <td style="${tdC}">${e(feeder.breaker_type||'')}</td>
-                    <td style="${tdR}">${breakerAF}</td>
-                    <td style="${tdR}">${breakerAT}</td>
-                    <td style="${tdC}${atOk==='OK'?okStyle:(atOk==='×'?ngStyle:'')}">${atOk}</td>
-                    <td style="${tdR}">${motorTotalKw}</td>
-                    <td style="${tdR}">${motorMaxKw}</td>
-                    <td style="${tdR}">${kiteiAT}</td>
-                    <td style="${td}">${e(feeder.destination||'')}</td>
+                return `<tr style="${bg}">
+                    <td style="${tdC}">${esc(d.feederNo)}</td>
+                    <td style="${tdC}">${d.cat === '動力' ? '動力' : '電灯'}</td>
+                    <td style="${td}">${esc(d.sourceLabel)}</td>
+                    <td style="${td}font-weight:bold;">${esc(d.loadName)}</td>
+                    <td style="${tdR}">${fmt(d.capacity)}</td>
+                    <td style="${tdC}">${d.demandFactor}</td>
+                    <td style="${tdR}">${fmt(d.demandCapacity)}</td>
+                    <td style="${tdC}">${esc(d.phase)}</td>
+                    <td style="${tdC}">${d.voltage}</td>
+                    <td style="${tdR}">${d.current.toFixed(1)}</td>
+                    <td style="${tdC}">${esc(d.cableType)} ${d.cableSize}</td>
+                    <td style="${tdR}">${d.length}</td>
+                    <td style="${tdR}">${d.vd.toFixed(2)}</td>
+                    <td style="${tdR}">${d.vdPct.toFixed(2)}</td>
+                    <td style="${tdC}${d.vdOk==='OK'?okStyle:ngStyle}">${d.vdOk}</td>
+                    <td style="${tdC}">${esc(d.breakerType)}</td>
+                    <td style="${tdR}">${d.breakerAF}</td>
+                    <td style="${tdR}">${d.breakerAT}</td>
+                    <td style="${tdC}${d.atOk==='OK'?okStyle:(d.atOk==='×'?ngStyle:'')}">${d.atOk}</td>
+                    <td style="${tdR}">${d.motorTotalKw}</td>
+                    <td style="${tdR}">${d.motorMaxKw}</td>
+                    <td style="${tdR}">${d.kiteiAT}</td>
+                    <td style="${td}">${esc(d.destination)}</td>
+                    <td style="${tdC}">${d.groundDLabel !== '-' ? d.groundDSize + ' mm²' : '-'}</td>
+                    <td style="${tdC}">${d.groundELBLabel !== '-' ? d.groundELBSize + ' mm²' : '-'}</td>
                 </tr>`;
+            }
+
+            // ---- 通常版（実需要率）を生成 ----
+            let rowsHtml = '';
+            const allGroundSizes = [];
+            feeders.forEach((feeder, idx) => {
+                const d = calcFeederData(feeder, false);
+                rowsHtml += buildRowHtml(d, idx);
+                if (d.groundDSize > 0) allGroundSizes.push(d.groundDSize);
+                if (d.groundELBSize > 0) allGroundSizes.push(d.groundELBSize);
             });
+            // 接地母線サイズ
+            const busSize = allGroundSizes.length > 0 ? Math.max(...allGroundSizes) : 0;
+            const busSizeHtml = busSize > 0
+                ? `<tr style="background:#e8f5e9;font-weight:bold;"><td colspan="25" style="padding:4px 8px;color:#1b5e20;font-size:8pt;">⏚ 接地母線（1350-14）: ${busSize} mm²（各幹線接地線の最大値）</td></tr>`
+                : '';
+
+            // ---- 需要率100%版を生成 ----
+            let rows100Html = '';
+            const allGroundSizes100 = [];
+            feeders.forEach((feeder, idx) => {
+                const d = calcFeederData(feeder, true);
+                rows100Html += buildRowHtml(d, idx);
+                if (d.groundDSize > 0) allGroundSizes100.push(d.groundDSize);
+                if (d.groundELBSize > 0) allGroundSizes100.push(d.groundELBSize);
+            });
+            const busSize100 = allGroundSizes100.length > 0 ? Math.max(...allGroundSizes100) : 0;
+            const busSizeHtml100 = busSize100 > 0
+                ? `<tr style="background:#e8f5e9;font-weight:bold;"><td colspan="25" style="padding:4px 8px;color:#1b5e20;font-size:8pt;">⏚ 接地母線（1350-14）: ${busSize100} mm²（各幹線接地線の最大値）</td></tr>`
+                : '';
+
+            // ---- テーブルヘッダ ----
+            const theadHtml = `
+            <thead>
+                <tr>
+                    <th rowspan="2">No</th>
+                    <th rowspan="2">区分</th>
+                    <th class="src" rowspan="2">自（起点）</th>
+                    <th class="load" rowspan="2">負荷名称</th>
+                    <th class="load" colspan="3">負荷</th>
+                    <th rowspan="2">相</th>
+                    <th rowspan="2">電圧</th>
+                    <th rowspan="2">電流<br>[A]</th>
+                    <th class="cable" colspan="2">ケーブル</th>
+                    <th class="vd" colspan="3">電圧降下</th>
+                    <th class="breaker" colspan="4">遮断器</th>
+                    <th class="motor" colspan="3">電動機</th>
+                    <th rowspan="2">至（行先）</th>
+                    <th class="gnd" colspan="2">接地線</th>
+                </tr>
+                <tr>
+                    <th class="load">容量<br>[kVA]</th><th class="load">需要率<br>[%]</th><th class="load">需要後<br>[kVA]</th>
+                    <th class="cable">種別/サイズ</th><th class="cable">こう長<br>[m]</th>
+                    <th class="vd">VD[V]</th><th class="vd">VD率[%]</th><th class="vd">判定</th>
+                    <th class="breaker">種別</th><th class="breaker">AF</th><th class="breaker">AT</th><th class="breaker">判定</th>
+                    <th class="motor">合計kW</th><th class="motor">最大kW</th><th class="motor">内線AT</th>
+                    <th class="gnd">D種<br>[mm²]</th><th class="gnd">ELB D種<br>[mm²]</th>
+                </tr>
+            </thead>`;
 
             const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>幹線計算書 レポート</title>
 <style>
 @page { size: A3 landscape; margin: 10mm; }
 body { font-family: 'Meiryo','MS Gothic',sans-serif; font-size: 9pt; margin: 0; padding: 10px; }
 h1 { font-size: 14pt; margin: 0 0 4px 0; text-align: center; }
+.sub-title { font-size: 11pt; margin: 0 0 4px 0; text-align: center; color: #c62828; }
 .meta { font-size: 8pt; color: #555; margin-bottom: 6px; display: flex; justify-content: space-between; }
 .filter-info { font-size: 8pt; background: #e3f2fd; padding: 3px 8px; border-radius: 3px; margin-bottom: 6px; }
 table { width: 100%; border-collapse: collapse; table-layout: auto; }
@@ -12183,15 +12270,19 @@ th.cable { background: #e65100; }
 th.vd { background: #b71c1c; }
 th.breaker { background: #4a148c; }
 th.motor { background: #263238; }
+th.gnd { background: #2e7d32; }
 td { vertical-align: middle; }
 .footer { font-size: 7pt; color: #999; text-align: right; margin-top: 6px; border-top: 1px solid #ccc; padding-top: 3px; }
 .note { margin-top: 6px; font-size: 7.5pt; color: #555; }
+.page-break { page-break-before: always; margin-top: 20px; }
 @media print { .no-print { display: none; } }
 </style></head><body>
 <div class="no-print" style="text-align:right;margin-bottom:8px;">
     <button onclick="window.print()" style="font-size:11pt;padding:6px 20px;background:#0d47a1;color:#fff;border:none;border-radius:4px;cursor:pointer;">🖨️ 印刷 / PDF保存</button>
     <button onclick="window.close()" style="font-size:11pt;padding:6px 20px;background:#78909c;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:8px;">閉じる</button>
 </div>
+
+<!-- ===== ページ1: 通常（実需要率） ===== -->
 <h1>幹 線 計 算 書</h1>
 <div class="meta">
     <div>${projName ? 'プロジェクト: ' + projName : ''}　幹線数: ${feeders.length}</div>
@@ -12199,34 +12290,27 @@ td { vertical-align: middle; }
 </div>
 <div class="filter-info">📋 表示区分: ${filterLabel}</div>
 <table>
-    <thead>
-        <tr>
-            <th rowspan="2">No</th>
-            <th rowspan="2">区分</th>
-            <th class="src" rowspan="2">自（起点）</th>
-            <th class="load" rowspan="2">負荷名称</th>
-            <th class="load" colspan="3">負荷</th>
-            <th rowspan="2">相</th>
-            <th rowspan="2">電圧</th>
-            <th rowspan="2">電流<br>[A]</th>
-            <th class="cable" colspan="2">ケーブル</th>
-            <th class="vd" colspan="3">電圧降下</th>
-            <th class="breaker" colspan="4">遮断器</th>
-            <th class="motor" colspan="3">電動機</th>
-            <th rowspan="2">至（行先）</th>
-        </tr>
-        <tr>
-            <th class="load">容量<br>[kVA]</th><th class="load">需要率<br>[%]</th><th class="load">需要後<br>[kVA]</th>
-            <th class="cable">種別/サイズ</th><th class="cable">こう長<br>[m]</th>
-            <th class="vd">VD[V]</th><th class="vd">VD率[%]</th><th class="vd">判定</th>
-            <th class="breaker">種別</th><th class="breaker">AF</th><th class="breaker">AT</th><th class="breaker">判定</th>
-            <th class="motor">合計kW</th><th class="motor">最大kW</th><th class="motor">内線AT</th>
-        </tr>
-    </thead>
-    <tbody>${rowsHtml}</tbody>
+    ${theadHtml}
+    <tbody>${rowsHtml}${busSizeHtml}</tbody>
 </table>
 <div class="note">根拠: 内線規程 JEAC8001 — 1305節(不平衡率)・1310節(電圧降下)・1340節(許容電流)・1350節(接地)・1360-10条(幹線分岐OCPD省略)・3705-8条 第3項(幹線OCPD上限)</div>
 <div class="footer">エル・エル・イー電気株式会社 — 幹線計算書レポート　内線規程 JEAC8001 準拠</div>
+
+<!-- ===== ページ2: 需要率100% ===== -->
+<div class="page-break"></div>
+<h1>幹 線 計 算 書（需要率 100%）</h1>
+<div class="sub-title">※ 全幹線を需要率100%で再計算した結果</div>
+<div class="meta">
+    <div>${projName ? 'プロジェクト: ' + projName : ''}　幹線数: ${feeders.length}</div>
+    <div>出力日: ${dateStr}</div>
+</div>
+<div class="filter-info">📋 表示区分: ${filterLabel}　｜　⚠️ 需要率を一律100%として算定</div>
+<table>
+    ${theadHtml}
+    <tbody>${rows100Html}${busSizeHtml100}</tbody>
+</table>
+<div class="note">根拠: 内線規程 JEAC8001 — 1305節(不平衡率)・1310節(電圧降下)・1340節(許容電流)・1350節(接地)・1360-10条(幹線分岐OCPD省略)・3705-8条 第3項(幹線OCPD上限)</div>
+<div class="footer">エル・エル・イー電気株式会社 — 幹線計算書レポート（需要率100%）　内線規程 JEAC8001 準拠</div>
 </body></html>`;
 
             const w = window.open('', '_blank');
