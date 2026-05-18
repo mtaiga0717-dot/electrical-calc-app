@@ -1424,165 +1424,7 @@
             border-bottom: none;
         }
 
-        /* ================== 印刷レポート（A3横） ================== */
-        #printView {
-            display: none;
-            background: #e0e0e0;
-            padding: 2rem 1rem;
-        }
-        #printView.active { display: block; }
-        #printView .print-toolbar {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            background: #1a1a2e;
-            color: #fff;
-            padding: 0.6rem 1rem;
-            display: flex;
-            gap: 0.8rem;
-            align-items: center;
-            margin-bottom: 1rem;
-            border-radius: 4px;
-            flex-wrap: wrap;
-        }
-        #printView .print-toolbar input[type="text"] {
-            padding: 0.35rem 0.5rem;
-            border: 1px solid #bbb;
-            border-radius: 3px;
-            font-size: 0.85rem;
-            min-width: 220px;
-        }
-        #printView .print-toolbar label {
-            font-size: 0.8rem;
-            color: #cfd8dc;
-        }
-        #printView .print-toolbar button {
-            background: #42a5f5;
-            color: #fff;
-            border: none;
-            padding: 0.4rem 0.9rem;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 0.85rem;
-        }
-        #printView .print-toolbar button.primary {
-            background: #e53935;
-            font-weight: bold;
-        }
-        .print-page {
-            background: #fff;
-            width: 420mm;       /* A3 横幅 */
-            min-height: 297mm;  /* A3 縦 */
-            margin: 0 auto 1rem;
-            padding: 10mm 10mm 12mm;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.25);
-            box-sizing: border-box;
-            page-break-after: always;
-            font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif;
-            color: #000;
-            font-size: 10pt;
-        }
-        .print-page:last-child { page-break-after: auto; }
-        .print-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            border-bottom: 2px solid #000;
-            padding-bottom: 4px;
-            margin-bottom: 8px;
-        }
-        .print-header .ph-title {
-            font-size: 16pt;
-            font-weight: bold;
-            letter-spacing: 0.05em;
-        }
-        .print-header .ph-meta {
-            font-size: 9pt;
-            text-align: right;
-            line-height: 1.4;
-        }
-        .print-header .ph-meta b { font-size: 10pt; }
-        .print-footer {
-            position: absolute;
-            bottom: 6mm;
-            left: 10mm;
-            right: 10mm;
-            font-size: 8pt;
-            color: #555;
-            display: flex;
-            justify-content: space-between;
-            border-top: 1px solid #ccc;
-            padding-top: 3px;
-        }
-        .print-page { position: relative; }
-        .print-page table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 8.5pt;
-        }
-        .print-page table th,
-        .print-page table td {
-            border: 1px solid #333;
-            padding: 2px 4px;
-            text-align: center;
-            white-space: nowrap;
-        }
-        .print-page table th {
-            background: #1a1a2e;
-            color: #fff;
-            font-weight: bold;
-            font-size: 8pt;
-        }
-        .print-page table tbody tr:nth-child(even) td {
-            background: #f5f5f5;
-        }
-        .print-page .group-header td {
-            background: #455a64 !important;
-            color: #fff;
-            font-weight: bold;
-            text-align: left;
-            padding: 3px 6px;
-        }
-        .print-page .panel-subheader td {
-            background: #bbdefb !important;
-            color: #0d47a1;
-            font-weight: bold;
-            text-align: left;
-            padding: 3px 6px;
-            font-size: 9pt;
-        }
-        .print-page .bus-row td {
-            background: #c8e6c9 !important;
-            font-weight: bold;
-            text-align: left;
-            padding: 3px 6px;
-            color: #1b5e20;
-        }
-        .print-page .gnd-row td {
-            background: #f1f8e9 !important;
-            font-size: 7.5pt;
-            color: #33691e;
-        }
-        .print-page .status-ok { color: #1b5e20; font-weight: bold; }
-        .print-page .status-ng { color: #c62828; font-weight: bold; }
-
-        @media print {
-            body { background: #fff !important; }
-            body > *:not(#printView) { display: none !important; }
-            #printView { display: block !important; padding: 0; background: #fff; }
-            #printView .print-toolbar { display: none !important; }
-            .print-page {
-                box-shadow: none;
-                margin: 0;
-                padding: 8mm 8mm 10mm;
-                width: 100%;
-                min-height: 0;
-            }
-            @page {
-                size: A3 landscape;
-                margin: 8mm;
-            }
-        }
+        /* （印刷レポート用CSSは各レポート出力関数内に移動済み） */
     </style>
 </head>
 <body>
@@ -1617,29 +1459,16 @@
                 <button class="nav-tab" data-tab="diagram">系統図</button>
                 <button class="nav-tab" data-tab="master">マスターデータ</button>
                 <button class="nav-tab" data-tab="weakCurrent" style="background:#00695c;color:#fff;">弱電幹線</button>
-                <button class="nav-tab" id="btnOpenPrintView" style="background:#e53935;color:#fff;margin-left:0.6rem;">🖨 印刷レポート</button>
             </div>
-        </div>
-
-        <!-- ================== 印刷レポート（A3横 PDF用） ================== -->
-        <div id="printView">
-            <div class="print-toolbar">
-                <span style="font-weight:bold;">🖨 印刷レポート（A3 横）</span>
-                <label>工事名称</label>
-                <input type="text" id="printProjectName" placeholder="例: 〇〇ビル 新築工事" />
-                <label>作成日</label>
-                <input type="text" id="printDate" style="min-width:130px;" />
-                <button class="primary" id="btnDoPrint">📄 印刷 / PDF保存</button>
-                <button id="btnClosePrintView">✕ 閉じる</button>
-                <span style="font-size:0.75rem;color:#90caf9;">※ ブラウザの印刷ダイアログで「A3・横・背景あり」を指定してください</span>
-            </div>
-            <div id="printContent"></div>
         </div>
 
         <div class="container">
             <!-- Panels Tab -->
             <div id="panels" class="tab-content active">
-                <button class="btn-add-panel" id="btnAddPanel">+ 盤を追加</button>
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.5rem;">
+                    <button class="btn-add-panel" id="btnAddPanel" style="margin-bottom:0;">+ 盤を追加</button>
+                    <button class="btn-action" style="background:#4527a0;color:#fff;font-size:0.75rem;padding:0.2rem 0.6rem;margin-left:auto;" onclick="panelPrintReport()">🖨️ レポート出力</button>
+                </div>
                 <div class="panels-table-wrapper" id="panelsTableWrapper">
                     <table class="panels-table" id="panelsTable">
                         <thead>
@@ -2057,6 +1886,7 @@
                     <button class="btn-action" id="btnAutoSyncFeeders" style="background:#00897b;color:#fff;" title="盤一覧の各盤を幹線として、分岐回路から給電される盤を子幹線として自動反映します">🔄 盤一覧・回路DBから自動反映</button>
                     <button class="btn-action" id="btnFeedersExport">CSV出力</button>
                     <button class="btn-action" id="btnShowSystemDiagram" style="background:#6a1b9a;color:#fff;">🌳 系統図プレビュー</button>
+                    <button class="btn-action" style="background:#4527a0;color:#fff;" onclick="feederPrintReport()">🖨️ レポート出力</button>
                 </div>
 
                 <!-- 系統図プレビューモーダル -->
@@ -10885,48 +10715,187 @@
         }
 
         // レポート出力
+        // レポート出力（フィルタ状態を印刷用ページで表示）
         function wcPrintReport() {
-            const tbody = document.getElementById('wcBody');
-            if (!tbody) return;
-            const visibleRows = [];
-            wcData.rows.forEach((r, i) => {
-                const tr = tbody.querySelectorAll('tr')[i];
-                if (tr && tr.style.display !== 'none') visibleRows.push(r);
+            // 現在のフィルタ条件を取得
+            const koushuVal = document.getElementById('wcFilterKoushu')?.value || '';
+            const floorVal = document.getElementById('wcFilterFloor')?.value || '';
+            const haikanVal = document.getElementById('wcFilterHaikan')?.value || '';
+            const viaVal = (document.getElementById('wcFilterVia')?.value || '').trim();
+            const fromToVal = (document.getElementById('wcFilterFromTo')?.value || '').trim();
+
+            // フィルタ条件でデータ抽出
+            const filtered = wcData.rows.filter((r) => {
+                const fl = r.floorFrom || r.floor || '';
+                const hk = Array.isArray(r.haikan) ? r.haikan : (r.haikan ? [r.haikan] : []);
+                const matchK = !koushuVal || r.koushu === koushuVal;
+                const matchF = !floorVal || fl === floorVal;
+                const matchH = !haikanVal || hk.includes(haikanVal);
+                let matchVia = true;
+                if (viaVal) {
+                    const vias = [r.via1, r.via2, r.via3, r.via4, r.via5, r.via6].map(v => v || '');
+                    matchVia = vias.some(v => v === viaVal);
+                }
+                let matchFT = true;
+                if (fromToVal) {
+                    const effRoomFrom = r.roomFrom || r.from || '';
+                    const effRoomTo = r.roomTo || r.to || '';
+                    const fields = [r.floorFrom||'', effRoomFrom, r.deviceFrom||'', r.floorTo||'', effRoomTo, r.deviceTo||''];
+                    matchFT = fields.some(v => v.includes(fromToVal));
+                }
+                return matchK && matchF && matchH && matchVia && matchFT;
             });
-            if (visibleRows.length === 0) { alert('表示中の行がありません'); return; }
-            const filterInfo = [];
-            const kv = document.getElementById('wcFilterKoushu')?.value;
-            const fv = document.getElementById('wcFilterFloor')?.value;
-            const hv = document.getElementById('wcFilterHaikan')?.value;
-            const ftv = document.getElementById('wcFilterFromTo')?.value;
-            if (kv) filterInfo.push('工種: ' + kv);
-            if (fv) filterInfo.push('自の階: ' + fv);
-            if (hv) filterInfo.push('配管: ' + hv);
-            if (ftv) filterInfo.push('自/至検索: ' + ftv);
-            const kouji = document.getElementById('wcKoujiName')?.value || '';
+
+            if (filtered.length === 0) { alert('表示対象のデータがありません'); return; }
+
+            // フィルタ条件の表示用テキスト
+            const conditions = [];
+            if (koushuVal) conditions.push('工種: ' + koushuVal);
+            if (floorVal) conditions.push('自の階: ' + floorVal);
+            if (haikanVal) conditions.push('配管: ' + haikanVal);
+            if (viaVal) conditions.push('経由地: ' + viaVal);
+            if (fromToVal) conditions.push('自/至検索: ' + fromToVal);
+            const condText = conditions.length > 0 ? conditions.join('　/　') : 'すべて（絞り込みなし）';
+
+            // プロジェクト名
+            const projName = (function(){
+                try {
+                    const pj = JSON.parse(localStorage.getItem('elecCalc:projects') || '[]');
+                    const cur = localStorage.getItem('elecCalc:currentProject') || 'proj_default';
+                    const found = pj.find(p => p.id === cur);
+                    return found ? found.name : '';
+                } catch(e) { return ''; }
+            })();
+            const koujiName = document.getElementById('wcKoujiName')?.value || '';
             const koujiNo = document.getElementById('wcKoujiNo')?.value || '';
-            const w = window.open('', '_blank');
-            w.document.write('<html><head><title>弱電幹線レポート</title><style>');
-            w.document.write('@page{size:A4 landscape;margin:8mm;}body{font-family:sans-serif;font-size:9px;margin:0;padding:8px;}');
-            w.document.write('table{width:100%;border-collapse:collapse;}th,td{border:1px solid #333;padding:2px 4px;text-align:left;white-space:nowrap;}');
-            w.document.write('th{background:#00695c;color:#fff;font-size:8px;}.hdr{margin-bottom:6px;font-size:11px;}');
-            w.document.write('.no-print{margin-bottom:8px;}@media print{.no-print{display:none;}}');
-            w.document.write('</style></head><body>');
-            w.document.write('<div class="no-print"><button onclick="window.print()">印刷</button> <button onclick="window.close()">閉じる</button></div>');
-            w.document.write('<div class="hdr"><strong>弱電幹線集計表</strong>');
-            if (kouji) w.document.write(' | 工事件名: ' + kouji);
-            if (koujiNo) w.document.write(' | 工事番号: ' + koujiNo);
-            w.document.write('</div>');
-            if (filterInfo.length) w.document.write('<div style="font-size:9px;margin-bottom:4px;">フィルタ: ' + filterInfo.join(', ') + '</div>');
-            w.document.write('<table><thead><tr><th>No.</th><th>工種</th><th>記号</th><th>負荷名称</th><th>自階</th><th>自部屋</th><th>自機器</th><th>経由1</th><th>経由2</th><th>経由3</th><th>経由4</th><th>経由5</th><th>経由6</th><th>至階</th><th>至部屋</th><th>至機器</th><th>配線</th><th>配管-1</th><th>配管-2</th><th>配管-3</th><th>ケーブル長</th><th>配管1長</th><th>配管2長</th><th>配管3長</th></tr></thead><tbody>');
-            visibleRows.forEach((r, i) => {
-                const hs = Array.isArray(r.haisen) ? r.haisen.filter(v=>v).join(', ') : (r.haisen||'');
-                const hk = Array.isArray(r.haikan) ? r.haikan.filter(v=>v).join(', ') : (r.haikan||'');
-                const hk2 = Array.isArray(r.haikan2) ? r.haikan2.filter(v=>v).join(', ') : (r.haikan2||'');
-                const hk3 = Array.isArray(r.haikan3) ? r.haikan3.filter(v=>v).join(', ') : (r.haikan3||'');
-                w.document.write('<tr><td>'+(i+1)+'</td><td>'+(r.koushu||'')+'</td><td>'+(r.kigou||'')+'</td><td>'+(r.fusho||'')+'</td><td>'+(r.floorFrom||r.floor||'')+'</td><td>'+(r.roomFrom||r.from||'')+'</td><td>'+(r.deviceFrom||'')+'</td><td>'+(r.via1||'')+'</td><td>'+(r.via2||'')+'</td><td>'+(r.via3||'')+'</td><td>'+(r.via4||'')+'</td><td>'+(r.via5||'')+'</td><td>'+(r.via6||'')+'</td><td>'+(r.floorTo||'')+'</td><td>'+(r.roomTo||r.to||'')+'</td><td>'+(r.deviceTo||'')+'</td><td>'+hs+'</td><td>'+hk+'</td><td>'+hk2+'</td><td>'+hk3+'</td><td>'+(r.length_m||'')+'</td><td>'+(r.length_haikan||'')+'</td><td>'+(r.length_haikan2||'')+'</td><td>'+(r.length_haikan3||'')+'</td></tr>');
+
+            // 配管結合グループ計算（配管-1/2/3）
+            function calcMergeGroups(rows, mergeField) {
+                const groups = [];
+                let gi = 0;
+                while (gi < rows.length) {
+                    if (rows[gi][mergeField] && gi > 0) { gi++; continue; }
+                    let span = 1;
+                    while (gi + span < rows.length && rows[gi + span][mergeField]) span++;
+                    groups.push({ start: gi, span });
+                    gi += span;
+                }
+                const map = {};
+                groups.forEach(g => { map[g.start] = g.span; });
+                return map;
+            }
+            const h1Map = calcMergeGroups(filtered, 'haikanMerge');
+            const h2Map = calcMergeGroups(filtered, 'haikan2Merge');
+            const h3Map = calcMergeGroups(filtered, 'haikan3Merge');
+
+            // 行HTML生成
+            let rowsHtml = '';
+            filtered.forEach((r, i) => {
+                const bg = i % 2 === 1 ? 'background:#f5f5f5;' : '';
+                const haisenStr = Array.isArray(r.haisen) ? r.haisen.filter(v=>v).join('<br>') : (r.haisen||'');
+                const haikanStr = Array.isArray(r.haikan) ? r.haikan.filter(v=>v).join('<br>') : (r.haikan||'');
+                const haikan2Str = Array.isArray(r.haikan2) ? r.haikan2.filter(v=>v).join('<br>') : (r.haikan2||'');
+                const haikan3Str = Array.isArray(r.haikan3) ? r.haikan3.filter(v=>v).join('<br>') : (r.haikan3||'');
+                const vias = [r.via1,r.via2,r.via3,r.via4,r.via5,r.via6].filter(v=>v).join(' → ');
+                const td = 'border:1px solid #999;padding:2px 4px;font-size:8pt;';
+
+                const isMerged1 = r.haikanMerge && i > 0;
+                const span1 = h1Map[i];
+                const isMerged2 = r.haikan2Merge && i > 0;
+                const span2 = h2Map[i];
+                const isMerged3 = r.haikan3Merge && i > 0;
+                const span3 = h3Map[i];
+
+                const haikan1Cell = isMerged1 ? '' : `<td style="${td}${span1 > 1 ? 'background:#e8eaf6;font-weight:bold;' : ''}" ${span1 > 1 ? 'rowspan="'+span1+'"' : ''}>${haikanStr}</td>`;
+                const haikan2Cell = isMerged2 ? '' : `<td style="${td}${span2 > 1 ? 'background:#e8eaf6;font-weight:bold;' : ''}" ${span2 > 1 ? 'rowspan="'+span2+'"' : ''}>${haikan2Str}</td>`;
+                const haikan3Cell = isMerged3 ? '' : `<td style="${td}${span3 > 1 ? 'background:#f3e5f5;font-weight:bold;' : ''}" ${span3 > 1 ? 'rowspan="'+span3+'"' : ''}>${haikan3Str}</td>`;
+
+                rowsHtml += `<tr style="${bg}">
+                    <td style="${td}text-align:center;">${i+1}</td>
+                    <td style="${td}">${r.koushu||''}</td>
+                    <td style="${td}">${r.kigou||''}</td>
+                    <td style="${td}">${r.fusho||''}</td>
+                    <td style="${td}text-align:center;">${r.floorFrom||r.floor||''}</td>
+                    <td style="${td}">${r.roomFrom||r.from||''}</td>
+                    <td style="${td}">${r.deviceFrom||''}</td>
+                    <td style="${td}color:#666;">${vias}</td>
+                    <td style="${td}text-align:center;">${r.floorTo||''}</td>
+                    <td style="${td}">${r.roomTo||r.to||''}</td>
+                    <td style="${td}">${r.deviceTo||''}</td>
+                    <td style="${td}">${haisenStr}</td>
+                    ${haikan1Cell}
+                    ${haikan2Cell}
+                    ${haikan3Cell}
+                    <td style="${td}text-align:right;">${r.length_m||''}</td>
+                    <td style="${td}text-align:right;">${r.length_haikan||''}</td>
+                    <td style="${td}text-align:right;">${r.length_haikan2||''}</td>
+                    <td style="${td}text-align:right;">${r.length_haikan3||''}</td>
+                    <td style="${td}text-align:center;">${r.ordered ? '✓' : ''}</td>
+                </tr>`;
             });
-            w.document.write('</tbody></table></body></html>');
+
+            const now = new Date();
+            const dateStr = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate();
+
+            const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>外構・弱電幹線集計表 レポート</title>
+<style>
+@page { size: A4 landscape; margin: 10mm; }
+body { font-family: 'Meiryo','MS Gothic',sans-serif; font-size: 9pt; margin: 0; padding: 10px; }
+h1 { font-size: 14pt; margin: 0 0 4px 0; text-align: center; }
+.meta { font-size: 8pt; color: #555; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.filter-info { font-size: 8pt; background: #e8f5e9; padding: 3px 8px; border-radius: 3px; margin-bottom: 6px; }
+table { width: 100%; border-collapse: collapse; table-layout: auto; }
+th { background: #00695c; color: #fff; border: 1px solid #999; padding: 2px 4px; font-size: 7.5pt; white-space: nowrap; }
+th.sub { background: #00796b; }
+th.via { background: #37474f; }
+th.to { background: #004d40; }
+th.haikan2 { background: #1a237e; }
+th.haikan3 { background: #4a148c; }
+th.koucho { background: #bf360c; }
+td { vertical-align: top; }
+.footer { font-size: 7pt; color: #999; text-align: right; margin-top: 4px; }
+@media print { .no-print { display: none; } }
+</style></head><body>
+<div class="no-print" style="text-align:right;margin-bottom:8px;">
+    <button onclick="window.print()" style="font-size:11pt;padding:6px 20px;background:#00695c;color:#fff;border:none;border-radius:4px;cursor:pointer;">🖨️ 印刷 / PDF保存</button>
+    <button onclick="window.close()" style="font-size:11pt;padding:6px 20px;background:#78909c;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:8px;">閉じる</button>
+</div>
+<h1>外構・弱電幹線集計表</h1>
+<div class="meta">
+    <div>${projName ? 'プロジェクト: ' + projName : ''}${koujiName ? '　工事件名: ' + koujiName : ''}${koujiNo ? '　工事番号: ' + koujiNo : ''}</div>
+    <div>出力日: ${dateStr}　件数: ${filtered.length}件</div>
+</div>
+<div class="filter-info">📋 絞り込み条件: ${condText}</div>
+<table>
+    <thead>
+        <tr>
+            <th rowspan="2">No.</th>
+            <th rowspan="2">工種</th>
+            <th rowspan="2">記号</th>
+            <th rowspan="2">負荷名称</th>
+            <th class="sub" colspan="3">自</th>
+            <th class="via" rowspan="2">経由地</th>
+            <th class="to" colspan="3">至</th>
+            <th rowspan="2">配線</th>
+            <th rowspan="2">配管-1</th>
+            <th class="haikan2" rowspan="2">配管-2</th>
+            <th class="haikan3" rowspan="2">配管-3</th>
+            <th class="koucho" colspan="4">こう長</th>
+            <th rowspan="2">注文済</th>
+        </tr>
+        <tr>
+            <th class="sub">階</th><th class="sub">部屋</th><th class="sub">機器</th>
+            <th class="to">階</th><th class="to">部屋</th><th class="to">機器</th>
+            <th class="koucho">ケーブル</th><th class="koucho">配管-1</th><th class="koucho">配管-2</th><th class="koucho">配管-3</th>
+        </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+</table>
+<div class="footer">エル・エル・イー電気株式会社 — 外構・弱電幹線集計表レポート</div>
+</body></html>`;
+
+            const w = window.open('', '_blank');
+            w.document.write(html);
             w.document.close();
         }
 
@@ -11941,101 +11910,27 @@
             });
         }
 
-        // ==================== 印刷レポート（A3横 PDF出力） ====================
-        // エル・エル・イー電気 / 電気設備計算書
-        const PRINT_PROJECT_KEY = 'elecCalc:printProjectName';
-
-        function openPrintView() {
-            const view = document.getElementById('printView');
-            const mainContainer = document.querySelector('.container');
-            if (mainContainer) mainContainer.style.display = 'none';
-            view.classList.add('active');
-            // 工事名称の復元
-            const saved = localStorage.getItem(PRINT_PROJECT_KEY) || '';
-            document.getElementById('printProjectName').value = saved;
-            // 作成日は今日
-            const today = new Date();
-            const ymd = `${today.getFullYear()}/${String(today.getMonth()+1).padStart(2,'0')}/${String(today.getDate()).padStart(2,'0')}`;
-            document.getElementById('printDate').value = ymd;
-            buildPrintReport();
-        }
-        function closePrintView() {
-            const view = document.getElementById('printView');
-            view.classList.remove('active');
-            const mainContainer = document.querySelector('.container');
-            if (mainContainer) mainContainer.style.display = '';
-        }
-
-        function esc(s) {
-            return String(s == null ? '' : s)
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        }
-        function fx(v, n = 2) { return (Number(v) || 0).toFixed(n); }
-
-        function renderPrintHeader(title, pageNo, pageTotal) {
-            const project = esc(document.getElementById('printProjectName').value || '');
-            const date = esc(document.getElementById('printDate').value || '');
-            return `
-                <div class="print-header">
-                    <div class="ph-title">${esc(title)}</div>
-                    <div class="ph-meta">
-                        工事名称: <b>${project || '（未入力）'}</b><br>
-                        作成日: ${date} &nbsp;/&nbsp; ページ ${pageNo} / ${pageTotal}
-                    </div>
-                </div>
-            `;
-        }
-        function renderPrintFooter() {
-            return `
-                <div class="print-footer">
-                    <span>エル・エル・イー電気株式会社</span>
-                    <span>配盤・回路計算システム — 内線規程 JEAC8001 準拠</span>
-                </div>
-            `;
-        }
-
-        function buildPrintReport() {
-            const container = document.getElementById('printContent');
-            container.innerHTML = '';
-
-            // 対象盤（allPanels）と幹線（allFeeders）
+        // ==================== 盤一覧レポート出力 ====================
+        function panelPrintReport() {
             const panels = [...allPanels].sort((a,b) => (a.sort_order||0) - (b.sort_order||0) || (a.id||0) - (b.id||0));
-            // ページ総数: 盤一覧1 + 各盤1 + 電灯1 + 動力1
-            const lightingFeeders = allFeeders.filter(f => (localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯') === '電灯');
-            const motorFeeders    = allFeeders.filter(f => (localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯') === '動力');
-            let pageTotal = 1 + panels.length;
-            if (lightingFeeders.length > 0) pageTotal += 1;
-            if (motorFeeders.length > 0) pageTotal += 1;
-            let pageNo = 0;
+            if (panels.length === 0) { alert('盤データがありません'); return; }
 
-            // ====== Page 1: 盤一覧サマリー ======
-            pageNo++;
-            container.appendChild(renderPanelListPage(panels, pageNo, pageTotal));
+            const projName = (function(){
+                try {
+                    const pj = JSON.parse(localStorage.getItem('elecCalc:projects') || '[]');
+                    const cur = localStorage.getItem('elecCalc:currentProject') || 'proj_default';
+                    const found = pj.find(p => p.id === cur);
+                    return found ? found.name : '';
+                } catch(e) { return ''; }
+            })();
+            const now = new Date();
+            const dateStr = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate();
 
-            // ====== Page 2〜: 各盤の回路DB ======
-            panels.forEach(panel => {
-                pageNo++;
-                container.appendChild(renderPanelCircuitsPage(panel, pageNo, pageTotal));
-            });
+            function e(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+            function f(v, n) { return (Number(v) || 0).toFixed(n === undefined ? 2 : n); }
 
-            // ====== 電灯幹線計算書 ======
-            if (lightingFeeders.length > 0) {
-                pageNo++;
-                container.appendChild(renderFeederPage('電灯幹線計算書', lightingFeeders, pageNo, pageTotal));
-            }
-            // ====== 動力幹線計算書 ======
-            if (motorFeeders.length > 0) {
-                pageNo++;
-                container.appendChild(renderFeederPage('動力幹線計算書', motorFeeders, pageNo, pageTotal));
-            }
-        }
-
-        function renderPanelListPage(panels, pageNo, pageTotal) {
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'print-page';
             let rowsHtml = '';
-            panels.forEach(panel => {
+            panels.forEach((panel, idx) => {
                 const circuits = allCircuits.filter(c => c.panel_name === panel.name);
                 const s = calculatePanelSummaries(panel.name, circuits);
                 const demandRate = (typeof getDemandRate === 'function') ? getDemandRate(panel.name) : 100;
@@ -12043,190 +11938,117 @@
                 const dCurrent = s.current * (demandRate / 100);
                 const panelAT = Number(panel.at) || 0;
                 const atD = (panelAT > 0 && panelAT >= dCurrent) ? 'OK' : (panelAT > 0 ? '×' : '-');
-                const balanceTxt = s.balance !== null ? `${s.balance.toFixed(1)}% ${s.balance <= 40 ? 'OK' : '×'}` : '-';
-                rowsHtml += `
-                    <tr>
-                        <td style="text-align:left;font-weight:bold;">${esc(panel.name)}</td>
-                        <td>${esc(panel.elec_type || '')}</td>
-                        <td>${esc(panel.main_breaker || '')}</td>
-                        <td>${esc(panel.af || '')}</td>
-                        <td>${esc(panel.at || '')}</td>
-                        <td>${fx(s.lighting)}</td>
-                        <td>${fx(s.outlet)}</td>
-                        <td>${fx(s.fc)}</td>
-                        <td>${fx(s.oa)}</td>
-                        <td>${fx(s.feeder)}</td>
-                        <td style="font-weight:bold;">${fx(s.total)}</td>
-                        <td>${s.current} A</td>
-                        <td class="${s.atStatus === 'OK' ? 'status-ok' : 'status-ng'}">${s.atStatus}</td>
-                        <td>${demandRate}</td>
-                        <td style="background:#fffde7;font-weight:bold;">${fx(dTotal)}</td>
-                        <td style="background:#fffde7;">${dCurrent.toFixed(1)} A</td>
-                        <td class="${atD === 'OK' ? 'status-ok' : (atD === '×' ? 'status-ng' : '')}" style="background:#fffde7;">${atD}</td>
-                        <td>${balanceTxt}</td>
-                    </tr>
-                `;
+                const balanceTxt = s.balance !== null ? s.balance.toFixed(1) + '%' : '-';
+                const balanceOk = s.balance !== null ? (s.balance <= 40 ? 'OK' : '×') : '';
+                const bg = idx % 2 === 1 ? 'background:#f5f5f5;' : '';
+                const td = 'border:1px solid #999;padding:3px 5px;font-size:8.5pt;';
+                const tdR = td + 'text-align:right;';
+                const tdC = td + 'text-align:center;';
+                const okStyle = 'color:#1b5e20;font-weight:bold;';
+                const ngStyle = 'color:#c62828;font-weight:bold;';
+                rowsHtml += `<tr style="${bg}">
+                    <td style="${td}text-align:left;font-weight:bold;">${e(panel.name)}</td>
+                    <td style="${tdC}">${e(panel.elec_type||'')}</td>
+                    <td style="${tdC}">${e(panel.main_breaker||'')}</td>
+                    <td style="${tdR}">${e(panel.af||'')}</td>
+                    <td style="${tdR}">${e(panel.at||'')}</td>
+                    <td style="${tdR}">${f(s.lighting)}</td>
+                    <td style="${tdR}">${f(s.outlet)}</td>
+                    <td style="${tdR}">${f(s.fc)}</td>
+                    <td style="${tdR}">${f(s.oa)}</td>
+                    <td style="${tdR}">${f(s.feeder)}</td>
+                    <td style="${tdR}font-weight:bold;">${f(s.total)}</td>
+                    <td style="${tdR}">${s.current} A</td>
+                    <td style="${tdC}${s.atStatus==='OK'?okStyle:ngStyle}">${s.atStatus}</td>
+                    <td style="${tdC}">${demandRate}</td>
+                    <td style="${tdR}background:#fffde7;font-weight:bold;">${f(dTotal)}</td>
+                    <td style="${tdR}background:#fffde7;">${dCurrent.toFixed(1)} A</td>
+                    <td style="${tdC}background:#fffde7;${atD==='OK'?okStyle:(atD==='×'?ngStyle:'')}">${atD}</td>
+                    <td style="${tdC}">${balanceTxt} ${balanceOk}</td>
+                </tr>`;
             });
-            pageDiv.innerHTML = `
-                ${renderPrintHeader('盤 一 覧 表', pageNo, pageTotal)}
-                <table>
-                    <thead>
-                        <tr>
-                            <th rowspan="2">盤名称</th>
-                            <th rowspan="2">種別</th>
-                            <th rowspan="2">主遮断器</th>
-                            <th rowspan="2">AF</th>
-                            <th rowspan="2">AT</th>
-                            <th colspan="5">設計負荷 [kVA]</th>
-                            <th rowspan="2">合計<br>[kVA]</th>
-                            <th rowspan="2">電流<br>[A]</th>
-                            <th rowspan="2">AT判定</th>
-                            <th rowspan="2">需要率<br>[%]</th>
-                            <th rowspan="2">需要後<br>[kVA]</th>
-                            <th rowspan="2">需要後<br>電流[A]</th>
-                            <th rowspan="2">需要後<br>AT判定</th>
-                            <th rowspan="2">平衡率</th>
-                        </tr>
-                        <tr>
-                            <th>照明</th><th>ｺﾝｾﾝﾄ</th><th>FC</th><th>OA</th><th>幹線分岐</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rowsHtml || '<tr><td colspan="19">盤データなし</td></tr>'}</tbody>
-                </table>
-                ${renderPrintFooter()}
-            `;
-            return pageDiv;
+
+            const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>盤一覧表 レポート</title>
+<style>
+@page { size: A3 landscape; margin: 10mm; }
+body { font-family: 'Meiryo','MS Gothic',sans-serif; font-size: 9pt; margin: 0; padding: 10px; }
+h1 { font-size: 14pt; margin: 0 0 4px 0; text-align: center; }
+.meta { font-size: 8pt; color: #555; margin-bottom: 6px; display: flex; justify-content: space-between; }
+table { width: 100%; border-collapse: collapse; table-layout: auto; }
+th { background: #1a237e; color: #fff; border: 1px solid #999; padding: 3px 5px; font-size: 7.5pt; white-space: nowrap; }
+th.load { background: #00695c; }
+th.demand { background: #e65100; }
+th.balance { background: #4a148c; }
+td { vertical-align: middle; }
+.footer { font-size: 7pt; color: #999; text-align: right; margin-top: 6px; border-top: 1px solid #ccc; padding-top: 3px; }
+@media print { .no-print { display: none; } }
+</style></head><body>
+<div class="no-print" style="text-align:right;margin-bottom:8px;">
+    <button onclick="window.print()" style="font-size:11pt;padding:6px 20px;background:#1a237e;color:#fff;border:none;border-radius:4px;cursor:pointer;">🖨️ 印刷 / PDF保存</button>
+    <button onclick="window.close()" style="font-size:11pt;padding:6px 20px;background:#78909c;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:8px;">閉じる</button>
+</div>
+<h1>盤 一 覧 表</h1>
+<div class="meta">
+    <div>${projName ? 'プロジェクト: ' + projName : ''}　盤数: ${panels.length}</div>
+    <div>出力日: ${dateStr}</div>
+</div>
+<table>
+    <thead>
+        <tr>
+            <th rowspan="2">盤名称</th>
+            <th rowspan="2">種別</th>
+            <th rowspan="2">主遮断器</th>
+            <th rowspan="2">AF</th>
+            <th rowspan="2">AT</th>
+            <th class="load" colspan="5">設計負荷 [kVA]</th>
+            <th rowspan="2">合計<br>[kVA]</th>
+            <th rowspan="2">電流<br>[A]</th>
+            <th rowspan="2">AT<br>判定</th>
+            <th class="demand" colspan="4">需要率適用後</th>
+            <th class="balance" rowspan="2">平衡率</th>
+        </tr>
+        <tr>
+            <th class="load">照明</th><th class="load">ｺﾝｾﾝﾄ</th><th class="load">FC</th><th class="load">OA</th><th class="load">幹線分岐</th>
+            <th class="demand">率[%]</th><th class="demand">kVA</th><th class="demand">電流[A]</th><th class="demand">AT判定</th>
+        </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+</table>
+<div class="footer">エル・エル・イー電気株式会社 — 盤一覧表レポート　内線規程 JEAC8001 準拠</div>
+</body></html>`;
+
+            const w = window.open('', '_blank');
+            w.document.write(html);
+            w.document.close();
         }
 
-        function renderPanelCircuitsPage(panel, pageNo, pageTotal) {
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'print-page';
-            const circuits = allCircuits
-                .filter(c => c.panel_name === panel.name)
-                .sort((a, b) => {
-                    // 分岐を最後に、それ以外はcircuit_no順
-                    const aBr = a.symbol === '分岐' ? 1 : 0;
-                    const bBr = b.symbol === '分岐' ? 1 : 0;
-                    if (aBr !== bBr) return aBr - bBr;
-                    const an = Number(a.circuit_no) || 0;
-                    const bn = Number(b.circuit_no) || 0;
-                    return an - bn;
-                });
-            const s = calculatePanelSummaries(panel.name, circuits);
-
-            let rowsHtml = '';
-            if (circuits.length === 0) {
-                rowsHtml = '<tr><td colspan="16">回路データなし</td></tr>';
-            } else {
-                circuits.forEach(c => {
-                    const designTotal = (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0);
-                    const voltage = c.voltage || 100;
-                    const designVA = designTotal * 1000;
-                    const current = voltage > 0 ? (designVA / voltage) : 0;
-                    const atOk = (Number(c.at) || 0) >= current ? 'OK' : '×';
-                    rowsHtml += `
-                        <tr>
-                            <td>${esc(c.symbol || '')}</td>
-                            <td>${c.symbol === '分岐' ? '' : esc(c.circuit_no || '')}</td>
-                            <td>${esc(c.phase || '')}</td>
-                            <td>${esc(c.breaker_type || '')}</td>
-                            <td>${esc(c.af || '')}</td>
-                            <td>${esc(c.at || '')}</td>
-                            <td>${voltage}</td>
-                            <td style="text-align:left;">${esc(c.load_name || '')}</td>
-                            <td>${Math.round((c.lighting || 0) * 1000) || ''}</td>
-                            <td>${Math.round((c.outlet || 0) * 1000) || ''}</td>
-                            <td>${Math.round((c.fc || 0) * 1000) || ''}</td>
-                            <td>${Math.round((c.oa || 0) * 1000) || ''}</td>
-                            <td>${Math.round((c.feeder || 0) * 1000) || ''}</td>
-                            <td style="font-weight:bold;">${Math.round(designVA) || ''}</td>
-                            <td>${current > 0 ? current.toFixed(1) + ' A' : '-'}</td>
-                            <td class="${atOk === 'OK' ? 'status-ok' : 'status-ng'}">${current > 0 ? atOk : '-'}</td>
-                        </tr>
-                    `;
-                });
-            }
-
-            pageDiv.innerHTML = `
-                ${renderPrintHeader(`回路DB － ${panel.name}`, pageNo, pageTotal)}
-                <table style="margin-bottom:6px;">
-                    <tbody>
-                        <tr class="panel-subheader">
-                            <td colspan="8">
-                                盤名称: <b>${esc(panel.name)}</b> &nbsp;/&nbsp;
-                                種別: ${esc(panel.elec_type || '')} &nbsp;/&nbsp;
-                                主遮断器: ${esc(panel.main_breaker || '')} ${esc(panel.af || '')}AF/${esc(panel.at || '')}AT &nbsp;/&nbsp;
-                                合計負荷: <b>${fx(s.total)} kVA</b> &nbsp;/&nbsp;
-                                幹線電流: ${s.current} A &nbsp;/&nbsp;
-                                平衡率: ${s.balance !== null ? s.balance.toFixed(1) + '%' : '-'}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>記号</th>
-                            <th>回路No</th>
-                            <th>相</th>
-                            <th>ブレーカー</th>
-                            <th>AF</th>
-                            <th>AT</th>
-                            <th>電圧[V]</th>
-                            <th>負荷名称</th>
-                            <th>照明[VA]</th>
-                            <th>ｺﾝｾﾝﾄ[VA]</th>
-                            <th>FC[VA]</th>
-                            <th>OA[VA]</th>
-                            <th>幹線分岐[VA]</th>
-                            <th>設計[VA]</th>
-                            <th>電流</th>
-                            <th>AT判定</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rowsHtml}</tbody>
-                </table>
-                ${renderPrintFooter()}
-            `;
-            return pageDiv;
-        }
-
-        function renderFeederPage(title, feeders, pageNo, pageTotal) {
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'print-page';
-
-            // 接地母線（1350-14）サイズ計算
-            const grpSizes = feeders.flatMap(f => {
-                const at = Number(f.breaker_at) || 0;
-                const t = judgeGroundType(Number(f.voltage) || 0);
-                if (at <= 0 || (t !== 'D' && t !== 'C')) return [];
-                const ld = localFeederData[f.id] || {};
-                const br = f.breaker_type || '';
-                const elbDef = /ELB|ELCB|漏電/i.test(br) ? 'on' : 'off';
-                const mD = ld.ground_d_mode || 'on';
-                const mE = ld.ground_elb_mode || elbDef;
-                const sz = calcGroundWireSize(at).size;
-                const arr = [];
-                if (mD === 'on') arr.push(sz);
-                if (mE === 'on') arr.push(sz);
-                return arr;
+        // ==================== 幹線計算書レポート出力 ====================
+        function feederPrintReport() {
+            const filterVal = document.getElementById('feederCategoryFilter')?.value || '';
+            const feeders = allFeeders.filter(f => {
+                if (!filterVal) return true;
+                const cat = localFeederData[f.id]?.feeder_category || f.feeder_category || '電灯';
+                return cat === filterVal;
             });
-            const busSize = calcGroundBusSize(grpSizes);
+            if (feeders.length === 0) { alert('幹線データがありません'); return; }
+
+            const projName = (function(){
+                try {
+                    const pj = JSON.parse(localStorage.getItem('elecCalc:projects') || '[]');
+                    const cur = localStorage.getItem('elecCalc:currentProject') || 'proj_default';
+                    const found = pj.find(p => p.id === cur);
+                    return found ? found.name : '';
+                } catch(e) { return ''; }
+            })();
+            const now = new Date();
+            const dateStr = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate();
+            const filterLabel = filterVal ? filterVal + '幹線' : '全幹線（電灯＋動力）';
+
+            function e(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+            function f(v, n) { return (Number(v) || 0).toFixed(n === undefined ? 2 : n); }
 
             let rowsHtml = '';
-
-            // 接地母線行
-            rowsHtml += `
-                <tr class="bus-row">
-                    <td colspan="18">
-                        ⏚ 接地母線（キュービクル接地端子 → 配電盤）: 必要最小 = max(各幹線接地線) =
-                        <b>${busSize > 0 ? busSize + ' mm²' : '-'}</b>
-                        &nbsp;&nbsp;根拠: 内線規程 JEAC8001 1350-14
-                    </td>
-                </tr>
-            `;
-
-            feeders.forEach(feeder => {
+            feeders.forEach((feeder, idx) => {
                 const fd = localFeederData[feeder.id] || {};
                 const feederNo = fd.feeder_no || '';
                 const voltage = feeder.voltage || 100;
@@ -12239,126 +12061,121 @@
                 const breakerAT = Number(feeder.breaker_at) || 0;
                 const vd = Number(fd.voltage_drop) || 0;
                 const vdPct = voltage > 0 ? (vd / voltage * 100) : 0;
+                const cat = fd.feeder_category || feeder.feeder_category || '電灯';
 
-                // 自（起点）
                 let sourceLabel = 'キュービクル';
                 if (fd.source_type === 'branch' && fd.source_circuit_id) {
                     const parent = allCircuits.find(c => c.id === fd.source_circuit_id);
-                    sourceLabel = parent ? `${parent.panel_name || '?'} / 分岐${parent.at || 0}AT` : '親回路なし';
+                    sourceLabel = parent ? (parent.panel_name || '?') + ' / 分岐' + (parent.at || 0) + 'AT' : '親回路なし';
                 } else if (fd.source_type === 'transformer' && fd.source_transformer_id) {
                     sourceLabel = 'トランス';
                 }
 
-                rowsHtml += `
-                    <tr>
-                        <td>${esc(feederNo)}</td>
-                        <td style="text-align:left;">${esc(sourceLabel)}</td>
-                        <td style="text-align:left;font-weight:bold;">${esc(feeder.load_name || '')}</td>
-                        <td>${fx(Number(fd.load_capacity) || 0)}</td>
-                        <td>${feeder.demand_factor || 100}</td>
-                        <td>${fx(Number(fd.demand_capacity) || 0)}</td>
-                        <td>${esc(phase)}</td>
-                        <td>${voltage}</td>
-                        <td>${current.toFixed(1)}</td>
-                        <td>${esc(cableType)} ${cableSize}</td>
-                        <td>${length}</td>
-                        <td>${vd.toFixed(2)}</td>
-                        <td>${vdPct.toFixed(2)}</td>
-                        <td>${esc(feeder.breaker_type || '')}</td>
-                        <td>${breakerAF}</td>
-                        <td>${breakerAT}</td>
-                        <td>${fd.motor_total_kw || ''}</td>
-                        <td style="text-align:left;">${esc(feeder.destination || '')}</td>
-                    </tr>
-                `;
+                // VD判定
+                const vdLimit = voltage >= 200 ? 4.0 : 2.0;
+                const vdOk = vdPct <= vdLimit ? 'OK' : '×';
+                // AT判定
+                const atOk = (breakerAT > 0 && breakerAT >= current) ? 'OK' : (breakerAT > 0 ? '×' : '-');
 
-                // 接地線サブ行
-                const gndType = judgeGroundType(voltage);
-                if (gndType === 'D' || gndType === 'C') {
-                    const gndCalc = calcGroundWireSize(breakerAT);
-                    const br = feeder.breaker_type || '';
-                    const elbDef = /ELB|ELCB|漏電/i.test(br) ? 'on' : 'off';
-                    const mD = fd.ground_d_mode || 'on';
-                    const mE = fd.ground_elb_mode || elbDef;
-                    const selD = Number(fd.ground_wire_size) || gndCalc.size || 0;
-                    const selE = Number(fd.elb_ground_wire_size) || gndCalc.size || 0;
-                    const gndRow = (label, mode, sel) => {
-                        if (mode === 'off') {
-                            return `
-                                <tr class="gnd-row">
-                                    <td colspan="2" style="text-align:right;">└ ${label}</td>
-                                    <td colspan="16" style="text-align:left;color:#9e9e9e;">— 不要 —</td>
-                                </tr>
-                            `;
-                        }
-                        return `
-                            <tr class="gnd-row">
-                                <td colspan="2" style="text-align:right;">└ ${label}</td>
-                                <td colspan="4" style="text-align:left;">${gndType}種接地 選定: <b>${sel}mm²</b></td>
-                                <td colspan="4" style="text-align:left;">必要最小: ${gndCalc.size || '-'}mm²</td>
-                                <td colspan="8" style="text-align:left;">A = 0.052 × ${breakerAT || 0} = ${(0.052 * (breakerAT || 0)).toFixed(2)}mm² → 直近上位 ${gndCalc.size || '-'}mm² (1350-3表/資料1-3-6)</td>
-                            </tr>
-                        `;
-                    };
-                    rowsHtml += gndRow('D種 (機器)', mD, selD);
-                    rowsHtml += gndRow('D種 (ELB二次側)', mE, selE);
-                }
+                const bg = idx % 2 === 1 ? 'background:#f5f5f5;' : '';
+                const td = 'border:1px solid #999;padding:2px 4px;font-size:8pt;';
+                const tdR = td + 'text-align:right;';
+                const tdC = td + 'text-align:center;';
+                const okStyle = 'color:#1b5e20;font-weight:bold;';
+                const ngStyle = 'color:#c62828;font-weight:bold;';
+
+                rowsHtml += `<tr style="${bg}">
+                    <td style="${tdC}">${e(feederNo)}</td>
+                    <td style="${tdC}">${cat === '動力' ? '動力' : '電灯'}</td>
+                    <td style="${td}">${e(sourceLabel)}</td>
+                    <td style="${td}font-weight:bold;">${e(feeder.load_name||'')}</td>
+                    <td style="${tdR}">${f(Number(fd.load_capacity)||0)}</td>
+                    <td style="${tdC}">${feeder.demand_factor||100}</td>
+                    <td style="${tdR}">${f(Number(fd.demand_capacity)||0)}</td>
+                    <td style="${tdC}">${e(phase)}</td>
+                    <td style="${tdC}">${voltage}</td>
+                    <td style="${tdR}">${current.toFixed(1)}</td>
+                    <td style="${tdC}">${e(cableType)} ${cableSize}</td>
+                    <td style="${tdR}">${length}</td>
+                    <td style="${tdR}">${vd.toFixed(2)}</td>
+                    <td style="${tdR}">${vdPct.toFixed(2)}</td>
+                    <td style="${tdC}${vdOk==='OK'?okStyle:ngStyle}">${vdOk}</td>
+                    <td style="${tdC}">${e(feeder.breaker_type||'')}</td>
+                    <td style="${tdR}">${breakerAF}</td>
+                    <td style="${tdR}">${breakerAT}</td>
+                    <td style="${tdC}${atOk==='OK'?okStyle:(atOk==='×'?ngStyle:'')}">${atOk}</td>
+                    <td style="${tdR}">${fd.motor_total_kw||''}</td>
+                    <td style="${tdR}">${fd.motor_max_kw||''}</td>
+                    <td style="${tdR}">${fd.naisen_at||''}</td>
+                    <td style="${td}">${e(feeder.destination||'')}</td>
+                </tr>`;
             });
 
-            pageDiv.innerHTML = `
-                ${renderPrintHeader(title, pageNo, pageTotal)}
-                <table>
-                    <thead>
-                        <tr>
-                            <th>No</th>
-                            <th>自（起点）</th>
-                            <th>負荷名称</th>
-                            <th>負荷<br>[kVA]</th>
-                            <th>需要率<br>[%]</th>
-                            <th>需要後<br>[kVA]</th>
-                            <th>相</th>
-                            <th>電圧</th>
-                            <th>電流[A]</th>
-                            <th>ケーブル</th>
-                            <th>こう長<br>[m]</th>
-                            <th>VD[V]</th>
-                            <th>VD率<br>[%]</th>
-                            <th>ﾌﾞﾚｰｶ種別</th>
-                            <th>AF</th>
-                            <th>AT</th>
-                            <th>動力<br>合計kW</th>
-                            <th>至（行先）</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rowsHtml}</tbody>
-                </table>
-                <div style="margin-top:6px;font-size:8pt;color:#555;">
-                    根拠: 内線規程 JEAC8001 — 1305節(不平衡率)・1310節(電圧降下)・1340節(許容電流)・<b>1350節(接地)</b>・<b>1360-10条(幹線分岐OCPD省略)</b>・<b>3705-8条 第3項(幹線OCPD上限)</b>
-                </div>
-                ${renderPrintFooter()}
-            `;
-            return pageDiv;
-        }
+            const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>幹線計算書 レポート</title>
+<style>
+@page { size: A3 landscape; margin: 10mm; }
+body { font-family: 'Meiryo','MS Gothic',sans-serif; font-size: 9pt; margin: 0; padding: 10px; }
+h1 { font-size: 14pt; margin: 0 0 4px 0; text-align: center; }
+.meta { font-size: 8pt; color: #555; margin-bottom: 6px; display: flex; justify-content: space-between; }
+.filter-info { font-size: 8pt; background: #e3f2fd; padding: 3px 8px; border-radius: 3px; margin-bottom: 6px; }
+table { width: 100%; border-collapse: collapse; table-layout: auto; }
+th { background: #0d47a1; color: #fff; border: 1px solid #999; padding: 2px 4px; font-size: 7pt; white-space: nowrap; }
+th.src { background: #00695c; }
+th.load { background: #1b5e20; }
+th.cable { background: #e65100; }
+th.vd { background: #b71c1c; }
+th.breaker { background: #4a148c; }
+th.motor { background: #263238; }
+td { vertical-align: middle; }
+.footer { font-size: 7pt; color: #999; text-align: right; margin-top: 6px; border-top: 1px solid #ccc; padding-top: 3px; }
+.note { margin-top: 6px; font-size: 7.5pt; color: #555; }
+@media print { .no-print { display: none; } }
+</style></head><body>
+<div class="no-print" style="text-align:right;margin-bottom:8px;">
+    <button onclick="window.print()" style="font-size:11pt;padding:6px 20px;background:#0d47a1;color:#fff;border:none;border-radius:4px;cursor:pointer;">🖨️ 印刷 / PDF保存</button>
+    <button onclick="window.close()" style="font-size:11pt;padding:6px 20px;background:#78909c;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:8px;">閉じる</button>
+</div>
+<h1>幹 線 計 算 書</h1>
+<div class="meta">
+    <div>${projName ? 'プロジェクト: ' + projName : ''}　幹線数: ${feeders.length}</div>
+    <div>出力日: ${dateStr}</div>
+</div>
+<div class="filter-info">📋 表示区分: ${filterLabel}</div>
+<table>
+    <thead>
+        <tr>
+            <th rowspan="2">No</th>
+            <th rowspan="2">区分</th>
+            <th class="src" rowspan="2">自（起点）</th>
+            <th class="load" rowspan="2">負荷名称</th>
+            <th class="load" colspan="3">負荷</th>
+            <th rowspan="2">相</th>
+            <th rowspan="2">電圧</th>
+            <th rowspan="2">電流<br>[A]</th>
+            <th class="cable" colspan="2">ケーブル</th>
+            <th class="vd" colspan="3">電圧降下</th>
+            <th class="breaker" colspan="4">遮断器</th>
+            <th class="motor" colspan="3">電動機</th>
+            <th rowspan="2">至（行先）</th>
+        </tr>
+        <tr>
+            <th class="load">容量<br>[kVA]</th><th class="load">需要率<br>[%]</th><th class="load">需要後<br>[kVA]</th>
+            <th class="cable">種別/サイズ</th><th class="cable">こう長<br>[m]</th>
+            <th class="vd">VD[V]</th><th class="vd">VD率[%]</th><th class="vd">判定</th>
+            <th class="breaker">種別</th><th class="breaker">AF</th><th class="breaker">AT</th><th class="breaker">判定</th>
+            <th class="motor">合計kW</th><th class="motor">最大kW</th><th class="motor">内線AT</th>
+        </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+</table>
+<div class="note">根拠: 内線規程 JEAC8001 — 1305節(不平衡率)・1310節(電圧降下)・1340節(許容電流)・1350節(接地)・1360-10条(幹線分岐OCPD省略)・3705-8条 第3項(幹線OCPD上限)</div>
+<div class="footer">エル・エル・イー電気株式会社 — 幹線計算書レポート　内線規程 JEAC8001 準拠</div>
+</body></html>`;
 
-        // イベント配線（DOMContentLoaded 後に）
-        document.addEventListener('DOMContentLoaded', () => {
-            const btnOpen = document.getElementById('btnOpenPrintView');
-            if (btnOpen) btnOpen.addEventListener('click', openPrintView);
-            const btnClose = document.getElementById('btnClosePrintView');
-            if (btnClose) btnClose.addEventListener('click', closePrintView);
-            const btnPrint = document.getElementById('btnDoPrint');
-            if (btnPrint) btnPrint.addEventListener('click', () => window.print());
-            const projectInput = document.getElementById('printProjectName');
-            if (projectInput) {
-                projectInput.addEventListener('input', (e) => {
-                    localStorage.setItem(PRINT_PROJECT_KEY, e.target.value);
-                    // ヘッダー内の工事名称をリアルタイム反映
-                    document.querySelectorAll('#printContent .ph-meta b').forEach(b => {
-                        b.textContent = e.target.value || '（未入力）';
-                    });
-                });
-            }
-        });
+            const w = window.open('', '_blank');
+            w.document.write(html);
+            w.document.close();
+        }
     </script>
 </body>
 </html>
