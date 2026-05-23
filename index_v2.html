@@ -13259,13 +13259,27 @@ ${contentRows}
 </table>
 <div class="footer">エル・エル・イー電気株式会社 — 工事打合せ議事録</div>
 </div>
-<script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>
 </body></html>`;
 
-            // Blob URLで新しいタブに表示（document.writeを使わない）
-            const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
-            const blobUrl = URL.createObjectURL(blob);
-            window.open(blobUrl, '_blank');
+            // hidden iframe で印刷（タブ切り替えを行わない）
+            let pIframe = document.getElementById('_qaPrintFrame');
+            if (pIframe) pIframe.remove();
+            pIframe = document.createElement('iframe');
+            pIframe.id = '_qaPrintFrame';
+            pIframe.style.cssText = 'position:fixed;width:0;height:0;border:none;left:-9999px;top:-9999px;';
+            document.body.appendChild(pIframe);
+            const pDoc = pIframe.contentDocument || pIframe.contentWindow.document;
+            pDoc.open();
+            pDoc.write(html);
+            pDoc.close();
+            pIframe.onload = function() {
+                setTimeout(function() {
+                    pIframe.contentWindow.focus();
+                    pIframe.contentWindow.print();
+                    // 印刷ダイアログが閉じた後にiframeを除去
+                    setTimeout(function() { pIframe.remove(); }, 1000);
+                }, 300);
+            };
 
             // 出力済み → 各exchange に第N回を記録（未出力のもののみ）
             const allData = qaMigrateData(qaLoadData());
@@ -13279,9 +13293,6 @@ ${contentRows}
             });
             qaSaveData(allData);
             qaRender();
-
-            // Blob URLを遅延解放
-            setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 60000);
         }
 
     </script>
