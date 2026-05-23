@@ -13175,7 +13175,7 @@ ${contentRows}
 </table>
 <div class="footer">エル・エル・イー電気株式会社 — 工事打合せ議事録</div>
 </div>
-<script>window.onload=function(){window.print();}<\/script>
+<script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>
 </body></html>`;
 
             const w = window.open('', '_blank');
@@ -13195,6 +13195,15 @@ ${contentRows}
             });
             qaSaveData(allData);
             qaRender();
+
+            // PDF印刷ウィンドウが閉じた後にフォーカスとテーブルを復旧
+            const _qaCheckClosed = setInterval(function() {
+                if (w.closed) {
+                    clearInterval(_qaCheckClosed);
+                    window.focus();
+                    setTimeout(function() { qaRender(); }, 200);
+                }
+            }, 500);
         }
 
     </script>
