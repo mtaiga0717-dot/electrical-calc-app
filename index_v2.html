@@ -12962,23 +12962,23 @@ td { vertical-align: middle; }
                     // 打合せ回（exchange単位）
                     html += `<td style="text-align:center;">${ex.printed ? '<span class="qa-badge-printed">第'+ex.printed+'回</span>' : ''}</td>`;
 
-                    // rowspan列（1行目のみ）
+                    // 図面反映（rowspan）
                     if (isFirst) {
                         html += `<td rowspan="${exCount}" style="text-align:center;"><input type="checkbox" ${item.drawingReflect?'checked':''} onchange="qaOnFieldChange('${item.id}','drawingReflect',this.checked)"></td>`;
-                        html += `<td rowspan="${exCount}" style="text-align:center;">`;
-                        html += `<button class="qa-btn qa-btn-sub" onclick="qaAddExchange('${item.id}')" title="質疑・回答追加">+追加</button><br>`;
-                        html += `<button class="qa-btn qa-btn-del" style="margin-top:3px;" onclick="qaDeleteRow('${item.id}')" title="削除">削除</button>`;
-                        html += `</td>`;
-                    } else {
-                        // 追加行の削除ボタン（決議の右に小さく）
                     }
-                    html += `</tr>`;
 
-                    // 追加行には行内削除ボタン
-                    if (!isFirst) {
-                        // 削除ボタンは操作列のrowspan内に含めないので、直前のtdに追記する方式ではなく
-                        // 決議セルの後に小セルを追加
+                    // 操作列（各行ごと）
+                    html += `<td style="text-align:center;white-space:nowrap;">`;
+                    if (isFirst) {
+                        html += `<button class="qa-btn qa-btn-sub" onclick="qaAddExchange('${item.id}')" title="質疑・回答追加">+追加</button> `;
                     }
+                    if (exCount > 1) {
+                        html += `<button class="qa-btn qa-btn-del" onclick="qaDeleteExchange('${item.id}',${ei})" title="この行を削除">行削除</button>`;
+                    } else {
+                        html += `<button class="qa-btn qa-btn-del" onclick="qaDeleteRow('${item.id}')" title="質疑を削除">削除</button>`;
+                    }
+                    html += `</td>`;
+                    html += `</tr>`;
                 }
             });
             tbody.innerHTML = html;
