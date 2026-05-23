@@ -3126,11 +3126,11 @@
                 </div>
                 <div class="form-group">
                     <label>出席者（監督員）</label>
-                    <div id="qaPrintKantokuChecks" style="display:flex;flex-wrap:wrap;gap:0.3rem 1rem;font-size:0.82rem;max-height:80px;overflow-y:auto;"></div>
+                    <div id="qaPrintKantokuChecks" style="display:flex;flex-wrap:wrap;gap:0.2rem 0.8rem;font-size:0.82rem;padding:4px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;"></div>
                 </div>
                 <div class="form-group">
                     <label>出席者（施工業者）</label>
-                    <div id="qaPrintSekoChecks" style="display:flex;flex-wrap:wrap;gap:0.3rem 1rem;font-size:0.82rem;max-height:80px;overflow-y:auto;"></div>
+                    <div id="qaPrintSekoChecks" style="font-size:0.82rem;padding:4px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;"></div>
                 </div>
             </div>
             <div class="modal-buttons">
@@ -12999,19 +12999,36 @@ td { vertical-align: middle; }
             const kantokuNames = (settings.kantokuList || '').split('\n').filter(s => s.trim());
             const kDiv = document.getElementById('qaPrintKantokuChecks');
             kDiv.innerHTML = kantokuNames.map((n, i) =>
-                `<label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="qa-print-kantoku" value="${n.trim().replace(/"/g,'&quot;')}" checked> ${n.trim()}</label>`
+                `<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;margin-right:8px;"><input type="checkbox" class="qa-print-kantoku" value="${n.trim().replace(/"/g,'&quot;')}" checked> ${n.trim()}</label>`
             ).join('') || '<span style="color:#999;">（未登録）</span>';
-            // 施工業者
+            // 施工業者 — 会社ごとにグループ表示
             let sekoEntries = [];
             if (Array.isArray(settings.sekoList)) {
                 sekoEntries = settings.sekoList;
             } else if (typeof settings.sekoList === 'string' && settings.sekoList.trim()) {
                 sekoEntries = settings.sekoList.split('\n').filter(n => n.trim()).map(n => ({ company: '', name: n.trim() }));
             }
+            // 会社ごとにグループ化
+            const grouped = {};
+            sekoEntries.forEach(e => {
+                const c = e.company || '';
+                if (!grouped[c]) grouped[c] = [];
+                grouped[c].push(e);
+            });
             const sDiv = document.getElementById('qaPrintSekoChecks');
-            sDiv.innerHTML = sekoEntries.map((e, i) =>
-                `<label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="qa-print-seko" data-company="${(e.company||'').replace(/"/g,'&quot;')}" value="${(e.name||'').replace(/"/g,'&quot;')}" checked> ${e.company ? '('+e.company+')' : ''}${e.name}</label>`
-            ).join('') || '<span style="color:#999;">（未登録）</span>';
+            const companies = Object.keys(grouped);
+            if (companies.length === 0) {
+                sDiv.innerHTML = '<span style="color:#999;">（未登録）</span>';
+                return;
+            }
+            sDiv.innerHTML = companies.map(comp => {
+                const members = grouped[comp];
+                const compLabel = comp ? `<span style="font-weight:bold;font-size:0.78rem;color:#1565c0;">【${comp}】</span>` : '';
+                const checks = members.map(e =>
+                    `<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;margin-right:8px;"><input type="checkbox" class="qa-print-seko" data-company="${(e.company||'').replace(/"/g,'&quot;')}" value="${(e.name||'').replace(/"/g,'&quot;')}" checked> ${e.name}</label>`
+                ).join('');
+                return `<div style="margin-bottom:3px;">${compLabel}${checks}</div>`;
+            }).join('');
         }
         function closeQaPrintModal() {
             document.getElementById('qaPrintModal').style.display = 'none';
@@ -13042,12 +13059,21 @@ td { vertical-align: middle; }
                 if (!sekoByCompany[key]) sekoByCompany[key] = [];
                 sekoByCompany[key].push(name);
             });
-            // 出力形式: （会社A）氏名1・氏名2　（会社B）氏名3
-            const sekoDisplay = Object.entries(sekoByCompany).map(([comp, names]) =>
-                (comp && comp !== '（未設定）' ? '（' + comp + '）' : '') + names.join('・')
-            ).join('　');
+            // 施工業者の出席者行を会社ごとに生成
+            const sekoCompanies = Object.entries(sekoByCompany);
+            let sekoAttendeeRows = '';
+            if (sekoCompanies.length === 0) {
+                sekoAttendeeRows = `<tr><th>施工業者</th><td></td></tr>`;
+            } else {
+                sekoCompanies.forEach(([comp, names], ci) => {
+                    const compDisp = comp && comp !== '（未設定）' ? comp : '';
+                    sekoAttendeeRows += `<tr>`;
+                    if (ci === 0) sekoAttendeeRows += `<th rowspan="${sekoCompanies.length}">施工業者</th>`;
+                    sekoAttendeeRows += `<td>${compDisp ? '<b>'+compDisp+'</b>　' : ''}${names.join('・')}</td></tr>`;
+                });
+            }
 
-            // 議事内容ビルド — 各質疑・回答を罫線付き行で表示
+            // 議事内容ビルド — 質疑と回答を1セル内に上下で表示（3列: No, 工種, 内容）
             let contentRows = '';
             items.forEach(item => {
                 const exs = item.exchanges || [];
@@ -13058,21 +13084,20 @@ td { vertical-align: middle; }
                         contentRows += `<td rowspan="${totalRows}" class="no-cell">${item.no}</td>`;
                         contentRows += `<td rowspan="${totalRows}" class="koushu-cell">【${item.koushu || ''}】${item.drawingNo ? '<br>(図面:'+item.drawingNo+')' : ''}</td>`;
                     }
-                    // 質疑セル
-                    contentRows += `<td class="q-cell">`;
+                    // 質疑+回答を1セルに
+                    contentRows += `<td class="qa-content-cell">`;
+                    // 質疑部分
                     if (ex.question && ex.question.trim()) {
-                        contentRows += `<span class="q-label">質疑${totalRows > 1 ? (ei+1) : ''}${ex.questioner ? '（'+ex.questioner+'）' : ''}：</span><br>`;
-                        contentRows += `${(ex.question||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}`;
+                        contentRows += `<div class="q-block"><span class="q-label">質疑${totalRows > 1 ? (ei+1) : ''}${ex.questioner ? '（'+ex.questioner+'）' : ''}：</span><br>`;
+                        contentRows += `${(ex.question||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
                     }
-                    contentRows += `</td>`;
-                    // 回答セル
-                    contentRows += `<td class="a-cell">`;
+                    // 回答部分
                     if (ex.answer && ex.answer.trim()) {
                         const ketBadge = ex.ketsugi === '決定' ? '<span style="font-weight:bold;">[決定]</span> ' :
                                          ex.ketsugi === '継続' ? '<span style="font-weight:bold;">[継続]</span> ' :
                                          ex.ketsugi === '未決' ? '<span style="font-weight:bold;">[未決]</span> ' : '';
-                        contentRows += `<span class="a-label">回答${totalRows > 1 ? (ei+1) : ''}${ex.answerer ? '（'+ex.answerer+'）' : ''}：</span><br>`;
-                        contentRows += `${ketBadge}${(ex.answer||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}`;
+                        contentRows += `<div class="a-block"><span class="a-label">回答${totalRows > 1 ? (ei+1) : ''}${ex.answerer ? '（'+ex.answerer+'）' : ''}：</span><br>`;
+                        contentRows += `${ketBadge}${(ex.answer||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
                     }
                     contentRows += `</td></tr>`;
                 });
@@ -13086,22 +13111,24 @@ td { vertical-align: middle; }
 <style>
 @page { size: A4 portrait; margin: 12mm 10mm; }
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family: 'MS PGothic','Meiryo',sans-serif; font-size: 9pt; color: #000; padding: 10px; }
-.header-table { width:100%; border-collapse:collapse; margin-bottom:2px; }
-.header-table td { padding: 2px 6px; font-size: 9pt; vertical-align: top; }
-.header-table .label { font-weight:bold; white-space:nowrap; width:1%; background:#e8eaf6; border:1px solid #333; }
-.header-table .value { border:1px solid #333; }
+body { font-family: 'MS PGothic','Meiryo',sans-serif; font-size: 9pt; color: #000; padding: 10px; max-width: 100%; overflow: hidden; }
+table { border-collapse:collapse; width:100%; }
+.header-table { margin-bottom:2px; }
+.header-table td { padding: 2px 6px; font-size: 9pt; vertical-align: top; border:1px solid #333; }
+.header-table .label { font-weight:bold; white-space:nowrap; width:1%; background:#e8eaf6; }
+.header-table .val-wide { }
 h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
-.attendee-table { width:100%; border-collapse:collapse; margin-bottom:4px; }
-.attendee-table td, .attendee-table th { border:1px solid #333; padding:2px 6px; font-size: 8.5pt; }
-.attendee-table th { background:#e8eaf6; width:60px; font-weight:bold; }
-.content-table { width:100%; border-collapse:collapse; }
+.attendee-table { margin-bottom:4px; }
+.attendee-table td, .attendee-table th { border:1px solid #333; padding:2px 6px; font-size: 8.5pt; vertical-align:top; }
+.attendee-table th { background:#e8eaf6; white-space:nowrap; width:1%; font-weight:bold; }
+.content-table { }
 .content-table th { background:#1565c0; color:#fff; border:1px solid #333; padding:3px 6px; font-size:8.5pt; }
-.content-table td { border:1px solid #333; padding:4px 6px; font-size:8.5pt; vertical-align:top; word-wrap:break-word; }
-.no-cell { text-align:center; font-weight:bold; width:30px; vertical-align:top; border:1px solid #333; }
-.koushu-cell { width:120px; font-weight:bold; font-size:8pt; border:1px solid #333; vertical-align:top; }
-.q-cell { border:1px solid #333; }
-.a-cell { border:1px solid #333; }
+.content-table td { border:1px solid #333; padding:4px 6px; font-size:8.5pt; vertical-align:top; }
+.no-cell { text-align:center; font-weight:bold; width:30px; vertical-align:top; }
+.koushu-cell { width:100px; font-weight:bold; font-size:8pt; vertical-align:top; }
+.qa-content-cell { }
+.q-block { margin-bottom:4px; }
+.a-block { padding-top:4px; border-top:1px dashed #999; }
 .q-label { font-weight:bold; font-size:8pt; }
 .a-label { font-weight:bold; font-size:8pt; }
 .footer { font-size: 7pt; color:#666; text-align:right; margin-top:8px; border-top:1px solid #999; padding-top:3px; }
@@ -13118,11 +13145,11 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 <tr><td class="label">場所</td><td class="value" colspan="3">${meetingPlace}</td></tr>
 </table>
 <table class="attendee-table">
-<tr><th rowspan="2">出席者</th><th>監督員</th><td>${kantokuNames.join('、')}</td></tr>
-<tr><th>施工業者</th><td>${sekoDisplay}</td></tr>
+<tr><th rowspan="${1 + sekoCompanies.length}">出席者</th><th>監督員</th><td>${kantokuNames.join('、')}</td></tr>
+${sekoAttendeeRows}
 </table>
 <table class="content-table">
-<tr><th style="width:30px;">No</th><th style="width:120px;">工種</th><th>質　疑　事　項</th><th>回　答</th></tr>
+<tr><th style="width:30px;">No</th><th style="width:100px;">工種</th><th>質疑・回答内容</th></tr>
 ${contentRows}
 </table>
 <div class="footer">エル・エル・イー電気株式会社 — 工事打合せ議事録</div>
