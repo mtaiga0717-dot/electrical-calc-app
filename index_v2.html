@@ -1425,6 +1425,27 @@
         }
 
         /* （印刷レポート用CSSは各レポート出力関数内に移動済み） */
+
+        /* ===== 質疑応答書 (QA) タブ ===== */
+        #qaTab table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+        #qaTab th { background:#1565c0; color:#fff; border:1px solid #aaa; padding:0.3rem 0.4rem; white-space:nowrap; position:sticky; top:0; z-index:2; }
+        #qaTab td { border:1px solid #ccc; padding:0.25rem 0.3rem; vertical-align:top; }
+        #qaTab input[type="text"], #qaTab textarea, #qaTab select { font-size:0.8rem; border:1px solid #ccc; border-radius:3px; padding:0.15rem 0.3rem; }
+        #qaTab textarea { resize:vertical; width:100%; min-height:2.4em; }
+        #qaTab input[type="date"] { font-size:0.78rem; padding:0.1rem 0.2rem; }
+        .qa-row-miketsu { background:#fff3e0 !important; }
+        .qa-row-keizoku { background:#e3f2fd !important; }
+        .qa-row-kettei { background:transparent !important; }
+        .qa-sub-row td { border-top:1px dashed #90caf9 !important; background:#f5f5f5; }
+        .qa-sub-row.qa-row-keizoku td { background:#e3f2fd !important; }
+        .qa-badge-miketsu { display:inline-block; background:#ff9800; color:#fff; font-size:0.72rem; font-weight:bold; padding:0.1rem 0.4rem; border-radius:3px; }
+        .qa-badge-keizoku { display:inline-block; background:#1e88e5; color:#fff; font-size:0.72rem; font-weight:bold; padding:0.1rem 0.4rem; border-radius:3px; }
+        .qa-badge-kettei { display:inline-block; background:#43a047; color:#fff; font-size:0.72rem; font-weight:bold; padding:0.1rem 0.4rem; border-radius:3px; }
+        .qa-badge-printed { display:inline-block; background:#9e9e9e; color:#fff; font-size:0.68rem; padding:0.1rem 0.3rem; border-radius:3px; margin-left:0.3rem; }
+        .qa-btn { font-size:0.75rem; padding:0.2rem 0.5rem; border:none; border-radius:3px; cursor:pointer; color:#fff; }
+        .qa-btn-add { background:#43a047; }
+        .qa-btn-del { background:#e53935; }
+        .qa-btn-sub { background:#1565c0; }
     </style>
 </head>
 <body>
@@ -1459,6 +1480,7 @@
                 <button class="nav-tab" data-tab="diagram">系統図</button>
                 <button class="nav-tab" data-tab="master">マスターデータ</button>
                 <button class="nav-tab" data-tab="weakCurrent" style="background:#00695c;color:#fff;">弱電幹線</button>
+                <button class="nav-tab" data-tab="qaTab" style="background:#1565c0;color:#fff;">質疑応答書</button>
             </div>
         </div>
 
@@ -2852,6 +2874,88 @@
                     </thead>
                     <tbody id="wcBody"></tbody>
                 </table>
+                </div>
+            </div>
+
+            <!-- 質疑応答書 Tab -->
+            <div id="qaTab" class="tab-content">
+                <h3 style="margin:0.5rem 0;">質疑応答書</h3>
+
+                <!-- 設定: 客先・出席者登録 -->
+                <details id="qaSettings" style="margin-bottom:0.8rem;background:#e8eaf6;border:1px solid #c5cae9;border-radius:4px;padding:0.5rem;">
+                    <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem;color:#1565c0;">⚙ 設定（客先・出席者・場所の登録）</summary>
+                    <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.5rem;">
+                        <div>
+                            <label style="font-size:0.78rem;font-weight:bold;">客先名</label><br>
+                            <input type="text" id="qaClientName" style="width:250px;" placeholder="例：静岡市教育委員会"><br>
+                            <label style="font-size:0.78rem;font-weight:bold;margin-top:0.3rem;display:inline-block;">TEL</label>
+                            <input type="text" id="qaClientTel" style="width:150px;" placeholder="054-xxx-xxxx">
+                            <label style="font-size:0.78rem;font-weight:bold;margin-left:0.5rem;">FAX</label>
+                            <input type="text" id="qaClientFax" style="width:150px;" placeholder="054-xxx-xxxx">
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem;font-weight:bold;">監督員リスト（改行区切り）</label><br>
+                            <textarea id="qaKantokuList" rows="3" cols="30" style="font-size:0.82rem;" placeholder="石黒様&#10;荻野様"></textarea>
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem;font-weight:bold;">施工業者リスト（改行区切り）</label><br>
+                            <textarea id="qaSekoList" rows="3" cols="30" style="font-size:0.82rem;" placeholder="殿岡&#10;鈴木"></textarea>
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem;font-weight:bold;">場所</label><br>
+                            <input type="text" id="qaPlace" style="width:200px;" placeholder="例：現場事務所　２階会議室">
+                        </div>
+                        <div style="align-self:flex-end;">
+                            <button class="btn-action" style="background:#1565c0;color:#fff;" onclick="qaSaveSettings()">設定を保存</button>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- 操作ボタン -->
+                <div style="margin-bottom:0.5rem;display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
+                    <button class="btn-action" style="background:#43a047;color:#fff;" onclick="qaAddRow()">+ 質疑追加</button>
+                    <button class="btn-action" style="background:#e53935;color:#fff;" onclick="qaPrintReport()">📄 PDF出力（議事録）</button>
+                    <button class="btn-action" style="background:#f57f17;color:#333;" onclick="qaExportCSV()">📥 CSV出力</button>
+                    <span style="margin-left:auto;font-size:0.8rem;color:#666;" id="qaStats"></span>
+                </div>
+
+                <!-- フィルタ -->
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;font-size:0.82rem;align-items:center;background:#e8eaf6;padding:0.4rem 0.6rem;border-radius:4px;">
+                    <span style="font-weight:bold;color:#1565c0;">🔍 絞り込み：</span>
+                    <div>工種：<select id="qaFilterKoushu" style="font-size:0.82rem;min-width:100px;" onchange="qaRender()"><option value="">すべて</option></select></div>
+                    <div>決議：<select id="qaFilterKetsugi" style="font-size:0.82rem;min-width:80px;" onchange="qaRender()">
+                        <option value="">すべて</option><option value="未決">未決</option><option value="継続">継続</option><option value="決定">決定</option>
+                    </select></div>
+                    <div>出力済：<select id="qaFilterPrinted" style="font-size:0.82rem;min-width:80px;" onchange="qaRender()">
+                        <option value="">すべて</option><option value="yes">出力済</option><option value="no">未出力</option>
+                    </select></div>
+                    <div>検索：<input type="text" id="qaFilterText" style="font-size:0.82rem;width:120px;" placeholder="質疑内容..." oninput="qaRender()"></div>
+                    <button class="btn-action" style="background:#78909c;color:#fff;font-size:0.75rem;padding:0.2rem 0.6rem;" onclick="qaClearFilter()">クリア</button>
+                </div>
+
+                <!-- テーブル -->
+                <div style="overflow-x:auto;max-height:75vh;overflow-y:auto;position:relative;">
+                    <table id="qaTable">
+                        <thead>
+                            <tr>
+                                <th style="width:25px;"><input type="checkbox" id="qaSelectAll" onchange="qaToggleSelectAll(this.checked)" title="全選択"></th>
+                                <th style="width:35px;">No</th>
+                                <th style="width:70px;">図面番号</th>
+                                <th style="width:90px;">工種</th>
+                                <th style="width:90px;">質疑日</th>
+                                <th style="width:70px;">質疑者</th>
+                                <th style="min-width:200px;">質疑事項</th>
+                                <th style="width:90px;">回答日</th>
+                                <th style="width:70px;">回答者</th>
+                                <th style="min-width:200px;">回答</th>
+                                <th style="width:65px;">決議</th>
+                                <th style="width:45px;">図面<br>反映</th>
+                                <th style="width:45px;">出力<br>済</th>
+                                <th style="width:70px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="qaBody"></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -5590,6 +5694,8 @@
                 renderMasterTables();
             } else if (tabName === 'weakCurrent') {
                 wcInit();
+            } else if (tabName === 'qaTab') {
+                qaInit();
             }
         }
 
@@ -12338,6 +12444,453 @@ td { vertical-align: middle; }
             w.document.write(html);
             w.document.close();
         }
+        // ================================================================
+        // 質疑応答書 (QA) — CRUD + PDF 出力
+        // ================================================================
+        const QA_DATA_KEY = 'elecCalc:qaData';
+        const QA_SETTINGS_KEY = 'elecCalc:qaSettings';
+        const QA_KOUSHU_LIST = ['外構','受変電','幹線・動力','電灯','計測','ｺﾝｾﾝﾄ','換気','情報','交換','ﾃﾚﾋﾞ','誘導','映像音響','入退','拡声','火報','監視ｶﾒﾗ'];
+
+        function qaLoadData() {
+            try { return JSON.parse(localStorage.getItem(QA_DATA_KEY)) || []; }
+            catch(e) { return []; }
+        }
+        function qaSaveData(data) { localStorage.setItem(QA_DATA_KEY, JSON.stringify(data)); }
+        function qaLoadSettings() {
+            try { return JSON.parse(localStorage.getItem(QA_SETTINGS_KEY)) || {}; }
+            catch(e) { return {}; }
+        }
+        function qaSaveSettingsData(s) { localStorage.setItem(QA_SETTINGS_KEY, JSON.stringify(s)); }
+
+        function qaGetProjectName() {
+            const list = projectGetList();
+            const curId = projectGetCurrent();
+            const proj = list.find(p => p.id === curId);
+            return proj ? proj.name : '（未設定）';
+        }
+
+        // 設定保存
+        function qaSaveSettings() {
+            const s = {
+                clientName: document.getElementById('qaClientName').value,
+                clientTel: document.getElementById('qaClientTel').value,
+                clientFax: document.getElementById('qaClientFax').value,
+                kantokuList: document.getElementById('qaKantokuList').value,
+                sekoList: document.getElementById('qaSekoList').value,
+                place: document.getElementById('qaPlace').value
+            };
+            qaSaveSettingsData(s);
+            alert('設定を保存しました');
+        }
+
+        function qaRestoreSettings() {
+            const s = qaLoadSettings();
+            document.getElementById('qaClientName').value = s.clientName || '';
+            document.getElementById('qaClientTel').value = s.clientTel || '';
+            document.getElementById('qaClientFax').value = s.clientFax || '';
+            document.getElementById('qaKantokuList').value = s.kantokuList || '';
+            document.getElementById('qaSekoList').value = s.sekoList || '';
+            document.getElementById('qaPlace').value = s.place || '';
+        }
+
+        // 初期化
+        let _qaInitDone = false;
+        function qaInit() {
+            if (!_qaInitDone) {
+                qaRestoreSettings();
+                qaPopulateFilterKoushu();
+                _qaInitDone = true;
+            }
+            qaRender();
+        }
+
+        function qaPopulateFilterKoushu() {
+            const sel = document.getElementById('qaFilterKoushu');
+            sel.innerHTML = '<option value="">すべて</option>' +
+                QA_KOUSHU_LIST.map(k => `<option value="${k}">${k}</option>`).join('');
+        }
+
+        // 行追加
+        function qaAddRow() {
+            const data = qaLoadData();
+            const nextNo = data.length > 0 ? Math.max(...data.map(d => d.no || 0)) + 1 : 1;
+            data.push({
+                id: 'qa_' + Date.now(),
+                no: nextNo,
+                drawingNo: '',
+                koushu: '',
+                questionDate: '',
+                questioner: '',
+                question: '',
+                answers: [{ answerDate: '', answerer: '', answer: '', ketsugi: '' }],
+                drawingReflect: false,
+                printed: false
+            });
+            qaSaveData(data);
+            qaRender();
+        }
+
+        // 行削除
+        function qaDeleteRow(id) {
+            if (!confirm('この質疑を削除しますか？')) return;
+            let data = qaLoadData();
+            data = data.filter(d => d.id !== id);
+            // No振り直し
+            data.forEach((d, i) => d.no = i + 1);
+            qaSaveData(data);
+            qaRender();
+        }
+
+        // 回答行追加（継続用）
+        function qaAddAnswer(id) {
+            const data = qaLoadData();
+            const item = data.find(d => d.id === id);
+            if (!item) return;
+            item.answers.push({ answerDate: '', answerer: '', answer: '', ketsugi: '' });
+            qaSaveData(data);
+            qaRender();
+        }
+
+        // 回答行削除
+        function qaDeleteAnswer(id, ansIdx) {
+            const data = qaLoadData();
+            const item = data.find(d => d.id === id);
+            if (!item || item.answers.length <= 1) return;
+            item.answers.splice(ansIdx, 1);
+            qaSaveData(data);
+            qaRender();
+        }
+
+        // フィールド変更
+        function qaOnChange(id, field, value) {
+            const data = qaLoadData();
+            const item = data.find(d => d.id === id);
+            if (!item) return;
+            item[field] = value;
+
+            // 決議自動ロジック: 質疑入力時に自動で未決
+            if (field === 'question' && value.trim() !== '') {
+                const lastAns = item.answers[item.answers.length - 1];
+                if (!lastAns.ketsugi) {
+                    lastAns.ketsugi = '未決';
+                }
+            }
+            qaSaveData(data);
+            qaRender();
+        }
+
+        // 回答フィールド変更
+        function qaOnAnswerChange(id, ansIdx, field, value) {
+            const data = qaLoadData();
+            const item = data.find(d => d.id === id);
+            if (!item || !item.answers[ansIdx]) return;
+            item.answers[ansIdx][field] = value;
+
+            // 回答入力時 → 未決を継続に変更
+            if (field === 'answer' && value.trim() !== '') {
+                if (item.answers[ansIdx].ketsugi === '未決' || !item.answers[ansIdx].ketsugi) {
+                    item.answers[ansIdx].ketsugi = '継続';
+                }
+            }
+            qaSaveData(data);
+            qaRender();
+        }
+
+        // 決議変更
+        function qaOnKetsugiChange(id, ansIdx, value) {
+            const data = qaLoadData();
+            const item = data.find(d => d.id === id);
+            if (!item || !item.answers[ansIdx]) return;
+            item.answers[ansIdx].ketsugi = value;
+            qaSaveData(data);
+            qaRender();
+        }
+
+        // 図面反映チェック
+        function qaOnDrawingReflect(id, checked) {
+            const data = qaLoadData();
+            const item = data.find(d => d.id === id);
+            if (!item) return;
+            item.drawingReflect = checked;
+            qaSaveData(data);
+        }
+
+        // 全選択
+        function qaToggleSelectAll(checked) {
+            document.querySelectorAll('#qaBody input[type="checkbox"].qa-select').forEach(cb => cb.checked = checked);
+        }
+
+        // フィルタクリア
+        function qaClearFilter() {
+            document.getElementById('qaFilterKoushu').value = '';
+            document.getElementById('qaFilterKetsugi').value = '';
+            document.getElementById('qaFilterPrinted').value = '';
+            document.getElementById('qaFilterText').value = '';
+            qaRender();
+        }
+
+        // 最終決議を取得
+        function qaGetFinalKetsugi(item) {
+            if (!item.answers || item.answers.length === 0) return '';
+            for (let i = item.answers.length - 1; i >= 0; i--) {
+                if (item.answers[i].ketsugi) return item.answers[i].ketsugi;
+            }
+            return '';
+        }
+
+        // レンダリング
+        function qaRender() {
+            const data = qaLoadData();
+            const tbody = document.getElementById('qaBody');
+            const fKoushu = document.getElementById('qaFilterKoushu').value;
+            const fKetsugi = document.getElementById('qaFilterKetsugi').value;
+            const fPrinted = document.getElementById('qaFilterPrinted').value;
+            const fText = document.getElementById('qaFilterText').value.toLowerCase();
+
+            let filtered = data.filter(d => {
+                if (fKoushu && d.koushu !== fKoushu) return false;
+                if (fKetsugi) {
+                    const fk = qaGetFinalKetsugi(d);
+                    if (fk !== fKetsugi) return false;
+                }
+                if (fPrinted === 'yes' && !d.printed) return false;
+                if (fPrinted === 'no' && d.printed) return false;
+                if (fText) {
+                    const searchStr = (d.question + ' ' + d.answers.map(a=>a.answer).join(' ')).toLowerCase();
+                    if (!searchStr.includes(fText)) return false;
+                }
+                return true;
+            });
+
+            const koushuOpts = QA_KOUSHU_LIST.map(k => `<option value="${k}">${k}</option>`).join('');
+            // 出席者リストを取得
+            const settings = qaLoadSettings();
+            const sekoNames = (settings.sekoList || '').split('\n').filter(s => s.trim());
+            const kantokuNames = (settings.kantokuList || '').split('\n').filter(s => s.trim());
+            const allNames = [...kantokuNames, ...sekoNames];
+            const nameOpts = allNames.map(n => `<option value="${n.trim()}">${n.trim()}</option>`).join('');
+
+            let html = '';
+            filtered.forEach(item => {
+                const finalK = qaGetFinalKetsugi(item);
+                const rowClass = finalK === '未決' ? 'qa-row-miketsu' : (finalK === '継続' ? 'qa-row-keizoku' : '');
+                const ansCount = item.answers.length;
+
+                // 1行目: 質疑 + 最初の回答
+                const a0 = item.answers[0] || { answerDate:'', answerer:'', answer:'', ketsugi:'' };
+                html += `<tr class="${rowClass}" data-qa-id="${item.id}">`;
+                html += `<td rowspan="${ansCount}"><input type="checkbox" class="qa-select" value="${item.id}"></td>`;
+                html += `<td rowspan="${ansCount}" style="text-align:center;font-weight:bold;">${item.no}</td>`;
+                html += `<td rowspan="${ansCount}"><input type="text" value="${(item.drawingNo||'').replace(/"/g,'&quot;')}" style="width:60px;" onchange="qaOnChange('${item.id}','drawingNo',this.value)"></td>`;
+                html += `<td rowspan="${ansCount}"><select onchange="qaOnChange('${item.id}','koushu',this.value)"><option value="">-</option>${koushuOpts.replace(`value="${item.koushu}"`, `value="${item.koushu}" selected`)}</select></td>`;
+                html += `<td rowspan="${ansCount}"><input type="date" value="${item.questionDate||''}" onchange="qaOnChange('${item.id}','questionDate',this.value)"></td>`;
+                html += `<td rowspan="${ansCount}"><select onchange="qaOnChange('${item.id}','questioner',this.value)"><option value="">-</option>${nameOpts.replace(`value="${item.questioner}"`, `value="${item.questioner}" selected`)}</select></td>`;
+                html += `<td rowspan="${ansCount}"><textarea onchange="qaOnChange('${item.id}','question',this.value)">${(item.question||'').replace(/</g,'&lt;')}</textarea></td>`;
+
+                // 回答0
+                html += qaAnswerCells(item, 0, a0, nameOpts);
+
+                // 図面反映・出力済み・操作（rowspan）
+                html += `<td rowspan="${ansCount}" style="text-align:center;"><input type="checkbox" ${item.drawingReflect?'checked':''} onchange="qaOnDrawingReflect('${item.id}',this.checked)"></td>`;
+                html += `<td rowspan="${ansCount}" style="text-align:center;">${item.printed ? '<span class="qa-badge-printed">済</span>' : ''}</td>`;
+                html += `<td rowspan="${ansCount}" style="text-align:center;">`;
+                html += `<button class="qa-btn qa-btn-sub" onclick="qaAddAnswer('${item.id}')" title="回答追加">+回答</button><br>`;
+                html += `<button class="qa-btn qa-btn-del" style="margin-top:3px;" onclick="qaDeleteRow('${item.id}')" title="削除">削除</button>`;
+                html += `</td></tr>`;
+
+                // 追加回答行
+                for (let ai = 1; ai < ansCount; ai++) {
+                    const subK = item.answers[ai].ketsugi;
+                    const subClass = subK === '継続' ? 'qa-sub-row qa-row-keizoku' : 'qa-sub-row';
+                    html += `<tr class="${subClass}" data-qa-id="${item.id}">`;
+                    html += qaAnswerCells(item, ai, item.answers[ai], nameOpts);
+                    html += `</tr>`;
+                }
+            });
+            tbody.innerHTML = html;
+
+            // 統計
+            const miketsu = data.filter(d => qaGetFinalKetsugi(d) === '未決').length;
+            const keizoku = data.filter(d => qaGetFinalKetsugi(d) === '継続').length;
+            const kettei = data.filter(d => qaGetFinalKetsugi(d) === '決定').length;
+            document.getElementById('qaStats').innerHTML =
+                `全 ${data.length} 件　` +
+                `<span class="qa-badge-miketsu">未決 ${miketsu}</span> ` +
+                `<span class="qa-badge-keizoku">継続 ${keizoku}</span> ` +
+                `<span class="qa-badge-kettei">決定 ${kettei}</span>`;
+        }
+
+        // 回答セル生成
+        function qaAnswerCells(item, ansIdx, ans, nameOpts) {
+            let h = '';
+            h += `<td><input type="date" value="${ans.answerDate||''}" onchange="qaOnAnswerChange('${item.id}',${ansIdx},'answerDate',this.value)"></td>`;
+            h += `<td><select onchange="qaOnAnswerChange('${item.id}',${ansIdx},'answerer',this.value)"><option value="">-</option>${nameOpts.replace(`value="${ans.answerer}"`, `value="${ans.answerer}" selected`)}</select></td>`;
+            h += `<td><textarea onchange="qaOnAnswerChange('${item.id}',${ansIdx},'answer',this.value)">${(ans.answer||'').replace(/</g,'&lt;')}</textarea></td>`;
+
+            // 決議
+            const k = ans.ketsugi || '';
+            if (k === '未決') {
+                h += `<td style="text-align:center;"><span class="qa-badge-miketsu">未決</span></td>`;
+            } else if (ans.answer && ans.answer.trim()) {
+                h += `<td style="text-align:center;"><select onchange="qaOnKetsugiChange('${item.id}',${ansIdx},this.value)" style="font-size:0.78rem;">`;
+                h += `<option value="継続" ${k==='継続'?'selected':''}>継続</option>`;
+                h += `<option value="決定" ${k==='決定'?'selected':''}>決定</option>`;
+                h += `</select></td>`;
+            } else {
+                h += `<td style="text-align:center;">${k ? `<span class="qa-badge-miketsu">${k}</span>` : '-'}</td>`;
+            }
+
+            // 回答削除ボタン（2行目以降）
+            if (ansIdx > 0) {
+                h += `<td colspan="3" style="text-align:center;border:none;"><button class="qa-btn qa-btn-del" style="font-size:0.7rem;padding:0.1rem 0.3rem;" onclick="qaDeleteAnswer('${item.id}',${ansIdx})">×</button></td>`;
+            }
+            return h;
+        }
+
+        // CSV出力
+        function qaExportCSV() {
+            const data = qaLoadData();
+            if (data.length === 0) { alert('データがありません'); return; }
+            let csv = 'No,図面番号,工種,質疑日,質疑者,質疑事項,回答日,回答者,回答,決議,図面反映,出力済\n';
+            data.forEach(d => {
+                d.answers.forEach((a, ai) => {
+                    csv += [
+                        ai === 0 ? d.no : '',
+                        ai === 0 ? `"${(d.drawingNo||'').replace(/"/g,'""')}"` : '',
+                        ai === 0 ? d.koushu : '',
+                        ai === 0 ? d.questionDate : '',
+                        ai === 0 ? d.questioner : '',
+                        ai === 0 ? `"${(d.question||'').replace(/"/g,'""')}"` : '',
+                        a.answerDate || '',
+                        a.answerer || '',
+                        `"${(a.answer||'').replace(/"/g,'""')}"`,
+                        a.ketsugi || '',
+                        ai === 0 ? (d.drawingReflect ? '○' : '') : '',
+                        ai === 0 ? (d.printed ? '済' : '') : ''
+                    ].join(',') + '\n';
+                });
+            });
+            const bom = '﻿';
+            const blob = new Blob([bom + csv], {type:'text/csv;charset=utf-8;'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = '質疑応答書_' + new Date().toISOString().slice(0,10) + '.csv';
+            a.click(); URL.revokeObjectURL(url);
+        }
+
+        // ================================================================
+        // 質疑応答書 PDF出力（議事録形式）
+        // ================================================================
+        function qaPrintReport() {
+            const data = qaLoadData();
+            // 選択された項目のみ
+            const selectedIds = [];
+            document.querySelectorAll('#qaBody input.qa-select:checked').forEach(cb => selectedIds.push(cb.value));
+            if (selectedIds.length === 0) { alert('出力する質疑をチェックしてください'); return; }
+
+            const items = data.filter(d => selectedIds.includes(d.id));
+            const settings = qaLoadSettings();
+            const projectName = qaGetProjectName();
+
+            // 出席者整形
+            const kantokuNames = (settings.kantokuList || '').split('\n').filter(s => s.trim());
+            const sekoNames = (settings.sekoList || '').split('\n').filter(s => s.trim());
+
+            // 日時入力ダイアログ
+            const meetingDate = prompt('打合せ日時を入力（例: 2026-05-23）：', new Date().toISOString().slice(0,10));
+            if (!meetingDate) return;
+            const meetingTimeFrom = prompt('開始時刻（例: 10:00）：', '10:00');
+            const meetingTimeTo = prompt('終了時刻（例: 12:00）：', '12:00');
+            const meetingNo = prompt('第何回の打合せですか？（例: 1）：', '1');
+
+            // 議事内容ビルド
+            let contentRows = '';
+            items.forEach((item, idx) => {
+                const totalRows = 1 + item.answers.length; // 質疑1行 + 回答行
+                // 質疑行
+                contentRows += `<tr>`;
+                contentRows += `<td rowspan="${totalRows}" class="no-cell">${item.no}</td>`;
+                contentRows += `<td class="content-label">【${item.koushu || ''}】${item.drawingNo ? '(図面:'+item.drawingNo+')' : ''}</td>`;
+                contentRows += `<td class="content-detail"></td>`;
+                contentRows += `</tr>`;
+                // 質疑事項
+                contentRows += `<tr><td class="content-label" style="color:#c62828;">質疑：</td>`;
+                contentRows += `<td class="content-detail">${(item.question||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</td></tr>`;
+                // 回答行
+                item.answers.forEach((ans, ai) => {
+                    if (ans.answer && ans.answer.trim()) {
+                        const ketBadge = ans.ketsugi === '決定' ? '<span style="color:#2e7d32;font-weight:bold;">[決定]</span>' :
+                                         ans.ketsugi === '継続' ? '<span style="color:#1565c0;font-weight:bold;">[継続]</span>' :
+                                         ans.ketsugi === '未決' ? '<span style="color:#e65100;font-weight:bold;">[未決]</span>' : '';
+                        contentRows += `<tr><td class="content-label" style="color:#1565c0;">回答${item.answers.length > 1 ? (ai+1) : ''}：</td>`;
+                        contentRows += `<td class="content-detail">${ketBadge} ${(ans.answer||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</td></tr>`;
+                    }
+                });
+            });
+
+            // 日付フォーマット
+            const dParts = meetingDate.split('-');
+            const dateDisp = dParts.length === 3 ? `${dParts[0]}年${parseInt(dParts[1])}月${parseInt(dParts[2])}日` : meetingDate;
+
+            const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<title>工事打合せ議事録（第${meetingNo}回）</title>
+<style>
+@page { size: A4 portrait; margin: 12mm 10mm; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'MS PGothic','Meiryo',sans-serif; font-size: 9pt; color: #333; padding: 10px; }
+.header-table { width:100%; border-collapse:collapse; margin-bottom:2px; }
+.header-table td { padding: 2px 6px; font-size: 9pt; vertical-align: top; }
+.header-table .label { font-weight:bold; width:50px; background:#e8eaf6; border:1px solid #999; }
+.header-table .value { border:1px solid #999; }
+h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
+.attendee-table { width:100%; border-collapse:collapse; margin-bottom:4px; }
+.attendee-table td, .attendee-table th { border:1px solid #999; padding:2px 6px; font-size: 8.5pt; }
+.attendee-table th { background:#e8eaf6; width:60px; font-weight:bold; }
+.content-table { width:100%; border-collapse:collapse; }
+.content-table th { background:#1565c0; color:#fff; border:1px solid #999; padding:3px 6px; font-size:8.5pt; }
+.content-table td { border:1px solid #ccc; padding:3px 6px; font-size:8.5pt; vertical-align:top; }
+.no-cell { text-align:center; font-weight:bold; width:30px; vertical-align:top; }
+.content-label { width:110px; font-weight:bold; font-size:8pt; }
+.content-detail { }
+.footer { font-size: 7pt; color:#999; text-align:right; margin-top:8px; border-top:1px solid #ccc; padding-top:3px; }
+.record-info { font-size:7.5pt; text-align:right; color:#666; margin-bottom:2px; }
+@media print { body { padding:0; } }
+</style>
+</head><body>
+<div class="record-info">記録　${dateDisp}</div>
+<h2>工 事 打 合 せ 議 事 録 （第${meetingNo}回）</h2>
+<table class="header-table">
+<tr><td class="label">件名</td><td class="value" colspan="3">${projectName}</td></tr>
+<tr><td class="label">客先</td><td class="value">${settings.clientName || ''}　TEL ${settings.clientTel || ''}　FAX ${settings.clientFax || ''}</td>
+    <td class="label" style="width:50px;">日時</td><td class="value" style="width:180px;">${dateDisp}　${meetingTimeFrom||''} ～ ${meetingTimeTo||''}</td></tr>
+<tr><td class="label">場所</td><td class="value" colspan="3">${settings.place || ''}</td></tr>
+</table>
+<table class="attendee-table">
+<tr><th rowspan="2">出席者</th><th>監督員</th><td>${kantokuNames.join('、')}</td></tr>
+<tr><th>施工業者</th><td>${sekoNames.join('、')}</td></tr>
+</table>
+<table class="content-table">
+<tr><th style="width:30px;">No</th><th colspan="2">議　事　内　容</th></tr>
+${contentRows}
+</table>
+<div class="footer">エル・エル・イー電気株式会社 — 工事打合せ議事録</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`;
+
+            const w = window.open('', '_blank');
+            w.document.write(html);
+            w.document.close();
+
+            // 出力済みフラグを更新
+            const allData = qaLoadData();
+            selectedIds.forEach(sid => {
+                const found = allData.find(d => d.id === sid);
+                if (found) found.printed = true;
+            });
+            qaSaveData(allData);
+            qaRender();
+        }
+
     </script>
 </body>
 </html>
