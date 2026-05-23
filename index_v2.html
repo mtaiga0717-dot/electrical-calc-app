@@ -12566,6 +12566,9 @@ td { vertical-align: middle; }
         const QA_DATA_KEY = 'elecCalc:qaData';
         const QA_SETTINGS_KEY = 'elecCalc:qaSettings';
         const QA_KOUSHU_LIST = ['外構','受変電','幹線・動力','電灯','計測','ｺﾝｾﾝﾄ','換気','情報','交換','ﾃﾚﾋﾞ','誘導','映像音響','入退','拡声','火報','監視ｶﾒﾗ'];
+        const QA_DRAWING_NOS = [];
+        for (let i = 1; i <= 99; i++) QA_DRAWING_NOS.push(String(i));
+        const LLE_COMPANY = 'エル・エル・イー電気株式会社';
 
         function qaLoadData() {
             try { return JSON.parse(localStorage.getItem(QA_DATA_KEY)) || []; }
@@ -12763,7 +12766,7 @@ td { vertical-align: middle; }
             data.push({
                 id: 'qa_' + Date.now(),
                 no: nextNo,
-                drawingNo: '',
+                drawingNo: 'E-',
                 koushu: '',
                 summary: '',
                 exchanges: [{ questionDate:'', questioner:'', question:'', answerDate:'', answerer:'', answer:'', ketsugi:'', printed:'' }],
@@ -12934,7 +12937,7 @@ td { vertical-align: middle; }
                     if (isFirst) {
                         html += `<td rowspan="${exCount}"><input type="checkbox" class="qa-select" value="${item.id}"></td>`;
                         html += `<td rowspan="${exCount}" style="text-align:center;font-weight:bold;">${item.no}</td>`;
-                        html += `<td rowspan="${exCount}"><input type="text" value="${(item.drawingNo||'').replace(/"/g,'&quot;')}" style="width:60px;" onchange="qaOnFieldChange('${item.id}','drawingNo',this.value)"></td>`;
+                        html += `<td rowspan="${exCount}" style="white-space:nowrap;"><span style="font-size:0.8rem;">E-</span><select style="font-size:0.78rem;width:40px;" onchange="qaOnFieldChange('${item.id}','drawingNo', this.value ? 'E-'+this.value : '')"><option value="">-</option>${QA_DRAWING_NOS.map(n => '<option value=\"'+n+'\"'+((item.drawingNo||'')==='E-'+n?' selected':'')+'>'+n+'</option>').join('')}</select></td>`;
                         html += `<td rowspan="${exCount}"><select onchange="qaOnFieldChange('${item.id}','koushu',this.value)"><option value="">-</option>${koushuOpts.replace('value="'+item.koushu+'"', 'value="'+item.koushu+'" selected')}</select></td>`;
                         html += `<td rowspan="${exCount}"><select style="font-size:0.78rem;" onchange="qaOnFieldChange('${item.id}','summary',this.value)"><option value="">-</option>${summaryOpts.replace('value="'+(item.summary||'').replace(/"/g,'&quot;')+'"', 'value="'+(item.summary||'').replace(/"/g,'&quot;')+'" selected')}</select></td>`;
                     }
@@ -13129,9 +13132,23 @@ td { vertical-align: middle; }
             const projSettings = loadProjectSettings();
             const projectName = qaGetProjectName();
 
+            // 名前に「様」を付けるヘルパー（エル・エル・イー電気株式会社の社員以外）
+            // LLE社員かどうかを判定するためのセット
+            const lleSettings = qaLoadSettings();
+            const lleSekoList = Array.isArray(lleSettings.sekoList) ? lleSettings.sekoList : [];
+            const lleMembers = new Set(lleSekoList.filter(e => e.company === LLE_COMPANY).map(e => e.name));
+            function _qaAddSama(name) {
+                if (!name) return '';
+                // LLE社員なら様を付けない、それ以外は付ける
+                if (lleMembers.has(name)) return name;
+                // 既に様が付いていたらそのまま
+                if (name.endsWith('様')) return name;
+                return name + '様';
+            }
+
             // 出席者: モーダルのチェックボックスから選択された人を取得
             const kantokuNames = [];
-            document.querySelectorAll('.qa-print-kantoku:checked').forEach(cb => kantokuNames.push(cb.value));
+            document.querySelectorAll('.qa-print-kantoku:checked').forEach(cb => kantokuNames.push(_qaAddSama(cb.value)));
             // 施工業者: チェックされた人を会社別グループ化
             const sekoByCompany = {};
             document.querySelectorAll('.qa-print-seko:checked').forEach(cb => {
@@ -13139,7 +13156,8 @@ td { vertical-align: middle; }
                 const name = cb.value;
                 const key = comp || '（未設定）';
                 if (!sekoByCompany[key]) sekoByCompany[key] = [];
-                sekoByCompany[key].push(name);
+                // LLE社員以外は様を付ける
+                sekoByCompany[key].push(comp === LLE_COMPANY ? name : _qaAddSama(name));
             });
             // 施工業者の出席者行を会社ごとに生成
             const sekoCompanies = Object.entries(sekoByCompany);
@@ -13164,14 +13182,15 @@ td { vertical-align: middle; }
                     contentRows += `<tr>`;
                     if (ei === 0) {
                         contentRows += `<td rowspan="${totalRows}" class="no-cell">${item.no}</td>`;
-                        contentRows += `<td rowspan="${totalRows}" class="koushu-cell">${item.koushu || ''}${item.drawingNo ? '<br>(図面:'+item.drawingNo+')' : ''}</td>`;
+                        contentRows += `<td rowspan="${totalRows}" class="drawing-cell">${item.drawingNo || ''}</td>`;
+                        contentRows += `<td rowspan="${totalRows}" class="koushu-cell">${item.koushu || ''}</td>`;
                         contentRows += `<td rowspan="${totalRows}" class="summary-cell">${item.summary || ''}</td>`;
                     }
                     // 質疑+回答を1セルに
                     contentRows += `<td class="qa-content-cell">`;
                     // 質疑部分
                     if (ex.question && ex.question.trim()) {
-                        contentRows += `<div class="q-block"><span class="q-label">質疑${totalRows > 1 ? (ei+1) : ''}${ex.questioner ? '（'+ex.questioner+'）' : ''}：</span><br>`;
+                        contentRows += `<div class="q-block"><span class="q-label">質疑${totalRows > 1 ? (ei+1) : ''}${ex.questioner ? '（'+_qaAddSama(ex.questioner)+'）' : ''}：</span><br>`;
                         contentRows += `${(ex.question||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
                     }
                     // 回答部分
@@ -13179,7 +13198,7 @@ td { vertical-align: middle; }
                         const ketBadge = ex.ketsugi === '決定' ? '<span style="font-weight:bold;">[決定]</span> ' :
                                          ex.ketsugi === '継続' ? '<span style="font-weight:bold;">[継続]</span> ' :
                                          ex.ketsugi === '未決' ? '<span style="font-weight:bold;">[未決]</span> ' : '';
-                        contentRows += `<div class="a-block"><span class="a-label">回答${totalRows > 1 ? (ei+1) : ''}${ex.answerer ? '（'+ex.answerer+'）' : ''}：</span><br>`;
+                        contentRows += `<div class="a-block"><span class="a-label">回答${totalRows > 1 ? (ei+1) : ''}${ex.answerer ? '（'+_qaAddSama(ex.answerer)+'）' : ''}：</span><br>`;
                         contentRows += `${ketBadge}${(ex.answer||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
                     }
                     contentRows += `</td></tr>`;
@@ -13207,9 +13226,10 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 .content-table { }
 .content-table th { background:#1565c0; color:#fff; border:1px solid #333; padding:3px 6px; font-size:8.5pt; }
 .content-table td { border:1px solid #333; padding:4px 6px; font-size:8.5pt; vertical-align:top; }
-.no-cell { text-align:center; font-weight:bold; width:30px; vertical-align:top; }
-.koushu-cell { width:70px; font-weight:bold; font-size:8pt; vertical-align:top; }
-.summary-cell { width:90px; font-size:8pt; vertical-align:top; }
+.no-cell { text-align:center; font-weight:bold; width:25px; vertical-align:top; }
+.drawing-cell { text-align:center; width:40px; font-size:8pt; vertical-align:top; }
+.koushu-cell { width:65px; font-weight:bold; font-size:8pt; vertical-align:top; }
+.summary-cell { width:80px; font-size:8pt; vertical-align:top; }
 .qa-content-cell { }
 .q-block { margin-bottom:4px; }
 .a-block { padding-top:4px; border-top:1px dashed #999; }
@@ -13234,7 +13254,7 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 ${sekoAttendeeRows}
 </table>
 <table class="content-table">
-<tr><th style="width:30px;">No</th><th style="width:70px;">工種</th><th style="width:90px;">内容</th><th>質疑・回答内容</th></tr>
+<tr><th style="width:25px;">No</th><th style="width:40px;">図面<br>番号</th><th style="width:65px;">工種</th><th style="width:80px;">内容</th><th>質疑・回答内容</th></tr>
 ${contentRows}
 </table>
 <div class="footer">エル・エル・イー電気株式会社 — 工事打合せ議事録</div>
