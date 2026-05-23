@@ -12837,6 +12837,26 @@ td { vertical-align: middle; }
 
             const koushuOpts = QA_KOUSHU_LIST.map(k => `<option value="${k}">${k}</option>`).join('');
 
+            // 質疑者・回答者の選択肢を監督員+施工業者リストから生成
+            const settings = qaLoadSettings();
+            const kantokuNames = (settings.kantokuList || '').split('\n').filter(s => s.trim()).map(s => s.trim());
+            let sekoEntries = [];
+            if (Array.isArray(settings.sekoList)) {
+                sekoEntries = settings.sekoList;
+            } else if (typeof settings.sekoList === 'string' && settings.sekoList.trim()) {
+                sekoEntries = settings.sekoList.split('\n').filter(n => n.trim()).map(n => ({ company: '', name: n.trim() }));
+            }
+            let personOpts = '';
+            if (kantokuNames.length > 0) {
+                personOpts += `<optgroup label="監督員">` + kantokuNames.map(n => `<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('') + `</optgroup>`;
+            }
+            if (sekoEntries.length > 0) {
+                personOpts += `<optgroup label="施工業者">` + sekoEntries.map(e => {
+                    const disp = e.company ? e.name + '(' + e.company + ')' : e.name;
+                    return `<option value="${e.name.replace(/"/g,'&quot;')}">${disp}</option>`;
+                }).join('') + `</optgroup>`;
+            }
+
             let html = '';
             filtered.forEach(item => {
                 const finalK = qaGetFinalKetsugi(item);
@@ -12860,12 +12880,12 @@ td { vertical-align: middle; }
 
                     // 質疑列
                     html += `<td><input type="date" value="${ex.questionDate||''}" onchange="qaOnExChange('${item.id}',${ei},'questionDate',this.value)"></td>`;
-                    html += `<td><input type="text" value="${(ex.questioner||'').replace(/"/g,'&quot;')}" style="width:55px;font-size:0.8rem;" onchange="qaOnExChange('${item.id}',${ei},'questioner',this.value)"></td>`;
+                    html += `<td><select style="width:65px;font-size:0.78rem;" onchange="qaOnExChange('${item.id}',${ei},'questioner',this.value)"><option value="">-</option>${personOpts.replace('value="'+(ex.questioner||'').replace(/"/g,'&quot;')+'"','value="'+(ex.questioner||'').replace(/"/g,'&quot;')+'" selected')}</select></td>`;
                     html += `<td><textarea onchange="qaOnExChange('${item.id}',${ei},'question',this.value)">${(ex.question||'').replace(/</g,'&lt;')}</textarea></td>`;
 
                     // 回答列
                     html += `<td><input type="date" value="${ex.answerDate||''}" onchange="qaOnExChange('${item.id}',${ei},'answerDate',this.value)"></td>`;
-                    html += `<td><input type="text" value="${(ex.answerer||'').replace(/"/g,'&quot;')}" style="width:55px;font-size:0.8rem;" onchange="qaOnExChange('${item.id}',${ei},'answerer',this.value)"></td>`;
+                    html += `<td><select style="width:65px;font-size:0.78rem;" onchange="qaOnExChange('${item.id}',${ei},'answerer',this.value)"><option value="">-</option>${personOpts.replace('value="'+(ex.answerer||'').replace(/"/g,'&quot;')+'"','value="'+(ex.answerer||'').replace(/"/g,'&quot;')+'" selected')}</select></td>`;
                     html += `<td><textarea onchange="qaOnExChange('${item.id}',${ei},'answer',this.value)">${(ex.answer||'').replace(/</g,'&lt;')}</textarea></td>`;
 
                     // 決議
@@ -13109,14 +13129,14 @@ td { vertical-align: middle; }
             const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
 <title>工事打合せ議事録（第${meetingNo}回）</title>
 <style>
-@page { size: A4 portrait; margin: 12mm 10mm; }
+@page { size: A4 portrait; margin: 15mm; }
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family: 'MS PGothic','Meiryo',sans-serif; font-size: 9pt; color: #000; padding: 10px; max-width: 100%; overflow: hidden; }
-table { border-collapse:collapse; width:100%; }
+body { font-family: 'MS PGothic','Meiryo',sans-serif; font-size: 9pt; color: #000; }
+.wrap { width: 100%; padding: 0; }
+table { border-collapse:collapse; border:2px solid #333; width:100%; }
 .header-table { margin-bottom:2px; }
 .header-table td { padding: 2px 6px; font-size: 9pt; vertical-align: top; border:1px solid #333; }
 .header-table .label { font-weight:bold; white-space:nowrap; width:1%; background:#e8eaf6; }
-.header-table .val-wide { }
 h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 .attendee-table { margin-bottom:4px; }
 .attendee-table td, .attendee-table th { border:1px solid #333; padding:2px 6px; font-size: 8.5pt; vertical-align:top; }
@@ -13133,16 +13153,17 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 .a-label { font-weight:bold; font-size:8pt; }
 .footer { font-size: 7pt; color:#666; text-align:right; margin-top:8px; border-top:1px solid #999; padding-top:3px; }
 .record-info { font-size:7.5pt; text-align:right; color:#333; margin-bottom:2px; }
-@media print { body { padding:0; } }
+@media print { .wrap { padding:0; } }
 </style>
 </head><body>
+<div class="wrap">
 <div class="record-info">記録　${dateDisp}</div>
 <h2>工 事 打 合 せ 議 事 録 （第${meetingNo}回）</h2>
 <table class="header-table">
-<tr><td class="label">件名</td><td class="value" colspan="3">${projectName}</td></tr>
-<tr><td class="label">客先</td><td class="value">${projSettings.clientName || ''}</td>
-    <td class="label">日時</td><td class="value" style="white-space:nowrap;">${dateDisp}　${meetingTimeFrom||''} ～ ${meetingTimeTo||''}</td></tr>
-<tr><td class="label">場所</td><td class="value" colspan="3">${meetingPlace}</td></tr>
+<tr><td class="label">件名</td><td colspan="3">${projectName}</td></tr>
+<tr><td class="label">客先</td><td>${projSettings.clientName || ''}</td>
+    <td class="label">日時</td><td style="white-space:nowrap;">${dateDisp}　${meetingTimeFrom||''} ～ ${meetingTimeTo||''}</td></tr>
+<tr><td class="label">場所</td><td colspan="3">${meetingPlace}</td></tr>
 </table>
 <table class="attendee-table">
 <tr><th rowspan="${1 + sekoCompanies.length}">出席者</th><th>監督員</th><td>${kantokuNames.join('、')}</td></tr>
@@ -13153,6 +13174,7 @@ ${sekoAttendeeRows}
 ${contentRows}
 </table>
 <div class="footer">エル・エル・イー電気株式会社 — 工事打合せ議事録</div>
+</div>
 <script>window.onload=function(){window.print();}<\/script>
 </body></html>`;
 
