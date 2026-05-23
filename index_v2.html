@@ -13164,7 +13164,8 @@ td { vertical-align: middle; }
                     contentRows += `<tr>`;
                     if (ei === 0) {
                         contentRows += `<td rowspan="${totalRows}" class="no-cell">${item.no}</td>`;
-                        contentRows += `<td rowspan="${totalRows}" class="koushu-cell">【${item.koushu || ''}】${item.summary ? '<br>'+item.summary : ''}${item.drawingNo ? '<br>(図面:'+item.drawingNo+')' : ''}</td>`;
+                        contentRows += `<td rowspan="${totalRows}" class="koushu-cell">${item.koushu || ''}${item.drawingNo ? '<br>(図面:'+item.drawingNo+')' : ''}</td>`;
+                        contentRows += `<td rowspan="${totalRows}" class="summary-cell">${item.summary || ''}</td>`;
                     }
                     // 質疑+回答を1セルに
                     contentRows += `<td class="qa-content-cell">`;
@@ -13207,7 +13208,8 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 .content-table th { background:#1565c0; color:#fff; border:1px solid #333; padding:3px 6px; font-size:8.5pt; }
 .content-table td { border:1px solid #333; padding:4px 6px; font-size:8.5pt; vertical-align:top; }
 .no-cell { text-align:center; font-weight:bold; width:30px; vertical-align:top; }
-.koushu-cell { width:100px; font-weight:bold; font-size:8pt; vertical-align:top; }
+.koushu-cell { width:70px; font-weight:bold; font-size:8pt; vertical-align:top; }
+.summary-cell { width:90px; font-size:8pt; vertical-align:top; }
 .qa-content-cell { }
 .q-block { margin-bottom:4px; }
 .a-block { padding-top:4px; border-top:1px dashed #999; }
@@ -13232,7 +13234,7 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 ${sekoAttendeeRows}
 </table>
 <table class="content-table">
-<tr><th style="width:30px;">No</th><th style="width:100px;">工種</th><th>質疑・回答内容</th></tr>
+<tr><th style="width:30px;">No</th><th style="width:70px;">工種</th><th style="width:90px;">内容</th><th>質疑・回答内容</th></tr>
 ${contentRows}
 </table>
 <div class="footer">エル・エル・イー電気株式会社 — 工事打合せ議事録</div>
