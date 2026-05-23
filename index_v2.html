@@ -2928,7 +2928,7 @@
                     <div>決議：<select id="qaFilterKetsugi" style="font-size:0.82rem;min-width:80px;" onchange="qaRender()">
                         <option value="">すべて</option><option value="未決">未決</option><option value="継続">継続</option><option value="決定">決定</option>
                     </select></div>
-                    <div>出力済：<select id="qaFilterPrinted" style="font-size:0.82rem;min-width:80px;" onchange="qaRender()">
+                    <div>打合せ回：<select id="qaFilterPrinted" style="font-size:0.82rem;min-width:80px;" onchange="qaRender()">
                         <option value="">すべて</option><option value="yes">出力済</option><option value="no">未出力</option>
                     </select></div>
                     <div>検索：<input type="text" id="qaFilterText" style="font-size:0.82rem;width:120px;" placeholder="質疑内容..." oninput="qaRender()"></div>
@@ -2951,8 +2951,8 @@
                                 <th style="width:65px;">回答者</th>
                                 <th style="min-width:180px;">回答</th>
                                 <th style="width:60px;">決議</th>
+                                <th style="width:50px;">打合<br>せ回</th>
                                 <th style="width:40px;">図面<br>反映</th>
-                                <th style="width:40px;">出力<br>済</th>
                                 <th style="width:85px;">操作</th>
                             </tr>
                         </thead>
@@ -12614,13 +12614,14 @@ td { vertical-align: middle; }
         function qaMigrateData(data) {
             let changed = false;
             data.forEach(item => {
+                // Phase1: 旧question/answers形式 → exchanges形式
                 if (!item.exchanges) {
                     changed = true;
                     const ex0 = {
                         questionDate: item.questionDate || '',
                         questioner: item.questioner || '',
                         question: item.question || '',
-                        answerDate: '', answerer: '', answer: '', ketsugi: ''
+                        answerDate: '', answerer: '', answer: '', ketsugi: '', printed: ''
                     };
                     if (item.answers && item.answers.length > 0) {
                         const a0 = item.answers[0];
@@ -12630,20 +12631,32 @@ td { vertical-align: middle; }
                         ex0.ketsugi = a0.ketsugi || '';
                     }
                     item.exchanges = [ex0];
-                    // 旧 answers[1..n] → 追加 exchange
                     if (item.answers && item.answers.length > 1) {
                         for (let i = 1; i < item.answers.length; i++) {
                             const a = item.answers[i];
                             item.exchanges.push({
                                 questionDate: '', questioner: '', question: '',
                                 answerDate: a.answerDate || '', answerer: a.answerer || '',
-                                answer: a.answer || '', ketsugi: a.ketsugi || ''
+                                answer: a.answer || '', ketsugi: a.ketsugi || '', printed: ''
                             });
                         }
                     }
                     delete item.questionDate; delete item.questioner;
                     delete item.question; delete item.answers;
                 }
+                // Phase2: item.printed → exchange.printedに移行
+                if (item.printed !== undefined) {
+                    changed = true;
+                    const pv = item.printed || '';
+                    item.exchanges.forEach(ex => {
+                        if (!ex.printed && pv) ex.printed = pv;
+                    });
+                    delete item.printed;
+                }
+                // Phase3: exchangeにprintedフィールドがない場合追加
+                item.exchanges.forEach(ex => {
+                    if (ex.printed === undefined) { ex.printed = ''; changed = true; }
+                });
             });
             if (changed) qaSaveData(data);
             return data;
@@ -12658,9 +12671,8 @@ td { vertical-align: middle; }
                 no: nextNo,
                 drawingNo: '',
                 koushu: '',
-                exchanges: [{ questionDate:'', questioner:'', question:'', answerDate:'', answerer:'', answer:'', ketsugi:'' }],
-                drawingReflect: false,
-                printed: false
+                exchanges: [{ questionDate:'', questioner:'', question:'', answerDate:'', answerer:'', answer:'', ketsugi:'', printed:'' }],
+                drawingReflect: false
             });
             qaSaveData(data);
             qaRender();
@@ -12680,7 +12692,7 @@ td { vertical-align: middle; }
             const data = qaMigrateData(qaLoadData());
             const item = data.find(d => d.id === id);
             if (!item) return;
-            item.exchanges.push({ questionDate:'', questioner:'', question:'', answerDate:'', answerer:'', answer:'', ketsugi:'' });
+            item.exchanges.push({ questionDate:'', questioner:'', question:'', answerDate:'', answerer:'', answer:'', ketsugi:'', printed:'' });
             qaSaveData(data);
             qaRender();
         }
@@ -12772,8 +12784,8 @@ td { vertical-align: middle; }
             let filtered = data.filter(d => {
                 if (fKoushu && d.koushu !== fKoushu) return false;
                 if (fKetsugi && qaGetFinalKetsugi(d) !== fKetsugi) return false;
-                if (fPrinted === 'yes' && !d.printed) return false;
-                if (fPrinted === 'no' && d.printed) return false;
+                if (fPrinted === 'yes' && !(d.exchanges||[]).some(e => e.printed)) return false;
+                if (fPrinted === 'no' && (d.exchanges||[]).every(e => e.printed)) return false;
                 if (fText) {
                     const s = (d.exchanges||[]).map(e => (e.question||'') + ' ' + (e.answer||'')).join(' ').toLowerCase();
                     if (!s.includes(fText)) return false;
@@ -12829,10 +12841,12 @@ td { vertical-align: middle; }
                         html += `<td style="text-align:center;">${k ? '<span class="qa-badge-miketsu">'+k+'</span>' : '-'}</td>`;
                     }
 
+                    // 打合せ回（exchange単位）
+                    html += `<td style="text-align:center;">${ex.printed ? '<span class="qa-badge-printed">第'+ex.printed+'回</span>' : ''}</td>`;
+
                     // rowspan列（1行目のみ）
                     if (isFirst) {
                         html += `<td rowspan="${exCount}" style="text-align:center;"><input type="checkbox" ${item.drawingReflect?'checked':''} onchange="qaOnFieldChange('${item.id}','drawingReflect',this.checked)"></td>`;
-                        html += `<td rowspan="${exCount}" style="text-align:center;">${item.printed ? '<span class="qa-badge-printed">済</span>' : ''}</td>`;
                         html += `<td rowspan="${exCount}" style="text-align:center;">`;
                         html += `<button class="qa-btn qa-btn-sub" onclick="qaAddExchange('${item.id}')" title="質疑・回答追加">+追加</button><br>`;
                         html += `<button class="qa-btn qa-btn-del" style="margin-top:3px;" onclick="qaDeleteRow('${item.id}')" title="削除">削除</button>`;
@@ -12869,7 +12883,7 @@ td { vertical-align: middle; }
         function qaExportCSV() {
             const data = qaMigrateData(qaLoadData());
             if (data.length === 0) { alert('データがありません'); return; }
-            let csv = 'No,図面番号,工種,質疑日,質疑者,質疑事項,回答日,回答者,回答,決議,図面反映,出力済\n';
+            let csv = 'No,図面番号,工種,質疑日,質疑者,質疑事項,回答日,回答者,回答,決議,図面反映,打合せ回\n';
             data.forEach(d => {
                 (d.exchanges||[]).forEach((ex, ei) => {
                     csv += [
@@ -12884,7 +12898,7 @@ td { vertical-align: middle; }
                         '"'+(ex.answer||'').replace(/"/g,'""')+'"',
                         ex.ketsugi || '',
                         ei === 0 ? (d.drawingReflect ? '○' : '') : '',
-                        ei === 0 ? (d.printed ? '済' : '') : ''
+                        ex.printed ? '第'+ex.printed+'回' : ''
                     ].join(',') + '\n';
                 });
             });
@@ -13047,11 +13061,15 @@ ${contentRows}
             w.document.write(html);
             w.document.close();
 
-            // 出力済みフラグを更新
-            const allData = qaLoadData();
+            // 出力済み → 各exchange に第N回を記録（未出力のもののみ）
+            const allData = qaMigrateData(qaLoadData());
             _qaPrintSelectedIds.forEach(sid => {
                 const found = allData.find(d => d.id === sid);
-                if (found) found.printed = true;
+                if (found) {
+                    (found.exchanges || []).forEach(ex => {
+                        if (!ex.printed) ex.printed = meetingNo;
+                    });
+                }
             });
             qaSaveData(allData);
             qaRender();
