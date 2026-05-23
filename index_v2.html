@@ -1433,15 +1433,17 @@
         #qaTab input[type="text"], #qaTab textarea, #qaTab select { font-size:0.8rem; border:1px solid #ccc; border-radius:3px; padding:0.15rem 0.3rem; }
         #qaTab textarea { resize:vertical; width:100%; min-height:2.4em; }
         #qaTab input[type="date"] { font-size:0.78rem; padding:0.1rem 0.2rem; }
-        .qa-row-miketsu { background:#fff3e0 !important; }
-        .qa-row-keizoku { background:#e3f2fd !important; }
+        .qa-row-miketsu { background:#fce4ec !important; }
+        .qa-row-miketsu td { border-color:#e57373 !important; }
+        .qa-row-keizoku { background:#e8eaf6 !important; }
+        .qa-row-keizoku td { border-color:#7986cb !important; }
         .qa-row-kettei { background:transparent !important; }
-        .qa-sub-row td { border-top:1px dashed #90caf9 !important; background:#f5f5f5; }
-        .qa-sub-row.qa-row-keizoku td { background:#e3f2fd !important; }
-        .qa-badge-miketsu { display:inline-block; background:#ff9800; color:#fff; font-size:0.72rem; font-weight:bold; padding:0.1rem 0.4rem; border-radius:3px; }
-        .qa-badge-keizoku { display:inline-block; background:#1e88e5; color:#fff; font-size:0.72rem; font-weight:bold; padding:0.1rem 0.4rem; border-radius:3px; }
-        .qa-badge-kettei { display:inline-block; background:#43a047; color:#fff; font-size:0.72rem; font-weight:bold; padding:0.1rem 0.4rem; border-radius:3px; }
-        .qa-badge-printed { display:inline-block; background:#9e9e9e; color:#fff; font-size:0.68rem; padding:0.1rem 0.3rem; border-radius:3px; margin-left:0.3rem; }
+        .qa-sub-row td { border-top:2px dashed #7986cb !important; background:#f5f5f5; }
+        .qa-sub-row.qa-row-keizoku td { background:#e8eaf6 !important; }
+        .qa-badge-miketsu { display:inline-block; background:#d32f2f; color:#fff; font-size:0.75rem; font-weight:bold; padding:0.15rem 0.5rem; border-radius:4px; letter-spacing:1px; }
+        .qa-badge-keizoku { display:inline-block; background:#1565c0; color:#fff; font-size:0.75rem; font-weight:bold; padding:0.15rem 0.5rem; border-radius:4px; letter-spacing:1px; }
+        .qa-badge-kettei { display:inline-block; background:#2e7d32; color:#fff; font-size:0.75rem; font-weight:bold; padding:0.15rem 0.5rem; border-radius:4px; letter-spacing:1px; }
+        .qa-badge-printed { display:inline-block; background:#78909c; color:#fff; font-size:0.72rem; font-weight:bold; padding:0.12rem 0.4rem; border-radius:4px; margin-left:0.3rem; }
         .qa-btn { font-size:0.75rem; padding:0.2rem 0.5rem; border:none; border-radius:3px; cursor:pointer; color:#fff; }
         .qa-btn-add { background:#43a047; }
         .qa-btn-del { background:#e53935; }
@@ -3078,16 +3080,6 @@
                 <div class="form-group">
                     <label>客先名</label>
                     <input type="text" id="psClientName" style="width:100%;" placeholder="例：静岡市教育委員会">
-                </div>
-                <div style="display:flex;gap:1rem;">
-                    <div class="form-group" style="flex:1;">
-                        <label>TEL</label>
-                        <input type="text" id="psClientTel" placeholder="054-xxx-xxxx">
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>FAX</label>
-                        <input type="text" id="psClientFax" placeholder="054-xxx-xxxx">
-                    </div>
                 </div>
                 <div class="form-group">
                     <label>場所（打合せ場所等）</label>
@@ -10167,8 +10159,6 @@
         function openProjectSettings() {
             const s = loadProjectSettings();
             document.getElementById('psClientName').value = s.clientName || '';
-            document.getElementById('psClientTel').value = s.clientTel || '';
-            document.getElementById('psClientFax').value = s.clientFax || '';
             document.getElementById('psPlace').value = s.place || '';
             document.getElementById('projectSettingsModal').style.display = 'flex';
         }
@@ -10178,8 +10168,6 @@
         function saveProjectSettings() {
             const s = {
                 clientName: document.getElementById('psClientName').value,
-                clientTel: document.getElementById('psClientTel').value,
-                clientFax: document.getElementById('psClientFax').value,
                 place: document.getElementById('psPlace').value
             };
             saveProjectSettingsData(s);
@@ -12913,26 +12901,27 @@ td { vertical-align: middle; }
             const kantokuNames = (settings.kantokuList || '').split('\n').filter(s => s.trim());
             const sekoNames = (settings.sekoList || '').split('\n').filter(s => s.trim());
 
-            // 議事内容ビルド
+            // 議事内容ビルド — 質疑と回答を1セルにまとめてレイアウト崩れを防止
             let contentRows = '';
             items.forEach(item => {
-                const totalRows = 1 + item.answers.length;
-                contentRows += `<tr>`;
-                contentRows += `<td rowspan="${totalRows}" class="no-cell">${item.no}</td>`;
-                contentRows += `<td class="content-label">【${item.koushu || ''}】${item.drawingNo ? '(図面:'+item.drawingNo+')' : ''}</td>`;
-                contentRows += `<td class="content-detail"></td>`;
-                contentRows += `</tr>`;
-                contentRows += `<tr><td class="content-label" style="color:#c62828;">質疑：${item.questioner ? '('+item.questioner+')' : ''}</td>`;
-                contentRows += `<td class="content-detail">${(item.question||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</td></tr>`;
+                let body = '';
+                // 質疑
+                body += `<div style="margin-bottom:6px;"><span style="color:#c62828;font-weight:bold;">質疑${item.questioner ? '（'+item.questioner+'）' : ''}：</span><br>${(item.question||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
+                // 回答（すべて質疑の下に順番に並ぶ）
                 item.answers.forEach((ans, ai) => {
                     if (ans.answer && ans.answer.trim()) {
-                        const ketBadge = ans.ketsugi === '決定' ? '<span style="color:#2e7d32;font-weight:bold;">[決定]</span>' :
-                                         ans.ketsugi === '継続' ? '<span style="color:#1565c0;font-weight:bold;">[継続]</span>' :
-                                         ans.ketsugi === '未決' ? '<span style="color:#e65100;font-weight:bold;">[未決]</span>' : '';
-                        contentRows += `<tr><td class="content-label" style="color:#1565c0;">回答${item.answers.length > 1 ? (ai+1) : ''}：${ans.answerer ? '('+ans.answerer+')' : ''}</td>`;
-                        contentRows += `<td class="content-detail">${ketBadge} ${(ans.answer||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</td></tr>`;
+                        const ketBadge = ans.ketsugi === '決定' ? '<span style="color:#2e7d32;font-weight:bold;">[決定]</span> ' :
+                                         ans.ketsugi === '継続' ? '<span style="color:#1565c0;font-weight:bold;">[継続]</span> ' :
+                                         ans.ketsugi === '未決' ? '<span style="color:#e65100;font-weight:bold;">[未決]</span> ' : '';
+                        const label = item.answers.length > 1 ? '回答' + (ai+1) : '回答';
+                        body += `<div style="margin-bottom:4px;padding-left:8px;border-left:3px solid #90caf9;"><span style="color:#1565c0;font-weight:bold;">${label}${ans.answerer ? '（'+ans.answerer+'）' : ''}：</span><br>${ketBadge}${(ans.answer||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
                     }
                 });
+                contentRows += `<tr>`;
+                contentRows += `<td class="no-cell">${item.no}</td>`;
+                contentRows += `<td class="content-label">【${item.koushu || ''}】${item.drawingNo ? '<br>(図面:'+item.drawingNo+')' : ''}</td>`;
+                contentRows += `<td class="content-detail">${body}</td>`;
+                contentRows += `</tr>`;
             });
 
             const dParts = meetingDate.split('-');
@@ -12967,7 +12956,7 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 <h2>工 事 打 合 せ 議 事 録 （第${meetingNo}回）</h2>
 <table class="header-table">
 <tr><td class="label">件名</td><td class="value" colspan="3">${projectName}</td></tr>
-<tr><td class="label">客先</td><td class="value">${projSettings.clientName || ''}　TEL ${projSettings.clientTel || ''}　FAX ${projSettings.clientFax || ''}</td>
+<tr><td class="label">客先</td><td class="value">${projSettings.clientName || ''}</td>
     <td class="label" style="width:50px;">日時</td><td class="value" style="width:180px;">${dateDisp}　${meetingTimeFrom||''} ～ ${meetingTimeTo||''}</td></tr>
 <tr><td class="label">場所</td><td class="value" colspan="3">${projSettings.place || ''}</td></tr>
 </table>
