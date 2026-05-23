@@ -2889,7 +2889,7 @@
 
                 <!-- 設定: 客先・出席者登録 -->
                 <details id="qaSettings" style="margin-bottom:0.8rem;background:#e8eaf6;border:1px solid #c5cae9;border-radius:4px;padding:0.5rem;">
-                    <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem;color:#1565c0;">⚙ 設定（出席者・質疑者・回答者の登録）　※客先はヘッダーの「⚙工事情報」から設定</summary>
+                    <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem;color:#1565c0;">⚙ 設定（監督員・施工業者の登録）　※客先はヘッダーの「⚙工事情報」から設定</summary>
                     <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.5rem;">
                         <div>
                             <label style="font-size:0.78rem;font-weight:bold;">監督員リスト（改行区切り）</label><br>
@@ -2903,14 +2903,6 @@
                                 <input type="text" id="qaSekoName" style="font-size:0.8rem;width:80px;" placeholder="氏名">
                                 <button class="btn-action" style="background:#43a047;color:#fff;font-size:0.75rem;padding:0.15rem 0.4rem;" onclick="qaAddSeko()">＋追加</button>
                             </div>
-                        </div>
-                        <div>
-                            <label style="font-size:0.78rem;font-weight:bold;">質疑者リスト（改行区切り）</label><br>
-                            <textarea id="qaQuestionerList" rows="3" cols="25" style="font-size:0.82rem;" placeholder="望月&#10;鈴木"></textarea>
-                        </div>
-                        <div>
-                            <label style="font-size:0.78rem;font-weight:bold;">回答者リスト（改行区切り）</label><br>
-                            <textarea id="qaAnswererList" rows="3" cols="25" style="font-size:0.82rem;" placeholder="石黒様&#10;会津様"></textarea>
                         </div>
                         <div style="align-self:flex-end;">
                             <button class="btn-action" style="background:#1565c0;color:#fff;" onclick="qaSaveSettings()">設定を保存</button>
@@ -3131,6 +3123,14 @@
                         <button type="button" class="btn-action" style="background:#ff8f00;color:#fff;font-size:0.72rem;padding:0.2rem 0.5rem;white-space:nowrap;" onclick="qaAddMeetingPlace()">＋登録</button>
                     </div>
                     <input type="text" id="qaPrintPlace" style="width:100%;margin-top:0.3rem;" placeholder="例：現場事務所　２階会議室">
+                </div>
+                <div class="form-group">
+                    <label>出席者（監督員）</label>
+                    <div id="qaPrintKantokuChecks" style="display:flex;flex-wrap:wrap;gap:0.3rem 1rem;font-size:0.82rem;max-height:80px;overflow-y:auto;"></div>
+                </div>
+                <div class="form-group">
+                    <label>出席者（施工業者）</label>
+                    <div id="qaPrintSekoChecks" style="display:flex;flex-wrap:wrap;gap:0.3rem 1rem;font-size:0.82rem;max-height:80px;overflow-y:auto;"></div>
                 </div>
             </div>
             <div class="modal-buttons">
@@ -12581,8 +12581,6 @@ td { vertical-align: middle; }
             s.kantokuList = document.getElementById('qaKantokuList').value;
             // sekoList は _qaSekoListData から取得（構造化データ）
             s.sekoList = JSON.parse(JSON.stringify(_qaSekoListData));
-            s.questionerList = document.getElementById('qaQuestionerList').value;
-            s.answererList = document.getElementById('qaAnswererList').value;
             qaSaveSettingsData(s);
             alert('設定を保存しました');
             qaRender();
@@ -12633,8 +12631,6 @@ td { vertical-align: middle; }
                 _qaSekoListData = [];
             }
             qaRenderSekoList();
-            document.getElementById('qaQuestionerList').value = s.questionerList || '';
-            document.getElementById('qaAnswererList').value = s.answererList || '';
         }
 
         // 初期化
@@ -12840,11 +12836,6 @@ td { vertical-align: middle; }
             });
 
             const koushuOpts = QA_KOUSHU_LIST.map(k => `<option value="${k}">${k}</option>`).join('');
-            const settings = qaLoadSettings();
-            const questionerNames = (settings.questionerList || '').split('\n').filter(s => s.trim());
-            const answererNames = (settings.answererList || '').split('\n').filter(s => s.trim());
-            const qOpts = questionerNames.map(n => `<option value="${n.trim()}">${n.trim()}</option>`).join('');
-            const aOpts = answererNames.map(n => `<option value="${n.trim()}">${n.trim()}</option>`).join('');
 
             let html = '';
             filtered.forEach(item => {
@@ -12869,12 +12860,12 @@ td { vertical-align: middle; }
 
                     // 質疑列
                     html += `<td><input type="date" value="${ex.questionDate||''}" onchange="qaOnExChange('${item.id}',${ei},'questionDate',this.value)"></td>`;
-                    html += `<td><select onchange="qaOnExChange('${item.id}',${ei},'questioner',this.value)"><option value="">-</option>${qOpts.replace('value="'+ex.questioner+'"','value="'+ex.questioner+'" selected')}</select></td>`;
+                    html += `<td><input type="text" value="${(ex.questioner||'').replace(/"/g,'&quot;')}" style="width:55px;font-size:0.8rem;" onchange="qaOnExChange('${item.id}',${ei},'questioner',this.value)"></td>`;
                     html += `<td><textarea onchange="qaOnExChange('${item.id}',${ei},'question',this.value)">${(ex.question||'').replace(/</g,'&lt;')}</textarea></td>`;
 
                     // 回答列
                     html += `<td><input type="date" value="${ex.answerDate||''}" onchange="qaOnExChange('${item.id}',${ei},'answerDate',this.value)"></td>`;
-                    html += `<td><select onchange="qaOnExChange('${item.id}',${ei},'answerer',this.value)"><option value="">-</option>${aOpts.replace('value="'+ex.answerer+'"','value="'+ex.answerer+'" selected')}</select></td>`;
+                    html += `<td><input type="text" value="${(ex.answerer||'').replace(/"/g,'&quot;')}" style="width:55px;font-size:0.8rem;" onchange="qaOnExChange('${item.id}',${ei},'answerer',this.value)"></td>`;
                     html += `<td><textarea onchange="qaOnExChange('${item.id}',${ei},'answer',this.value)">${(ex.answer||'').replace(/</g,'&lt;')}</textarea></td>`;
 
                     // 決議
@@ -12997,7 +12988,30 @@ td { vertical-align: middle; }
             qaPopulateMeetingPlaces();
             document.getElementById('qaPrintPlace').value = '';
             document.getElementById('qaPrintPlaceSelect').value = '';
+            // 出席者チェックボックス生成
+            qaPopulatePrintAttendees();
             document.getElementById('qaPrintModal').style.display = 'flex';
+        }
+
+        function qaPopulatePrintAttendees() {
+            const settings = qaLoadSettings();
+            // 監督員
+            const kantokuNames = (settings.kantokuList || '').split('\n').filter(s => s.trim());
+            const kDiv = document.getElementById('qaPrintKantokuChecks');
+            kDiv.innerHTML = kantokuNames.map((n, i) =>
+                `<label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="qa-print-kantoku" value="${n.trim().replace(/"/g,'&quot;')}" checked> ${n.trim()}</label>`
+            ).join('') || '<span style="color:#999;">（未登録）</span>';
+            // 施工業者
+            let sekoEntries = [];
+            if (Array.isArray(settings.sekoList)) {
+                sekoEntries = settings.sekoList;
+            } else if (typeof settings.sekoList === 'string' && settings.sekoList.trim()) {
+                sekoEntries = settings.sekoList.split('\n').filter(n => n.trim()).map(n => ({ company: '', name: n.trim() }));
+            }
+            const sDiv = document.getElementById('qaPrintSekoChecks');
+            sDiv.innerHTML = sekoEntries.map((e, i) =>
+                `<label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="qa-print-seko" data-company="${(e.company||'').replace(/"/g,'&quot;')}" value="${(e.name||'').replace(/"/g,'&quot;')}" checked> ${e.company ? '('+e.company+')' : ''}${e.name}</label>`
+            ).join('') || '<span style="color:#999;">（未登録）</span>';
         }
         function closeQaPrintModal() {
             document.getElementById('qaPrintModal').style.display = 'none';
@@ -13013,24 +13027,20 @@ td { vertical-align: middle; }
 
             const data = qaMigrateData(qaLoadData());
             const items = data.filter(d => _qaPrintSelectedIds.includes(d.id));
-            const settings = qaLoadSettings();
             const projSettings = loadProjectSettings();
             const projectName = qaGetProjectName();
 
-            const kantokuNames = (settings.kantokuList || '').split('\n').filter(s => s.trim());
-            // 施工業者: 構造化データ [{company, name}] → 会社別グループ化
-            let sekoEntries = [];
-            if (Array.isArray(settings.sekoList)) {
-                sekoEntries = settings.sekoList;
-            } else if (typeof settings.sekoList === 'string' && settings.sekoList.trim()) {
-                sekoEntries = settings.sekoList.split('\n').filter(n => n.trim()).map(n => ({ company: '', name: n.trim() }));
-            }
-            // 会社ごとにグループ化
+            // 出席者: モーダルのチェックボックスから選択された人を取得
+            const kantokuNames = [];
+            document.querySelectorAll('.qa-print-kantoku:checked').forEach(cb => kantokuNames.push(cb.value));
+            // 施工業者: チェックされた人を会社別グループ化
             const sekoByCompany = {};
-            sekoEntries.forEach(e => {
-                const c = e.company || '（未設定）';
-                if (!sekoByCompany[c]) sekoByCompany[c] = [];
-                sekoByCompany[c].push(e.name);
+            document.querySelectorAll('.qa-print-seko:checked').forEach(cb => {
+                const comp = cb.dataset.company || '';
+                const name = cb.value;
+                const key = comp || '（未設定）';
+                if (!sekoByCompany[key]) sekoByCompany[key] = [];
+                sekoByCompany[key].push(name);
             });
             // 出力形式: （会社A）氏名1・氏名2　（会社B）氏名3
             const sekoDisplay = Object.entries(sekoByCompany).map(([comp, names]) =>
@@ -13077,15 +13087,15 @@ td { vertical-align: middle; }
 @page { size: A4 portrait; margin: 12mm 10mm; }
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: 'MS PGothic','Meiryo',sans-serif; font-size: 9pt; color: #000; padding: 10px; }
-.header-table { width:100%; border-collapse:collapse; margin-bottom:2px; table-layout:fixed; }
+.header-table { width:100%; border-collapse:collapse; margin-bottom:2px; }
 .header-table td { padding: 2px 6px; font-size: 9pt; vertical-align: top; }
-.header-table .label { font-weight:bold; width:50px; background:#e8eaf6; border:1px solid #333; }
+.header-table .label { font-weight:bold; white-space:nowrap; width:1%; background:#e8eaf6; border:1px solid #333; }
 .header-table .value { border:1px solid #333; }
 h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
-.attendee-table { width:100%; border-collapse:collapse; margin-bottom:4px; table-layout:fixed; }
+.attendee-table { width:100%; border-collapse:collapse; margin-bottom:4px; }
 .attendee-table td, .attendee-table th { border:1px solid #333; padding:2px 6px; font-size: 8.5pt; }
 .attendee-table th { background:#e8eaf6; width:60px; font-weight:bold; }
-.content-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+.content-table { width:100%; border-collapse:collapse; }
 .content-table th { background:#1565c0; color:#fff; border:1px solid #333; padding:3px 6px; font-size:8.5pt; }
 .content-table td { border:1px solid #333; padding:4px 6px; font-size:8.5pt; vertical-align:top; word-wrap:break-word; }
 .no-cell { text-align:center; font-weight:bold; width:30px; vertical-align:top; border:1px solid #333; }
@@ -13104,7 +13114,7 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 <table class="header-table">
 <tr><td class="label">件名</td><td class="value" colspan="3">${projectName}</td></tr>
 <tr><td class="label">客先</td><td class="value">${projSettings.clientName || ''}</td>
-    <td class="label" style="width:50px;">日時</td><td class="value" style="width:180px;">${dateDisp}　${meetingTimeFrom||''} ～ ${meetingTimeTo||''}</td></tr>
+    <td class="label">日時</td><td class="value" style="white-space:nowrap;">${dateDisp}　${meetingTimeFrom||''} ～ ${meetingTimeTo||''}</td></tr>
 <tr><td class="label">場所</td><td class="value" colspan="3">${meetingPlace}</td></tr>
 </table>
 <table class="attendee-table">
