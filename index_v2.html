@@ -12688,6 +12688,19 @@ td { vertical-align: middle; }
                 qaPopulateFilterKoushu();
                 qaPopulateFilterSummary();
                 _qaInitDone = true;
+                // ★ 安全ネット: 別タブから戻ったときにQAタブを強制再描画
+                document.addEventListener('visibilitychange', function() {
+                    if (!document.hidden) {
+                        // 全モーダルを確実に閉じる
+                        var pm = document.getElementById('qaPrintModal');
+                        if (pm) pm.style.display = 'none';
+                        // QAタブがアクティブなら再描画
+                        var qaTabEl = document.getElementById('qaTab');
+                        if (qaTabEl && qaTabEl.classList.contains('active')) {
+                            try { qaRender(); } catch(e) { console.error('qaRender on visibility:', e); }
+                        }
+                    }
+                });
             }
             qaRender();
         }
@@ -13125,6 +13138,15 @@ td { vertical-align: middle; }
             const meetingTimeFrom = document.getElementById('qaPrintTimeFrom').value || '';
             const meetingTimeTo = document.getElementById('qaPrintTimeTo').value || '';
             const meetingPlace = document.getElementById('qaPrintPlace').value || '';
+
+            // 出席者: モーダルのチェックボックスから選択された人を取得（モーダルを閉じる前に読む）
+            const kantokuChecked = Array.from(document.querySelectorAll('.qa-print-kantoku:checked')).map(cb => cb.value);
+            const sekoChecked = Array.from(document.querySelectorAll('.qa-print-seko:checked')).map(cb => ({
+                company: cb.dataset.company || '',
+                name: cb.value
+            }));
+
+            // モーダルを閉じる
             closeQaPrintModal();
 
             const data = qaMigrateData(qaLoadData());
@@ -13133,30 +13155,24 @@ td { vertical-align: middle; }
             const projectName = qaGetProjectName();
 
             // 名前に「様」を付けるヘルパー（エル・エル・イー電気株式会社の社員以外）
-            // LLE社員かどうかを判定するためのセット
             const lleSettings = qaLoadSettings();
             const lleSekoList = Array.isArray(lleSettings.sekoList) ? lleSettings.sekoList : [];
             const lleMembers = new Set(lleSekoList.filter(e => e.company === LLE_COMPANY).map(e => e.name));
             function _qaAddSama(name) {
                 if (!name) return '';
-                // LLE社員なら様を付けない、それ以外は付ける
                 if (lleMembers.has(name)) return name;
-                // 既に様が付いていたらそのまま
                 if (name.endsWith('様')) return name;
                 return name + '様';
             }
 
-            // 出席者: モーダルのチェックボックスから選択された人を取得
-            const kantokuNames = [];
-            document.querySelectorAll('.qa-print-kantoku:checked').forEach(cb => kantokuNames.push(_qaAddSama(cb.value)));
-            // 施工業者: チェックされた人を会社別グループ化
+            // 出席者を生成（既に取得済みの配列から）
+            const kantokuNames = kantokuChecked.map(n => _qaAddSama(n));
             const sekoByCompany = {};
-            document.querySelectorAll('.qa-print-seko:checked').forEach(cb => {
-                const comp = cb.dataset.company || '';
-                const name = cb.value;
+            sekoChecked.forEach(entry => {
+                const comp = entry.company;
+                const name = entry.name;
                 const key = comp || '（未設定）';
                 if (!sekoByCompany[key]) sekoByCompany[key] = [];
-                // LLE社員以外は様を付ける
                 sekoByCompany[key].push(comp === LLE_COMPANY ? name : _qaAddSama(name));
             });
             // 施工業者の出席者行を会社ごとに生成
@@ -13265,24 +13281,40 @@ ${contentRows}
 <style>@media print { .no-print { display:none !important; } }</style>
 </body></html>`;
 
-            // Blob URLで別タブに表示（document.writeを使わない→メインページに影響なし）
-            const _qaBlob = new Blob([html], { type: 'text/html;charset=utf-8' });
-            const _qaBlobUrl = URL.createObjectURL(_qaBlob);
-            window.open(_qaBlobUrl, '_blank');
-            setTimeout(function() { URL.revokeObjectURL(_qaBlobUrl); }, 120000);
+            // ★ 先にデータ保存＆再描画を完了させてから新タブを開く
+            // （新タブを開いた後だとブラウザの状態遷移でDOM更新が不完全になる場合がある）
+            try {
+                const allData = qaMigrateData(qaLoadData());
+                _qaPrintSelectedIds.forEach(sid => {
+                    const found = allData.find(d => d.id === sid);
+                    if (found) {
+                        (found.exchanges || []).forEach(ex => {
+                            if (!ex.printed) ex.printed = meetingNo;
+                        });
+                    }
+                });
+                qaSaveData(allData);
+                qaRender();
+            } catch(e) {
+                console.error('qaExecutePrint save/render error:', e);
+            }
 
-            // 出力済み → 各exchange に第N回を記録（未出力のもののみ）
-            const allData = qaMigrateData(qaLoadData());
-            _qaPrintSelectedIds.forEach(sid => {
-                const found = allData.find(d => d.id === sid);
-                if (found) {
-                    (found.exchanges || []).forEach(ex => {
-                        if (!ex.printed) ex.printed = meetingNo;
-                    });
-                }
-            });
-            qaSaveData(allData);
-            qaRender();
+            // Blob URLで別タブに表示（<a>タグ経由でwindow.openの副作用を回避）
+            try {
+                const _qaBlob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const _qaBlobUrl = URL.createObjectURL(_qaBlob);
+                const _qaLink = document.createElement('a');
+                _qaLink.href = _qaBlobUrl;
+                _qaLink.target = '_blank';
+                _qaLink.rel = 'noopener noreferrer';
+                _qaLink.style.display = 'none';
+                document.body.appendChild(_qaLink);
+                _qaLink.click();
+                document.body.removeChild(_qaLink);
+                setTimeout(function() { URL.revokeObjectURL(_qaBlobUrl); }, 120000);
+            } catch(e) {
+                console.error('qaExecutePrint open tab error:', e);
+            }
         }
 
     </script>
