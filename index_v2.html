@@ -2896,8 +2896,13 @@
                             <textarea id="qaKantokuList" rows="3" cols="25" style="font-size:0.82rem;" placeholder="石黒様&#10;荻野様"></textarea>
                         </div>
                         <div>
-                            <label style="font-size:0.78rem;font-weight:bold;">施工業者リスト（改行区切り）</label><br>
-                            <textarea id="qaSekoList" rows="3" cols="25" style="font-size:0.82rem;" placeholder="殿岡&#10;鈴木"></textarea>
+                            <label style="font-size:0.78rem;font-weight:bold;">施工業者リスト</label><br>
+                            <div id="qaSekoListContainer" style="border:1px solid #ccc;border-radius:4px;padding:4px;background:#fff;min-width:250px;max-height:140px;overflow-y:auto;"></div>
+                            <div style="display:flex;gap:4px;margin-top:4px;align-items:center;">
+                                <input type="text" id="qaSekoCompany" style="font-size:0.8rem;width:100px;" placeholder="会社名">
+                                <input type="text" id="qaSekoName" style="font-size:0.8rem;width:80px;" placeholder="氏名">
+                                <button class="btn-action" style="background:#43a047;color:#fff;font-size:0.75rem;padding:0.15rem 0.4rem;" onclick="qaAddSeko()">＋追加</button>
+                            </div>
                         </div>
                         <div>
                             <label style="font-size:0.78rem;font-weight:bold;">質疑者リスト（改行区切り）</label><br>
@@ -12572,21 +12577,62 @@ td { vertical-align: middle; }
 
         // 設定保存（出席者・質疑者・回答者）
         function qaSaveSettings() {
-            const s = {
-                kantokuList: document.getElementById('qaKantokuList').value,
-                sekoList: document.getElementById('qaSekoList').value,
-                questionerList: document.getElementById('qaQuestionerList').value,
-                answererList: document.getElementById('qaAnswererList').value
-            };
+            const s = qaLoadSettings();
+            s.kantokuList = document.getElementById('qaKantokuList').value;
+            // sekoList は _qaSekoListData から取得（構造化データ）
+            s.sekoList = JSON.parse(JSON.stringify(_qaSekoListData));
+            s.questionerList = document.getElementById('qaQuestionerList').value;
+            s.answererList = document.getElementById('qaAnswererList').value;
             qaSaveSettingsData(s);
             alert('設定を保存しました');
             qaRender();
         }
 
+        // 施工業者の構造化データ [{company, name}]
+        let _qaSekoListData = [];
+
+        function qaAddSeko() {
+            const comp = document.getElementById('qaSekoCompany').value.trim();
+            const name = document.getElementById('qaSekoName').value.trim();
+            if (!comp || !name) { alert('会社名と氏名を入力してください'); return; }
+            _qaSekoListData.push({ company: comp, name: name });
+            document.getElementById('qaSekoCompany').value = '';
+            document.getElementById('qaSekoName').value = '';
+            qaRenderSekoList();
+        }
+
+        function qaRemoveSeko(idx) {
+            _qaSekoListData.splice(idx, 1);
+            qaRenderSekoList();
+        }
+
+        function qaRenderSekoList() {
+            const container = document.getElementById('qaSekoListContainer');
+            if (!_qaSekoListData.length) {
+                container.innerHTML = '<span style="font-size:0.75rem;color:#999;">（未登録）</span>';
+                return;
+            }
+            container.innerHTML = _qaSekoListData.map((s, i) =>
+                `<div style="display:flex;align-items:center;gap:4px;font-size:0.8rem;padding:1px 0;">
+                    <span style="color:#666;">（${s.company}）</span><span>${s.name}</span>
+                    <button style="border:none;background:none;color:#e53935;cursor:pointer;font-size:0.75rem;padding:0 2px;" onclick="qaRemoveSeko(${i})">✕</button>
+                </div>`
+            ).join('');
+        }
+
         function qaRestoreSettings() {
             const s = qaLoadSettings();
             document.getElementById('qaKantokuList').value = s.kantokuList || '';
-            document.getElementById('qaSekoList').value = s.sekoList || '';
+            // sekoList: 旧形式（文字列）→ 新形式（配列）への移行対応
+            if (Array.isArray(s.sekoList)) {
+                _qaSekoListData = JSON.parse(JSON.stringify(s.sekoList));
+            } else if (typeof s.sekoList === 'string' && s.sekoList.trim()) {
+                // 旧テキスト形式: 改行区切りの名前 → 会社名未設定で移行
+                _qaSekoListData = s.sekoList.split('\n').filter(n => n.trim()).map(n => ({ company: '', name: n.trim() }));
+            } else {
+                _qaSekoListData = [];
+            }
+            qaRenderSekoList();
             document.getElementById('qaQuestionerList').value = s.questionerList || '';
             document.getElementById('qaAnswererList').value = s.answererList || '';
         }
@@ -12972,7 +13018,24 @@ td { vertical-align: middle; }
             const projectName = qaGetProjectName();
 
             const kantokuNames = (settings.kantokuList || '').split('\n').filter(s => s.trim());
-            const sekoNames = (settings.sekoList || '').split('\n').filter(s => s.trim());
+            // 施工業者: 構造化データ [{company, name}] → 会社別グループ化
+            let sekoEntries = [];
+            if (Array.isArray(settings.sekoList)) {
+                sekoEntries = settings.sekoList;
+            } else if (typeof settings.sekoList === 'string' && settings.sekoList.trim()) {
+                sekoEntries = settings.sekoList.split('\n').filter(n => n.trim()).map(n => ({ company: '', name: n.trim() }));
+            }
+            // 会社ごとにグループ化
+            const sekoByCompany = {};
+            sekoEntries.forEach(e => {
+                const c = e.company || '（未設定）';
+                if (!sekoByCompany[c]) sekoByCompany[c] = [];
+                sekoByCompany[c].push(e.name);
+            });
+            // 出力形式: （会社A）氏名1・氏名2　（会社B）氏名3
+            const sekoDisplay = Object.entries(sekoByCompany).map(([comp, names]) =>
+                (comp && comp !== '（未設定）' ? '（' + comp + '）' : '') + names.join('・')
+            ).join('　');
 
             // 議事内容ビルド — 各質疑・回答を罫線付き行で表示
             let contentRows = '';
@@ -12995,9 +13058,9 @@ td { vertical-align: middle; }
                     // 回答セル
                     contentRows += `<td class="a-cell">`;
                     if (ex.answer && ex.answer.trim()) {
-                        const ketBadge = ex.ketsugi === '決定' ? '<span style="color:#2e7d32;font-weight:bold;">[決定]</span> ' :
-                                         ex.ketsugi === '継続' ? '<span style="color:#1565c0;font-weight:bold;">[継続]</span> ' :
-                                         ex.ketsugi === '未決' ? '<span style="color:#e65100;font-weight:bold;">[未決]</span> ' : '';
+                        const ketBadge = ex.ketsugi === '決定' ? '<span style="font-weight:bold;">[決定]</span> ' :
+                                         ex.ketsugi === '継続' ? '<span style="font-weight:bold;">[継続]</span> ' :
+                                         ex.ketsugi === '未決' ? '<span style="font-weight:bold;">[未決]</span> ' : '';
                         contentRows += `<span class="a-label">回答${totalRows > 1 ? (ei+1) : ''}${ex.answerer ? '（'+ex.answerer+'）' : ''}：</span><br>`;
                         contentRows += `${ketBadge}${(ex.answer||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}`;
                     }
@@ -13013,26 +13076,26 @@ td { vertical-align: middle; }
 <style>
 @page { size: A4 portrait; margin: 12mm 10mm; }
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family: 'MS PGothic','Meiryo',sans-serif; font-size: 9pt; color: #333; padding: 10px; }
-.header-table { width:100%; border-collapse:collapse; margin-bottom:2px; }
+body { font-family: 'MS PGothic','Meiryo',sans-serif; font-size: 9pt; color: #000; padding: 10px; }
+.header-table { width:100%; border-collapse:collapse; margin-bottom:2px; table-layout:fixed; }
 .header-table td { padding: 2px 6px; font-size: 9pt; vertical-align: top; }
-.header-table .label { font-weight:bold; width:50px; background:#e8eaf6; border:1px solid #999; }
-.header-table .value { border:1px solid #999; }
+.header-table .label { font-weight:bold; width:50px; background:#e8eaf6; border:1px solid #333; }
+.header-table .value { border:1px solid #333; }
 h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
-.attendee-table { width:100%; border-collapse:collapse; margin-bottom:4px; }
-.attendee-table td, .attendee-table th { border:1px solid #999; padding:2px 6px; font-size: 8.5pt; }
+.attendee-table { width:100%; border-collapse:collapse; margin-bottom:4px; table-layout:fixed; }
+.attendee-table td, .attendee-table th { border:1px solid #333; padding:2px 6px; font-size: 8.5pt; }
 .attendee-table th { background:#e8eaf6; width:60px; font-weight:bold; }
-.content-table { width:100%; border-collapse:collapse; }
-.content-table th { background:#1565c0; color:#fff; border:1px solid #999; padding:3px 6px; font-size:8.5pt; }
-.content-table td { border:1px solid #999; padding:4px 6px; font-size:8.5pt; vertical-align:top; }
-.no-cell { text-align:center; font-weight:bold; width:30px; vertical-align:top; border:1px solid #999; }
-.koushu-cell { width:80px; font-weight:bold; font-size:8pt; border:1px solid #999; }
-.q-cell { border:1px solid #999; width:45%; }
-.a-cell { border:1px solid #999; width:45%; }
-.q-label { color:#c62828; font-weight:bold; font-size:8pt; }
-.a-label { color:#1565c0; font-weight:bold; font-size:8pt; }
-.footer { font-size: 7pt; color:#999; text-align:right; margin-top:8px; border-top:1px solid #ccc; padding-top:3px; }
-.record-info { font-size:7.5pt; text-align:right; color:#666; margin-bottom:2px; }
+.content-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+.content-table th { background:#1565c0; color:#fff; border:1px solid #333; padding:3px 6px; font-size:8.5pt; }
+.content-table td { border:1px solid #333; padding:4px 6px; font-size:8.5pt; vertical-align:top; word-wrap:break-word; }
+.no-cell { text-align:center; font-weight:bold; width:30px; vertical-align:top; border:1px solid #333; }
+.koushu-cell { width:120px; font-weight:bold; font-size:8pt; border:1px solid #333; vertical-align:top; }
+.q-cell { border:1px solid #333; }
+.a-cell { border:1px solid #333; }
+.q-label { font-weight:bold; font-size:8pt; }
+.a-label { font-weight:bold; font-size:8pt; }
+.footer { font-size: 7pt; color:#666; text-align:right; margin-top:8px; border-top:1px solid #999; padding-top:3px; }
+.record-info { font-size:7.5pt; text-align:right; color:#333; margin-bottom:2px; }
 @media print { body { padding:0; } }
 </style>
 </head><body>
@@ -13046,10 +13109,10 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 </table>
 <table class="attendee-table">
 <tr><th rowspan="2">出席者</th><th>監督員</th><td>${kantokuNames.join('、')}</td></tr>
-<tr><th>施工業者</th><td>${sekoNames.join('、')}</td></tr>
+<tr><th>施工業者</th><td>${sekoDisplay}</td></tr>
 </table>
 <table class="content-table">
-<tr><th style="width:30px;">No</th><th style="width:80px;">工種</th><th>質　疑　事　項</th><th>回　答</th></tr>
+<tr><th style="width:30px;">No</th><th style="width:120px;">工種</th><th>質　疑　事　項</th><th>回　答</th></tr>
 ${contentRows}
 </table>
 <div class="footer">エル・エル・イー電気株式会社 — 工事打合せ議事録</div>
