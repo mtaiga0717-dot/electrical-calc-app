@@ -13262,10 +13262,10 @@ ${contentRows}
 <script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>
 </body></html>`;
 
-            const w = window.open('', '_blank');
-            if (!w) { alert('ポップアップがブロックされました。ブラウザの設定でポップアップを許可してください。'); return; }
-            w.document.write(html);
-            w.document.close();
+            // Blob URLで新しいタブに表示（document.writeを使わない）
+            const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+            const blobUrl = URL.createObjectURL(blob);
+            window.open(blobUrl, '_blank');
 
             // 出力済み → 各exchange に第N回を記録（未出力のもののみ）
             const allData = qaMigrateData(qaLoadData());
@@ -13280,14 +13280,8 @@ ${contentRows}
             qaSaveData(allData);
             qaRender();
 
-            // PDF印刷ウィンドウが閉じた後にフォーカスとテーブルを復旧
-            const _qaCheckClosed = setInterval(function() {
-                if (w.closed) {
-                    clearInterval(_qaCheckClosed);
-                    window.focus();
-                    setTimeout(function() { qaRender(); }, 200);
-                }
-            }, 500);
+            // Blob URLを遅延解放
+            setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 60000);
         }
 
     </script>
