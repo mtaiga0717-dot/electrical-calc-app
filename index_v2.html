@@ -2889,7 +2889,7 @@
 
                 <!-- 設定: 客先・出席者登録 -->
                 <details id="qaSettings" style="margin-bottom:0.8rem;background:#e8eaf6;border:1px solid #c5cae9;border-radius:4px;padding:0.5rem;">
-                    <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem;color:#1565c0;">⚙ 設定（監督員・施工業者の登録）　※客先はヘッダーの「⚙工事情報」から設定</summary>
+                    <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem;color:#1565c0;">⚙ 設定（監督員・施工業者・内容項目の登録）　※客先はヘッダーの「⚙工事情報」から設定</summary>
                     <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.5rem;">
                         <div>
                             <label style="font-size:0.78rem;font-weight:bold;">監督員リスト（改行区切り）</label><br>
@@ -2902,6 +2902,14 @@
                                 <input type="text" id="qaSekoCompany" style="font-size:0.8rem;width:100px;" placeholder="会社名">
                                 <input type="text" id="qaSekoName" style="font-size:0.8rem;width:80px;" placeholder="氏名">
                                 <button class="btn-action" style="background:#43a047;color:#fff;font-size:0.75rem;padding:0.15rem 0.4rem;" onclick="qaAddSeko()">＋追加</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem;font-weight:bold;">大まかな内容（項目登録）</label><br>
+                            <div id="qaSummaryListContainer" style="border:1px solid #ccc;border-radius:4px;padding:4px;background:#fff;min-width:200px;max-height:140px;overflow-y:auto;"></div>
+                            <div style="display:flex;gap:4px;margin-top:4px;align-items:center;">
+                                <input type="text" id="qaSummaryInput" style="font-size:0.8rem;width:150px;" placeholder="例：仕様確認">
+                                <button class="btn-action" style="background:#43a047;color:#fff;font-size:0.75rem;padding:0.15rem 0.4rem;" onclick="qaAddSummaryItem()">＋追加</button>
                             </div>
                         </div>
                         <div style="align-self:flex-end;">
@@ -2922,6 +2930,7 @@
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;font-size:0.82rem;align-items:center;background:#e8eaf6;padding:0.4rem 0.6rem;border-radius:4px;">
                     <span style="font-weight:bold;color:#1565c0;">🔍 絞り込み：</span>
                     <div>工種：<select id="qaFilterKoushu" style="font-size:0.82rem;min-width:100px;" onchange="qaRender()"><option value="">すべて</option></select></div>
+                    <div>内容：<select id="qaFilterSummary" style="font-size:0.82rem;min-width:100px;" onchange="qaRender()"><option value="">すべて</option></select></div>
                     <div>決議：<select id="qaFilterKetsugi" style="font-size:0.82rem;min-width:80px;" onchange="qaRender()">
                         <option value="">すべて</option><option value="未決">未決</option><option value="継続">継続</option><option value="決定">決定</option>
                     </select></div>
@@ -2941,6 +2950,7 @@
                                 <th style="width:35px;">No</th>
                                 <th style="width:70px;">図面番号</th>
                                 <th style="width:85px;">工種</th>
+                                <th style="width:100px;">内容</th>
                                 <th style="width:85px;">質疑日</th>
                                 <th style="width:65px;">質疑者</th>
                                 <th style="min-width:180px;">質疑事項</th>
@@ -12575,19 +12585,22 @@ td { vertical-align: middle; }
             return proj ? proj.name : '（未設定）';
         }
 
-        // 設定保存（出席者・質疑者・回答者）
+        // 設定保存（出席者・内容項目）
         function qaSaveSettings() {
             const s = qaLoadSettings();
             s.kantokuList = document.getElementById('qaKantokuList').value;
-            // sekoList は _qaSekoListData から取得（構造化データ）
             s.sekoList = JSON.parse(JSON.stringify(_qaSekoListData));
+            s.summaryList = JSON.parse(JSON.stringify(_qaSummaryListData));
             qaSaveSettingsData(s);
+            qaPopulateFilterSummary();
             alert('設定を保存しました');
             qaRender();
         }
 
         // 施工業者の構造化データ [{company, name}]
         let _qaSekoListData = [];
+        // 大まかな内容の項目リスト
+        let _qaSummaryListData = [];
 
         function qaAddSeko() {
             const comp = document.getElementById('qaSekoCompany').value.trim();
@@ -12618,6 +12631,34 @@ td { vertical-align: middle; }
             ).join('');
         }
 
+        function qaAddSummaryItem() {
+            const val = document.getElementById('qaSummaryInput').value.trim();
+            if (!val) { alert('内容を入力してください'); return; }
+            if (_qaSummaryListData.includes(val)) { alert('既に登録されています'); return; }
+            _qaSummaryListData.push(val);
+            document.getElementById('qaSummaryInput').value = '';
+            qaRenderSummaryList();
+        }
+
+        function qaRemoveSummaryItem(idx) {
+            _qaSummaryListData.splice(idx, 1);
+            qaRenderSummaryList();
+        }
+
+        function qaRenderSummaryList() {
+            const container = document.getElementById('qaSummaryListContainer');
+            if (!_qaSummaryListData.length) {
+                container.innerHTML = '<span style="font-size:0.75rem;color:#999;">（未登録）</span>';
+                return;
+            }
+            container.innerHTML = _qaSummaryListData.map((s, i) =>
+                `<div style="display:flex;align-items:center;gap:4px;font-size:0.8rem;padding:1px 0;">
+                    <span>${s}</span>
+                    <button style="border:none;background:none;color:#e53935;cursor:pointer;font-size:0.75rem;padding:0 2px;" onclick="qaRemoveSummaryItem(${i})">✕</button>
+                </div>`
+            ).join('');
+        }
+
         function qaRestoreSettings() {
             const s = qaLoadSettings();
             document.getElementById('qaKantokuList').value = s.kantokuList || '';
@@ -12631,6 +12672,9 @@ td { vertical-align: middle; }
                 _qaSekoListData = [];
             }
             qaRenderSekoList();
+            // 大まかな内容リスト
+            _qaSummaryListData = Array.isArray(s.summaryList) ? JSON.parse(JSON.stringify(s.summaryList)) : [];
+            qaRenderSummaryList();
         }
 
         // 初期化
@@ -12639,6 +12683,7 @@ td { vertical-align: middle; }
             if (!_qaInitDone) {
                 qaRestoreSettings();
                 qaPopulateFilterKoushu();
+                qaPopulateFilterSummary();
                 _qaInitDone = true;
             }
             qaRender();
@@ -12648,6 +12693,13 @@ td { vertical-align: middle; }
             const sel = document.getElementById('qaFilterKoushu');
             sel.innerHTML = '<option value="">すべて</option>' +
                 QA_KOUSHU_LIST.map(k => `<option value="${k}">${k}</option>`).join('');
+        }
+
+        function qaPopulateFilterSummary() {
+            const sel = document.getElementById('qaFilterSummary');
+            const list = _qaSummaryListData || [];
+            sel.innerHTML = '<option value="">すべて</option>' +
+                list.map(s => `<option value="${s.replace(/"/g,'&quot;')}">${s}</option>`).join('');
         }
 
         // --------------------------------------------------------
@@ -12713,6 +12765,7 @@ td { vertical-align: middle; }
                 no: nextNo,
                 drawingNo: '',
                 koushu: '',
+                summary: '',
                 exchanges: [{ questionDate:'', questioner:'', question:'', answerDate:'', answerer:'', answer:'', ketsugi:'', printed:'' }],
                 drawingReflect: false
             });
@@ -12799,6 +12852,7 @@ td { vertical-align: middle; }
         // フィルタクリア
         function qaClearFilter() {
             document.getElementById('qaFilterKoushu').value = '';
+            document.getElementById('qaFilterSummary').value = '';
             document.getElementById('qaFilterKetsugi').value = '';
             document.getElementById('qaFilterPrinted').value = '';
             document.getElementById('qaFilterText').value = '';
@@ -12819,12 +12873,14 @@ td { vertical-align: middle; }
             const data = qaMigrateData(qaLoadData());
             const tbody = document.getElementById('qaBody');
             const fKoushu = document.getElementById('qaFilterKoushu').value;
+            const fSummary = document.getElementById('qaFilterSummary').value;
             const fKetsugi = document.getElementById('qaFilterKetsugi').value;
             const fPrinted = document.getElementById('qaFilterPrinted').value;
             const fText = document.getElementById('qaFilterText').value.toLowerCase();
 
             let filtered = data.filter(d => {
                 if (fKoushu && d.koushu !== fKoushu) return false;
+                if (fSummary && (d.summary || '') !== fSummary) return false;
                 if (fKetsugi && qaGetFinalKetsugi(d) !== fKetsugi) return false;
                 if (fPrinted === 'yes' && !(d.exchanges||[]).some(e => e.printed)) return false;
                 if (fPrinted === 'no' && (d.exchanges||[]).every(e => e.printed)) return false;
@@ -12857,6 +12913,10 @@ td { vertical-align: middle; }
                 }).join('') + `</optgroup>`;
             }
 
+            // 大まかな内容の選択肢を生成
+            const summaryList = _qaSummaryListData || [];
+            const summaryOpts = summaryList.map(s => `<option value="${s.replace(/"/g,'&quot;')}">${s}</option>`).join('');
+
             let html = '';
             filtered.forEach(item => {
                 const finalK = qaGetFinalKetsugi(item);
@@ -12876,6 +12936,7 @@ td { vertical-align: middle; }
                         html += `<td rowspan="${exCount}" style="text-align:center;font-weight:bold;">${item.no}</td>`;
                         html += `<td rowspan="${exCount}"><input type="text" value="${(item.drawingNo||'').replace(/"/g,'&quot;')}" style="width:60px;" onchange="qaOnFieldChange('${item.id}','drawingNo',this.value)"></td>`;
                         html += `<td rowspan="${exCount}"><select onchange="qaOnFieldChange('${item.id}','koushu',this.value)"><option value="">-</option>${koushuOpts.replace('value="'+item.koushu+'"', 'value="'+item.koushu+'" selected')}</select></td>`;
+                        html += `<td rowspan="${exCount}"><select style="font-size:0.78rem;" onchange="qaOnFieldChange('${item.id}','summary',this.value)"><option value="">-</option>${summaryOpts.replace('value="'+(item.summary||'').replace(/"/g,'&quot;')+'"', 'value="'+(item.summary||'').replace(/"/g,'&quot;')+'" selected')}</select></td>`;
                     }
 
                     // 質疑列
@@ -12940,13 +13001,14 @@ td { vertical-align: middle; }
         function qaExportCSV() {
             const data = qaMigrateData(qaLoadData());
             if (data.length === 0) { alert('データがありません'); return; }
-            let csv = 'No,図面番号,工種,質疑日,質疑者,質疑事項,回答日,回答者,回答,決議,図面反映,打合せ回\n';
+            let csv = 'No,図面番号,工種,内容,質疑日,質疑者,質疑事項,回答日,回答者,回答,決議,図面反映,打合せ回\n';
             data.forEach(d => {
                 (d.exchanges||[]).forEach((ex, ei) => {
                     csv += [
                         ei === 0 ? d.no : '',
                         ei === 0 ? '"'+(d.drawingNo||'').replace(/"/g,'""')+'"' : '',
                         ei === 0 ? d.koushu : '',
+                        ei === 0 ? '"'+(d.summary||'').replace(/"/g,'""')+'"' : '',
                         ex.questionDate || '',
                         ex.questioner || '',
                         '"'+(ex.question||'').replace(/"/g,'""')+'"',
@@ -13102,7 +13164,7 @@ td { vertical-align: middle; }
                     contentRows += `<tr>`;
                     if (ei === 0) {
                         contentRows += `<td rowspan="${totalRows}" class="no-cell">${item.no}</td>`;
-                        contentRows += `<td rowspan="${totalRows}" class="koushu-cell">【${item.koushu || ''}】${item.drawingNo ? '<br>(図面:'+item.drawingNo+')' : ''}</td>`;
+                        contentRows += `<td rowspan="${totalRows}" class="koushu-cell">【${item.koushu || ''}】${item.summary ? '<br>'+item.summary : ''}${item.drawingNo ? '<br>(図面:'+item.drawingNo+')' : ''}</td>`;
                     }
                     // 質疑+回答を1セルに
                     contentRows += `<td class="qa-content-cell">`;
