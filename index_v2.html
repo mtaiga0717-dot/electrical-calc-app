@@ -1471,6 +1471,9 @@
                 <button onclick="projectNew()" style="font-size:0.7rem;padding:2px 8px;background:#26a69a;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="新規工事">＋新規</button>
                 <button onclick="projectRename()" style="font-size:0.7rem;padding:2px 8px;background:#1565c0;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="名称変更">名称変更</button>
                 <button onclick="projectDelete()" style="font-size:0.7rem;padding:2px 8px;background:#c62828;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="工事削除">削除</button>
+                <span style="color:#546e7a;margin:0 4px;">|</span>
+                <button onclick="openProjectSettings()" style="font-size:0.7rem;padding:2px 8px;background:#ff8f00;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="工事情報設定">⚙ 工事情報</button>
+                <span id="projClientDisp" style="color:#b0bec5;font-size:0.72rem;margin-left:4px;"></span>
             </div>
             <div class="nav-tabs">
                 <button class="nav-tab active" data-tab="panels">盤一覧</button>
@@ -2883,27 +2886,23 @@
 
                 <!-- 設定: 客先・出席者登録 -->
                 <details id="qaSettings" style="margin-bottom:0.8rem;background:#e8eaf6;border:1px solid #c5cae9;border-radius:4px;padding:0.5rem;">
-                    <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem;color:#1565c0;">⚙ 設定（客先・出席者・場所の登録）</summary>
+                    <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem;color:#1565c0;">⚙ 設定（出席者・質疑者・回答者の登録）　※客先・場所はヘッダーの「⚙工事情報」から設定</summary>
                     <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.5rem;">
                         <div>
-                            <label style="font-size:0.78rem;font-weight:bold;">客先名</label><br>
-                            <input type="text" id="qaClientName" style="width:250px;" placeholder="例：静岡市教育委員会"><br>
-                            <label style="font-size:0.78rem;font-weight:bold;margin-top:0.3rem;display:inline-block;">TEL</label>
-                            <input type="text" id="qaClientTel" style="width:150px;" placeholder="054-xxx-xxxx">
-                            <label style="font-size:0.78rem;font-weight:bold;margin-left:0.5rem;">FAX</label>
-                            <input type="text" id="qaClientFax" style="width:150px;" placeholder="054-xxx-xxxx">
-                        </div>
-                        <div>
                             <label style="font-size:0.78rem;font-weight:bold;">監督員リスト（改行区切り）</label><br>
-                            <textarea id="qaKantokuList" rows="3" cols="30" style="font-size:0.82rem;" placeholder="石黒様&#10;荻野様"></textarea>
+                            <textarea id="qaKantokuList" rows="3" cols="25" style="font-size:0.82rem;" placeholder="石黒様&#10;荻野様"></textarea>
                         </div>
                         <div>
                             <label style="font-size:0.78rem;font-weight:bold;">施工業者リスト（改行区切り）</label><br>
-                            <textarea id="qaSekoList" rows="3" cols="30" style="font-size:0.82rem;" placeholder="殿岡&#10;鈴木"></textarea>
+                            <textarea id="qaSekoList" rows="3" cols="25" style="font-size:0.82rem;" placeholder="殿岡&#10;鈴木"></textarea>
                         </div>
                         <div>
-                            <label style="font-size:0.78rem;font-weight:bold;">場所</label><br>
-                            <input type="text" id="qaPlace" style="width:200px;" placeholder="例：現場事務所　２階会議室">
+                            <label style="font-size:0.78rem;font-weight:bold;">質疑者リスト（改行区切り）</label><br>
+                            <textarea id="qaQuestionerList" rows="3" cols="25" style="font-size:0.82rem;" placeholder="望月&#10;鈴木"></textarea>
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem;font-weight:bold;">回答者リスト（改行区切り）</label><br>
+                            <textarea id="qaAnswererList" rows="3" cols="25" style="font-size:0.82rem;" placeholder="石黒様&#10;会津様"></textarea>
                         </div>
                         <div style="align-self:flex-end;">
                             <button class="btn-action" style="background:#1565c0;color:#fff;" onclick="qaSaveSettings()">設定を保存</button>
@@ -3067,6 +3066,68 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 工事情報設定モーダル -->
+    <div id="projectSettingsModal" class="modal">
+        <div class="modal-content" style="max-width:520px;">
+            <div class="modal-header">工事情報設定</div>
+            <div style="padding:0.5rem 0;">
+                <div class="form-group">
+                    <label>客先名</label>
+                    <input type="text" id="psClientName" style="width:100%;" placeholder="例：静岡市教育委員会">
+                </div>
+                <div style="display:flex;gap:1rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label>TEL</label>
+                        <input type="text" id="psClientTel" placeholder="054-xxx-xxxx">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>FAX</label>
+                        <input type="text" id="psClientFax" placeholder="054-xxx-xxxx">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>場所（打合せ場所等）</label>
+                    <input type="text" id="psPlace" style="width:100%;" placeholder="例：現場事務所　２階会議室">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn-secondary" onclick="closeProjectSettings()">キャンセル</button>
+                <button type="button" class="btn-primary" onclick="saveProjectSettings()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 質疑応答書 PDF出力設定モーダル -->
+    <div id="qaPrintModal" class="modal">
+        <div class="modal-content" style="max-width:420px;">
+            <div class="modal-header">議事録PDF出力設定</div>
+            <div style="padding:0.5rem 0;">
+                <div class="form-group">
+                    <label>第何回</label>
+                    <input type="number" id="qaPrintNo" value="1" min="1" style="width:80px;">
+                </div>
+                <div class="form-group">
+                    <label>打合せ日</label>
+                    <input type="date" id="qaPrintDate">
+                </div>
+                <div style="display:flex;gap:1rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label>開始時刻</label>
+                        <input type="time" id="qaPrintTimeFrom" value="10:00">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>終了時刻</label>
+                        <input type="time" id="qaPrintTimeTo" value="12:00">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn-secondary" onclick="closeQaPrintModal()">キャンセル</button>
+                <button type="button" class="btn-primary" onclick="qaExecutePrint()">PDF出力</button>
             </div>
         </div>
     </div>
@@ -10089,6 +10150,47 @@
                 projectLoadData(curId);
             }
             projectPopulateSelect();
+            projectUpdateClientDisp();
+        }
+
+        // ================================================================
+        // 工事情報設定（システム全体共通：客先・場所）
+        // ================================================================
+        const PROJECT_SETTINGS_KEY = 'elecCalc:projectSettings:';
+        function projectSettingsKey() { return PROJECT_SETTINGS_KEY + projectGetCurrent(); }
+        function loadProjectSettings() {
+            try { return JSON.parse(localStorage.getItem(projectSettingsKey())) || {}; }
+            catch(e) { return {}; }
+        }
+        function saveProjectSettingsData(s) { localStorage.setItem(projectSettingsKey(), JSON.stringify(s)); }
+
+        function openProjectSettings() {
+            const s = loadProjectSettings();
+            document.getElementById('psClientName').value = s.clientName || '';
+            document.getElementById('psClientTel').value = s.clientTel || '';
+            document.getElementById('psClientFax').value = s.clientFax || '';
+            document.getElementById('psPlace').value = s.place || '';
+            document.getElementById('projectSettingsModal').style.display = 'flex';
+        }
+        function closeProjectSettings() {
+            document.getElementById('projectSettingsModal').style.display = 'none';
+        }
+        function saveProjectSettings() {
+            const s = {
+                clientName: document.getElementById('psClientName').value,
+                clientTel: document.getElementById('psClientTel').value,
+                clientFax: document.getElementById('psClientFax').value,
+                place: document.getElementById('psPlace').value
+            };
+            saveProjectSettingsData(s);
+            closeProjectSettings();
+            projectUpdateClientDisp();
+            alert('工事情報を保存しました');
+        }
+        function projectUpdateClientDisp() {
+            const s = loadProjectSettings();
+            const el = document.getElementById('projClientDisp');
+            if (el) el.textContent = s.clientName ? '客先：' + s.clientName : '';
         }
 
         // ================================================================
@@ -12469,28 +12571,25 @@ td { vertical-align: middle; }
             return proj ? proj.name : '（未設定）';
         }
 
-        // 設定保存
+        // 設定保存（出席者・質疑者・回答者）
         function qaSaveSettings() {
             const s = {
-                clientName: document.getElementById('qaClientName').value,
-                clientTel: document.getElementById('qaClientTel').value,
-                clientFax: document.getElementById('qaClientFax').value,
                 kantokuList: document.getElementById('qaKantokuList').value,
                 sekoList: document.getElementById('qaSekoList').value,
-                place: document.getElementById('qaPlace').value
+                questionerList: document.getElementById('qaQuestionerList').value,
+                answererList: document.getElementById('qaAnswererList').value
             };
             qaSaveSettingsData(s);
             alert('設定を保存しました');
+            qaRender();
         }
 
         function qaRestoreSettings() {
             const s = qaLoadSettings();
-            document.getElementById('qaClientName').value = s.clientName || '';
-            document.getElementById('qaClientTel').value = s.clientTel || '';
-            document.getElementById('qaClientFax').value = s.clientFax || '';
             document.getElementById('qaKantokuList').value = s.kantokuList || '';
             document.getElementById('qaSekoList').value = s.sekoList || '';
-            document.getElementById('qaPlace').value = s.place || '';
+            document.getElementById('qaQuestionerList').value = s.questionerList || '';
+            document.getElementById('qaAnswererList').value = s.answererList || '';
         }
 
         // 初期化
@@ -12663,12 +12762,12 @@ td { vertical-align: middle; }
             });
 
             const koushuOpts = QA_KOUSHU_LIST.map(k => `<option value="${k}">${k}</option>`).join('');
-            // 出席者リストを取得
+            // 質疑者・回答者リストを取得
             const settings = qaLoadSettings();
-            const sekoNames = (settings.sekoList || '').split('\n').filter(s => s.trim());
-            const kantokuNames = (settings.kantokuList || '').split('\n').filter(s => s.trim());
-            const allNames = [...kantokuNames, ...sekoNames];
-            const nameOpts = allNames.map(n => `<option value="${n.trim()}">${n.trim()}</option>`).join('');
+            const questionerNames = (settings.questionerList || '').split('\n').filter(s => s.trim());
+            const answererNames = (settings.answererList || '').split('\n').filter(s => s.trim());
+            const questionerOpts = questionerNames.map(n => `<option value="${n.trim()}">${n.trim()}</option>`).join('');
+            const answererOpts = answererNames.map(n => `<option value="${n.trim()}">${n.trim()}</option>`).join('');
 
             let html = '';
             filtered.forEach(item => {
@@ -12684,11 +12783,11 @@ td { vertical-align: middle; }
                 html += `<td rowspan="${ansCount}"><input type="text" value="${(item.drawingNo||'').replace(/"/g,'&quot;')}" style="width:60px;" onchange="qaOnChange('${item.id}','drawingNo',this.value)"></td>`;
                 html += `<td rowspan="${ansCount}"><select onchange="qaOnChange('${item.id}','koushu',this.value)"><option value="">-</option>${koushuOpts.replace(`value="${item.koushu}"`, `value="${item.koushu}" selected`)}</select></td>`;
                 html += `<td rowspan="${ansCount}"><input type="date" value="${item.questionDate||''}" onchange="qaOnChange('${item.id}','questionDate',this.value)"></td>`;
-                html += `<td rowspan="${ansCount}"><select onchange="qaOnChange('${item.id}','questioner',this.value)"><option value="">-</option>${nameOpts.replace(`value="${item.questioner}"`, `value="${item.questioner}" selected`)}</select></td>`;
+                html += `<td rowspan="${ansCount}"><select onchange="qaOnChange('${item.id}','questioner',this.value)"><option value="">-</option>${questionerOpts.replace(`value="${item.questioner}"`, `value="${item.questioner}" selected`)}</select></td>`;
                 html += `<td rowspan="${ansCount}"><textarea onchange="qaOnChange('${item.id}','question',this.value)">${(item.question||'').replace(/</g,'&lt;')}</textarea></td>`;
 
                 // 回答0
-                html += qaAnswerCells(item, 0, a0, nameOpts);
+                html += qaAnswerCells(item, 0, a0, answererOpts);
 
                 // 図面反映・出力済み・操作（rowspan）
                 html += `<td rowspan="${ansCount}" style="text-align:center;"><input type="checkbox" ${item.drawingReflect?'checked':''} onchange="qaOnDrawingReflect('${item.id}',this.checked)"></td>`;
@@ -12703,7 +12802,7 @@ td { vertical-align: middle; }
                     const subK = item.answers[ai].ketsugi;
                     const subClass = subK === '継続' ? 'qa-sub-row qa-row-keizoku' : 'qa-sub-row';
                     html += `<tr class="${subClass}" data-qa-id="${item.id}">`;
-                    html += qaAnswerCells(item, ai, item.answers[ai], nameOpts);
+                    html += qaAnswerCells(item, ai, item.answers[ai], answererOpts);
                     html += `</tr>`;
                 }
             });
@@ -12779,56 +12878,63 @@ td { vertical-align: middle; }
         }
 
         // ================================================================
-        // 質疑応答書 PDF出力（議事録形式）
+        // 質疑応答書 PDF出力（議事録形式）— モーダルダイアログ方式
         // ================================================================
-        function qaPrintReport() {
-            const data = qaLoadData();
-            // 選択された項目のみ
-            const selectedIds = [];
-            document.querySelectorAll('#qaBody input.qa-select:checked').forEach(cb => selectedIds.push(cb.value));
-            if (selectedIds.length === 0) { alert('出力する質疑をチェックしてください'); return; }
+        let _qaPrintSelectedIds = [];
 
-            const items = data.filter(d => selectedIds.includes(d.id));
+        function qaPrintReport() {
+            // 選択チェック
+            const ids = [];
+            document.querySelectorAll('#qaBody input.qa-select:checked').forEach(cb => ids.push(cb.value));
+            if (ids.length === 0) { alert('出力する質疑をチェックしてください'); return; }
+            _qaPrintSelectedIds = ids;
+            // モーダル表示（日付を今日にセット）
+            document.getElementById('qaPrintDate').value = new Date().toISOString().slice(0,10);
+            document.getElementById('qaPrintModal').style.display = 'flex';
+        }
+        function closeQaPrintModal() {
+            document.getElementById('qaPrintModal').style.display = 'none';
+        }
+
+        // ユーザーがモーダルの「PDF出力」ボタンをクリック → ここで window.open（ユーザー操作直結なのでブロックされない）
+        function qaExecutePrint() {
+            const meetingNo = document.getElementById('qaPrintNo').value || '1';
+            const meetingDate = document.getElementById('qaPrintDate').value;
+            const meetingTimeFrom = document.getElementById('qaPrintTimeFrom').value || '';
+            const meetingTimeTo = document.getElementById('qaPrintTimeTo').value || '';
+            closeQaPrintModal();
+
+            const data = qaLoadData();
+            const items = data.filter(d => _qaPrintSelectedIds.includes(d.id));
             const settings = qaLoadSettings();
+            const projSettings = loadProjectSettings();
             const projectName = qaGetProjectName();
 
-            // 出席者整形
             const kantokuNames = (settings.kantokuList || '').split('\n').filter(s => s.trim());
             const sekoNames = (settings.sekoList || '').split('\n').filter(s => s.trim());
 
-            // 日時入力ダイアログ
-            const meetingDate = prompt('打合せ日時を入力（例: 2026-05-23）：', new Date().toISOString().slice(0,10));
-            if (!meetingDate) return;
-            const meetingTimeFrom = prompt('開始時刻（例: 10:00）：', '10:00');
-            const meetingTimeTo = prompt('終了時刻（例: 12:00）：', '12:00');
-            const meetingNo = prompt('第何回の打合せですか？（例: 1）：', '1');
-
             // 議事内容ビルド
             let contentRows = '';
-            items.forEach((item, idx) => {
-                const totalRows = 1 + item.answers.length; // 質疑1行 + 回答行
-                // 質疑行
+            items.forEach(item => {
+                const totalRows = 1 + item.answers.length;
                 contentRows += `<tr>`;
                 contentRows += `<td rowspan="${totalRows}" class="no-cell">${item.no}</td>`;
                 contentRows += `<td class="content-label">【${item.koushu || ''}】${item.drawingNo ? '(図面:'+item.drawingNo+')' : ''}</td>`;
                 contentRows += `<td class="content-detail"></td>`;
                 contentRows += `</tr>`;
-                // 質疑事項
-                contentRows += `<tr><td class="content-label" style="color:#c62828;">質疑：</td>`;
+                contentRows += `<tr><td class="content-label" style="color:#c62828;">質疑：${item.questioner ? '('+item.questioner+')' : ''}</td>`;
                 contentRows += `<td class="content-detail">${(item.question||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</td></tr>`;
-                // 回答行
                 item.answers.forEach((ans, ai) => {
                     if (ans.answer && ans.answer.trim()) {
                         const ketBadge = ans.ketsugi === '決定' ? '<span style="color:#2e7d32;font-weight:bold;">[決定]</span>' :
                                          ans.ketsugi === '継続' ? '<span style="color:#1565c0;font-weight:bold;">[継続]</span>' :
                                          ans.ketsugi === '未決' ? '<span style="color:#e65100;font-weight:bold;">[未決]</span>' : '';
-                        contentRows += `<tr><td class="content-label" style="color:#1565c0;">回答${item.answers.length > 1 ? (ai+1) : ''}：</td>`;
+                        contentRows += `<tr><td class="content-label" style="color:#1565c0;">回答${item.answers.length > 1 ? (ai+1) : ''}：${ans.answerer ? '('+ans.answerer+')' : ''}</td>`;
                         contentRows += `<td class="content-detail">${ketBadge} ${(ans.answer||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</td></tr>`;
                     }
                 });
             });
 
-            // 日付フォーマット
             const dParts = meetingDate.split('-');
             const dateDisp = dParts.length === 3 ? `${dParts[0]}年${parseInt(dParts[1])}月${parseInt(dParts[2])}日` : meetingDate;
 
@@ -12861,9 +12967,9 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 <h2>工 事 打 合 せ 議 事 録 （第${meetingNo}回）</h2>
 <table class="header-table">
 <tr><td class="label">件名</td><td class="value" colspan="3">${projectName}</td></tr>
-<tr><td class="label">客先</td><td class="value">${settings.clientName || ''}　TEL ${settings.clientTel || ''}　FAX ${settings.clientFax || ''}</td>
+<tr><td class="label">客先</td><td class="value">${projSettings.clientName || ''}　TEL ${projSettings.clientTel || ''}　FAX ${projSettings.clientFax || ''}</td>
     <td class="label" style="width:50px;">日時</td><td class="value" style="width:180px;">${dateDisp}　${meetingTimeFrom||''} ～ ${meetingTimeTo||''}</td></tr>
-<tr><td class="label">場所</td><td class="value" colspan="3">${settings.place || ''}</td></tr>
+<tr><td class="label">場所</td><td class="value" colspan="3">${projSettings.place || ''}</td></tr>
 </table>
 <table class="attendee-table">
 <tr><th rowspan="2">出席者</th><th>監督員</th><td>${kantokuNames.join('、')}</td></tr>
@@ -12878,12 +12984,13 @@ ${contentRows}
 </body></html>`;
 
             const w = window.open('', '_blank');
+            if (!w) { alert('ポップアップがブロックされました。ブラウザの設定でポップアップを許可してください。'); return; }
             w.document.write(html);
             w.document.close();
 
             // 出力済みフラグを更新
             const allData = qaLoadData();
-            selectedIds.forEach(sid => {
+            _qaPrintSelectedIds.forEach(sid => {
                 const found = allData.find(d => d.id === sid);
                 if (found) found.printed = true;
             });
