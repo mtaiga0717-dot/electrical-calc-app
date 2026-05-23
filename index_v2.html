@@ -13258,28 +13258,18 @@ ${sekoAttendeeRows}
 ${contentRows}
 </table>
 <div class="footer">エル・エル・イー電気株式会社 — 工事打合せ議事録</div>
+<div style="text-align:center;margin-top:12px;" class="no-print">
+<button onclick="window.print()" style="font-size:11pt;padding:6px 20px;background:#1565c0;color:#fff;border:none;border-radius:4px;cursor:pointer;">印刷 / PDF保存</button>
 </div>
+</div>
+<style>@media print { .no-print { display:none !important; } }</style>
 </body></html>`;
 
-            // hidden iframe で印刷（タブ切り替えを行わない）
-            let pIframe = document.getElementById('_qaPrintFrame');
-            if (pIframe) pIframe.remove();
-            pIframe = document.createElement('iframe');
-            pIframe.id = '_qaPrintFrame';
-            pIframe.style.cssText = 'position:fixed;width:0;height:0;border:none;left:-9999px;top:-9999px;';
-            document.body.appendChild(pIframe);
-            const pDoc = pIframe.contentDocument || pIframe.contentWindow.document;
-            pDoc.open();
-            pDoc.write(html);
-            pDoc.close();
-            pIframe.onload = function() {
-                setTimeout(function() {
-                    pIframe.contentWindow.focus();
-                    pIframe.contentWindow.print();
-                    // 印刷ダイアログが閉じた後にiframeを除去
-                    setTimeout(function() { pIframe.remove(); }, 1000);
-                }, 300);
-            };
+            // Blob URLで別タブに表示（document.writeを使わない→メインページに影響なし）
+            const _qaBlob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            const _qaBlobUrl = URL.createObjectURL(_qaBlob);
+            window.open(_qaBlobUrl, '_blank');
+            setTimeout(function() { URL.revokeObjectURL(_qaBlobUrl); }, 120000);
 
             // 出力済み → 各exchange に第N回を記録（未出力のもののみ）
             const allData = qaMigrateData(qaLoadData());
