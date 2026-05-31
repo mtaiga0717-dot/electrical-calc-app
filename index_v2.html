@@ -1745,9 +1745,13 @@
                             <ul style="margin:0.3rem 0 0.3rem 1.2rem;padding:0;">
                                 <li><code>AT ≧ 設計電流</code>（基本）</li>
                                 <li><code>AT ≧ Im</code>（銘板値 or 式値 or 表値、下回ると NG）</li>
-                                <li><code>AT ≧ 3705-1表の推奨分岐AT</code>（<b>表参照時のみ</b>適用。銘板値・式値使用時は本チェックをスキップ）</li>
-                                <li><code>AT ≦ Im × 3</code>（内線規程 <b>3705-2条</b>：分岐回路の過電流遮断器は電動機定格電流の3倍以下、超えると NG）</li>
-                                <li>80% ルール（3605-3条）は動力には<b>適用しない</b>（連続負荷ではなく、始動時突入電流は別途 3705-1表で扱うため）</li>
+                                <li><code>AT ≧ 3705-1表の推奨分岐AT</code>（<b>直入れ＋表参照時のみ</b>適用。Y-Δ/INV/ソフトでは3705-1表は直入れ基準のためスキップ）</li>
+                                <li><b>始動方式別 MCCB上限</b>（始動電流に応じた最大AT制限）：<br>
+                                    直入れ: <code>AT ≦ Im × 3</code>（始動電流 ≈ 6〜8×Im）<br>
+                                    Y-Δ: <code>AT ≦ Im × 2.5</code>（始動電流 ≈ 2〜2.7×Im = DOLの1/3）<br>
+                                    インバータ: <code>AT ≦ Im × 1.5</code>（始動電流 ≈ 1.0〜1.5×Im）<br>
+                                    ソフトスタータ: <code>AT ≦ Im × 2.5</code>（始動電流 ≈ 2〜4×Im）</li>
+                                <li>80% ルール（3605-3条）は動力には<b>適用しない</b></li>
                             </ul>
 
                             <b>モード別 AT判定の違い</b>：判定に使う <code>Im</code> は <code>resolveMotorIm()</code> が現在の Im ソース（銘板／式／表）から決定し、以下のルールに切り替わります。
@@ -3242,6 +3246,104 @@
         const { createClient } = window.supabase;
         const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+        // ★ 全機能共有用ヘルパー（app_data テーブル経由）
+        const _sharedSaveTimers = {};
+
+        function sharedSave(key, jsonString) {
+            localStorage.setItem(key, jsonString);
+            var pid = projectGetCurrent();
+            if (!pid) return;
+            if (_sharedSaveTimers[key]) clearTimeout(_sharedSaveTimers[key]);
+            _sharedSaveTimers[key] = setTimeout(function() {
+                delete _sharedSaveTimers[key];
+                _sharedUpsert(pid, key, jsonString);
+            }, 500);
+        }
+
+        async function _sharedUpsert(pid, key, jsonString) {
+            try {
+                var jsonVal;
+                try { jsonVal = JSON.parse(jsonString); } catch(e) { jsonVal = jsonString; }
+                await db.from('app_data').upsert({
+                    project_id: pid,
+                    data_key: key,
+                    data_value: jsonVal,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'project_id,data_key' });
+            } catch(e) {
+                console.error('sharedSave error:', key, e);
+            }
+        }
+
+        async function sharedLoadAll(pid) {
+            try {
+                var result = await db.from('app_data').select('data_key, data_value').eq('project_id', pid);
+                if (result.error) throw result.error;
+                if (result.data && result.data.length > 0) {
+                    result.data.forEach(function(row) {
+                        localStorage.setItem(row.data_key, JSON.stringify(row.data_value));
+                    });
+                    return true;
+                }
+                return false;
+            } catch(e) {
+                console.error('sharedLoadAll error:', e);
+                return false;
+            }
+        }
+
+        async function sharedDeleteKey(key) {
+            var pid = projectGetCurrent();
+            if (!pid) return;
+            try {
+                await db.from('app_data').delete().eq('project_id', pid).eq('data_key', key);
+            } catch(e) { console.error('sharedDeleteKey error:', e); }
+        }
+
+        // project list sync
+        async function sharedSyncProjectList(list) {
+            try {
+                var rows = list.map(function(p) {
+                    return { project_id: p.id, project_name: p.name, updated_at: new Date().toISOString() };
+                });
+                if (rows.length > 0) await db.from('app_projects').upsert(rows, { onConflict: 'project_id' });
+            } catch(e) { console.error('sharedSyncProjectList error:', e); }
+        }
+
+        async function sharedLoadProjectList() {
+            try {
+                var result = await db.from('app_projects').select('project_id, project_name').order('project_id');
+                if (result.error) throw result.error;
+                if (result.data && result.data.length > 0) {
+                    return result.data.map(function(r) { return { id: r.project_id, name: r.project_name }; });
+                }
+                return null;
+            } catch(e) { console.error('sharedLoadProjectList error:', e); return null; }
+        }
+
+        // Realtime subscription for app_data
+        let _sharedRealtimeChannel = null;
+        function sharedSubscribeRealtime() {
+            var pid = projectGetCurrent();
+            if (_sharedRealtimeChannel) { db.removeChannel(_sharedRealtimeChannel); _sharedRealtimeChannel = null; }
+            _sharedRealtimeChannel = db.channel('app-data-' + pid)
+                .on('postgres_changes',
+                    { event: '*', schema: 'public', table: 'app_data', filter: 'project_id=eq.' + pid },
+                    function(payload) {
+                        var evt = payload.eventType;
+                        var row = payload.new || {};
+                        var oldRow = payload.old || {};
+                        if (evt === 'INSERT' || evt === 'UPDATE') {
+                            if (_sharedSaveTimers[row.data_key]) return; // skip if we're the ones saving
+                            localStorage.setItem(row.data_key, JSON.stringify(row.data_value));
+                        } else if (evt === 'DELETE') {
+                            localStorage.removeItem(oldRow.data_key);
+                        }
+                    }
+                )
+                .subscribe();
+        }
+
         const AF_VALUES = [30, 50, 60, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 500, 600, 800];
         const AT_VALUES = [5, 10, 15, 20, 30, 40, 50, 60, 75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 500, 600];
 
@@ -3773,7 +3875,7 @@
         }
         function saveLocalFeederData() {
             try {
-                localStorage.setItem(LOCAL_FEEDER_DATA_KEY, JSON.stringify(localFeederData));
+                sharedSave(LOCAL_FEEDER_DATA_KEY, JSON.stringify(localFeederData));
             } catch (e) { console.error('saveLocalFeederData:', e); }
         }
         const localFeederData = loadLocalFeederData();  // { [feederId]: { source_type, source_circuit_id, ... } }
@@ -3799,7 +3901,7 @@
         }
         function saveTransformers() {
             try {
-                localStorage.setItem(LOCAL_TRANSFORMERS_KEY, JSON.stringify(transformers));
+                sharedSave(LOCAL_TRANSFORMERS_KEY, JSON.stringify(transformers));
             } catch (e) { console.error('saveTransformers:', e); }
         }
         let transformers = loadTransformers();  // [{ id, name, type, phase, connection, rated_kva, primary_voltage, secondary_voltage, percent_z, percent_r, percent_x, frequency, usage, location, manufacturer, model, note }]
@@ -3860,7 +3962,7 @@
             return { mode: 'pdf', pn_mva: 10, v_kv: 6.6, ac: 0, bc: 0, x0: 0, fb_ika: 12.5, fb_vmax: 6.9, fb_pn: 10, dir_za_r: 1.7, dir_za_x: 9.28, dir_v_kv: 6.6, dir_pn: 10 };
         }
         function saveSourceImp() {
-            try { localStorage.setItem(SOURCE_IMP_KEY, JSON.stringify(sourceImp)); } catch (e) {}
+            try { sharedSave(SOURCE_IMP_KEY, JSON.stringify(sourceImp)); } catch (e) {}
         }
         let sourceImp = loadSourceImp();
 
@@ -3913,7 +4015,7 @@
             try { const raw = localStorage.getItem(HV_CABLE_KEY); return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
         }
         function saveHvCables() {
-            try { localStorage.setItem(HV_CABLE_KEY, JSON.stringify(hvCables)); } catch (e) {}
+            try { sharedSave(HV_CABLE_KEY, JSON.stringify(hvCables)); } catch (e) {}
         }
         let hvCables = loadHvCables();
         function newHvCableId() { return 'hvc_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
@@ -4032,7 +4134,7 @@
             } catch (e) { return []; }
         }
         function saveLoadCables() {
-            try { localStorage.setItem(LOAD_CABLE_KEY, JSON.stringify(loadCables)); } catch (e) {}
+            try { sharedSave(LOAD_CABLE_KEY, JSON.stringify(loadCables)); } catch (e) {}
         }
         let loadCables = loadLoadCables();
         function newLoadCableId() { return 'lc_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
@@ -5485,7 +5587,7 @@
         }
         function saveLocalCircuitData() {
             try {
-                localStorage.setItem(LOCAL_CIRCUIT_DATA_KEY, JSON.stringify(localCircuitData));
+                sharedSave(LOCAL_CIRCUIT_DATA_KEY, JSON.stringify(localCircuitData));
             } catch (e) { console.error('saveLocalCircuitData:', e); }
         }
         const localCircuitData = loadLocalCircuitData();  // { [circuitId]: { category } }
@@ -5505,7 +5607,7 @@
         function setActualCircuit(circuitId, field, value) {
             const cur = getActualCircuit(circuitId);
             cur[field] = value;
-            localStorage.setItem(`actual_circuit_${circuitId}`, JSON.stringify(cur));
+            sharedSave(`actual_circuit_${circuitId}`, JSON.stringify(cur));
         }
 
         // 動力回路メタデータ（内線規程 3705 判定用）
@@ -5532,7 +5634,7 @@
         function setMotorMeta(circuitId, patch) {
             const cur = getMotorMeta(circuitId);
             const merged = Object.assign(cur, patch);
-            localStorage.setItem(`elecCalc:motorMeta:${circuitId}`, JSON.stringify(merged));
+            sharedSave(`elecCalc:motorMeta:${circuitId}`, JSON.stringify(merged));
         }
         // 実負荷用モータメタ（設計と独立）
         function getActualMotorMeta(circuitId) {
@@ -5560,7 +5662,7 @@
         function setActualMotorMeta(circuitId, patch) {
             const cur = getActualMotorMeta(circuitId);
             const merged = Object.assign(cur, patch);
-            localStorage.setItem(`elecCalc:actualMotorMeta:${circuitId}`, JSON.stringify(merged));
+            sharedSave(`elecCalc:actualMotorMeta:${circuitId}`, JSON.stringify(merged));
         }
         // 3705-1表から kW ≤ の最小行を選び、Im/推奨分岐AT/最小CVを返す
         function lookupMotor3705_1(kw) {
@@ -5779,6 +5881,22 @@
         }
 
         async function loadAllData() {
+            // ★ Supabaseからプロジェクトデータを一括ロード
+            try {
+                var dbProjList = await sharedLoadProjectList();
+                if (dbProjList && dbProjList.length > 0) {
+                    var localList = projectGetList();
+                    // DBにあるプロジェクトをローカルにマージ
+                    dbProjList.forEach(function(dp) {
+                        if (!localList.find(function(lp) { return lp.id === dp.id; })) {
+                            localList.push(dp);
+                        }
+                    });
+                    projectSaveList(localList);  // uses sharedSave
+                }
+                await sharedLoadAll(projectGetCurrent());
+            } catch(e) { console.error('loadAllData sharedLoadAll error:', e); }
+
             try {
                 // 先に回路データを読み込まないと 盤一覧の集計（lighting/outlet/電流等）が 0 になる
                 await loadCircuits();
@@ -5789,6 +5907,9 @@
             } catch (error) {
                 console.error('Error loading data:', error);
             }
+
+            // ★ Realtime購読開始
+            sharedSubscribeRealtime();
         }
 
         async function loadPanels() {
@@ -6577,7 +6698,7 @@
             } catch (_) { return 100; }
         }
         function setDemandRate(panelName, rate) {
-            try { localStorage.setItem(DEMAND_STORAGE_PREFIX + panelName, String(rate)); } catch (_) {}
+            try { sharedSave(DEMAND_STORAGE_PREFIX + panelName, String(rate)); } catch (_) {}
         }
 
         // ===== 盤一覧 需要率 ⇔ 幹線計算 demand_factor 連動 =====
@@ -7193,6 +7314,19 @@
             const panelObjForPhase = allPanels.find(p => p.name === circuit.panel_name);
             const panelTypeForPhase = panelObjForPhase ? panelObjForPhase.elec_type : '1φ3W';
             const autoPhase = computeAutoPhase(category, circuit.symbol, circuit.circuit_no, panelTypeForPhase, circuit.phase);
+            // ★ 始動方式別の MCCB上限倍率
+            // 直入れ: 始動電流 ≈ 6〜8×Im → AT ≤ 3×Im (3705-2条)
+            // Y-Δ:    始動電流 ≈ 2〜2.7×Im (DOLの1/3) → AT ≤ 2.5×Im
+            // インバータ: 始動電流 ≈ 1.0〜1.5×Im → AT ≤ 1.5×Im
+            // ソフトスタータ: 始動電流 ≈ 2〜4×Im → AT ≤ 2.5×Im
+            const motorStartMethod = isMotor ? (motorMetaForJudge.startMethod || 'direct') : 'direct';
+            const MCCB_UPPER_MAP = { 'direct': 3, 'star-delta': 2.5, 'inverter': 1.5, 'soft': 2.5 };
+            const START_LABEL_MAP = { 'direct': '直入れ', 'star-delta': 'Y-Δ', 'inverter': 'INV', 'soft': 'ソフト' };
+            const mccbUpperMul = MCCB_UPPER_MAP[motorStartMethod] || 3;
+            const startLabel = START_LABEL_MAP[motorStartMethod] || '直入れ';
+            // Y-Δ/INV/ソフトでは3705-1表推奨ATチェックをスキップ（表はDOL直入れ基準のため）
+            const isDOL = (motorStartMethod === 'direct');
+
             let atStatus = '';
             let atNgReason = '';
             if (current === 0 && !(isMotor && motorTotalIm > 0)) {
@@ -7203,18 +7337,18 @@
             } else if (isLighting && at < requiredAT) {
                 atStatus = 'NG';
                 atNgReason = `AT(${at}) < 電流×1.25(${requiredAT.toFixed(1)}A) [内線規程3605-3条 80%ルール]`;
-            } else if (isMotor && motorImSource === 'table' && motor3705 && at < motorRecommendAT) {
-                // 3705-1表: kWに対応する分岐ブレーカ最小値に満たない（表参照時のみ）
+            } else if (isMotor && isDOL && motorImSource === 'table' && motor3705 && at < motorRecommendAT) {
+                // 3705-1表: kWに対応する分岐ブレーカ最小値に満たない（直入れ＋表参照時のみ）
                 atStatus = 'NG';
-                atNgReason = `AT(${at}) < 3705-1表推奨${motorRecommendAT}AT (${motorMetaForJudge.kw}kW, Im=${motorSingleIm}A)`;
+                atNgReason = `AT(${at}) < 3705-1表推奨${motorRecommendAT}AT (${motorMetaForJudge.kw}kW, Im=${motorSingleIm}A) [直入れ基準]`;
             } else if (isMotor && motorSingleIm > 0 && at < motorSingleIm) {
-                // 銘板Im使用時も AT ≧ Im は必須
+                // 銘板Im使用時も AT ≧ Im は必須（始動方式問わず）
                 atStatus = 'NG';
                 atNgReason = `AT(${at}) < Im(${motorSingleIm}A) [銘板値基準]`;
-            } else if (isMotor && motorSingleIm > 0 && at > motorSingleIm * 3) {
-                // 3705-2条: 分岐回路の過電流遮断器は電動機定格電流の3倍以下
+            } else if (isMotor && motorSingleIm > 0 && at > motorSingleIm * mccbUpperMul) {
+                // 始動方式別MCCB上限: 過大ブレーカによる保護不能を防止
                 atStatus = 'NG';
-                atNgReason = `AT(${at}) > Im×3(${(motorSingleIm*3).toFixed(0)}A) [3705-2条 分岐MCCB上限]`;
+                atNgReason = `AT(${at}) > Im×${mccbUpperMul}(${(motorSingleIm*mccbUpperMul).toFixed(0)}A) [${startLabel}始動 MCCB上限]`;
             } else {
                 atStatus = 'OK';
             }
@@ -7224,7 +7358,6 @@
                 const kw = Number(motorMetaForJudge.kw) || 0;
                 const multiplier = (kw > 37) ? 1.1 : 1.25;
                 const requiredCableAmp = motorSingleIm * multiplier;
-                // AT→推奨ケーブルからampacity推定
                 const brEntry = BREAKER_CABLE_TABLE.find(b => b.at >= at) || BREAKER_CABLE_TABLE[BREAKER_CABLE_TABLE.length - 1];
                 const cableAmp = brEntry ? brEntry.ampacity : 0;
                 if (cableAmp && cableAmp < requiredCableAmp) {
@@ -7360,9 +7493,24 @@
                         // 計算式Im（kW, V, cosφ, η から）
                         const formulaImRaw = calcMotorImByFormula(mKw, MOTOR_DEFAULT_VOLTAGE, mPf, mEff);
                         const formulaIm = Math.round(formulaImRaw * 10) / 10;
-                        const m3705Info = motor3705
-                            ? `推奨${motorRecommendAT}AT / CV${motor3705.cable}mm²`
-                            : '—';
+                        // ★ 始動方式別の表示情報
+                        const _startM = meta.startMethod || 'direct';
+                        const _startBadgeMap = { 'direct':'直入', 'star-delta':'Y-Δ', 'inverter':'INV', 'soft':'ソフト' };
+                        const _startBadge = _startBadgeMap[_startM] || '直入';
+                        const _upperMul = { 'direct':3, 'star-delta':2.5, 'inverter':1.5, 'soft':2.5 }[_startM] || 3;
+                        const _isStartDOL = (_startM === 'direct');
+                        let m3705Info = '';
+                        if (motor3705) {
+                            if (_isStartDOL) {
+                                m3705Info = `推奨${motorRecommendAT}AT / CV${motor3705.cable}mm²`;
+                            } else {
+                                // Y-Δ等: 表の推奨ATは直入れ基準→参考表示、上限を始動方式別で表示
+                                const upperAT = Math.round(motorSingleIm * _upperMul);
+                                m3705Info = `[${_startBadge}] AT≤${upperAT}A(${_upperMul}×Im)`;
+                            }
+                        } else {
+                            m3705Info = _isStartDOL ? '—' : `[${_startBadge}]`;
+                        }
                         const startOpt = (v, label) => `<option value="${v}" ${meta.startMethod === v ? 'selected' : ''}>${label}</option>`;
                         const cellBg = isActual ? '#fff8e1' : '#fff3e0';
                         // Im欄の表示バッジ: 銘板 > 式 > 表
@@ -9984,7 +10132,8 @@
             catch(e) { return []; }
         }
         function projectSaveList(list) {
-            localStorage.setItem(PROJECT_LIST_KEY, JSON.stringify(list));
+            sharedSave(PROJECT_LIST_KEY, JSON.stringify(list));
+            sharedSyncProjectList(list);
         }
         function projectGetCurrent() {
             return localStorage.getItem(PROJECT_CURRENT_KEY) || '';
@@ -10036,6 +10185,11 @@
             if (!curId) return;
             const snap = projectCollectSnapshot();
             localStorage.setItem(PROJECT_DATA_PREFIX + curId, JSON.stringify(snap));
+            // ★ After snapshot is saved, push each key to Supabase
+            var _snapKeys = Object.keys(snap);
+            _snapKeys.forEach(function(k) {
+                sharedSave(k, snap[k]);
+            });
         }
 
         // 指定プロジェクトのデータを読み込み
@@ -10046,12 +10200,14 @@
         }
 
         // プロジェクト切り替え
-        function projectSwitch(newId) {
+        async function projectSwitch(newId) {
             const curId = projectGetCurrent();
             if (curId && curId !== newId) {
                 projectSaveCurrent();
             }
             projectSetCurrent(newId);
+            // ★ Supabaseから新プロジェクトのデータをロード
+            await sharedLoadAll(newId);
             projectLoadData(newId);
             // const変数等を確実にリセットするためリロード
             location.reload();
@@ -10180,7 +10336,7 @@
             try { return JSON.parse(localStorage.getItem(projectSettingsKey())) || {}; }
             catch(e) { return {}; }
         }
-        function saveProjectSettingsData(s) { localStorage.setItem(projectSettingsKey(), JSON.stringify(s)); }
+        function saveProjectSettingsData(s) { sharedSave(projectSettingsKey(), JSON.stringify(s)); }
 
         function openProjectSettings() {
             const s = loadProjectSettings();
@@ -10216,14 +10372,14 @@
         const WC_CABLES_KEY = 'elecCalc:weakCurrentCables';
         const WC_HAIKAN_KEY = 'elecCalc:weakCurrentHaikan';
         function wcLoadCables() { try { const r = localStorage.getItem(WC_CABLES_KEY); return r ? JSON.parse(r) : []; } catch(e) { return []; } }
-        function wcSaveCables(list) { localStorage.setItem(WC_CABLES_KEY, JSON.stringify(list)); }
+        function wcSaveCables(list) { sharedSave(WC_CABLES_KEY, JSON.stringify(list)); }
         function wcAddCable(name) {
             if (!name || !name.trim()) return;
             const cables = wcLoadCables();
             if (!cables.includes(name.trim())) { cables.push(name.trim()); cables.sort(); wcSaveCables(cables); }
         }
         function wcLoadHaikan() { try { const r = localStorage.getItem(WC_HAIKAN_KEY); return r ? JSON.parse(r) : []; } catch(e) { return []; } }
-        function wcSaveHaikan(list) { localStorage.setItem(WC_HAIKAN_KEY, JSON.stringify(list)); }
+        function wcSaveHaikan(list) { sharedSave(WC_HAIKAN_KEY, JSON.stringify(list)); }
         function wcAddHaikan(name) {
             if (!name || !name.trim()) return;
             const list = wcLoadHaikan();
@@ -10257,7 +10413,7 @@
                     koujiNo: document.getElementById('wcKoujiNo')?.value || ''
                 };
                 wcData.header = h;
-                localStorage.setItem(WC_KEY, JSON.stringify(wcData));
+                sharedSave(WC_KEY, JSON.stringify(wcData));
             } catch(e){}
         }
         let wcData = wcLoadData();
@@ -10269,7 +10425,7 @@
         function wcSaveSettings() {
             const tantou = (document.getElementById('wcTantouList')?.value || '').split('\n').map(s=>s.trim()).filter(Boolean);
             const atesaki = (document.getElementById('wcAtesakiList')?.value || '').split('\n').map(s=>s.trim()).filter(Boolean);
-            localStorage.setItem(WC_SETTINGS_KEY, JSON.stringify({ tantou, atesaki }));
+            sharedSave(WC_SETTINGS_KEY, JSON.stringify({ tantou, atesaki }));
             wcRenderSelects();
             alert('設定を保存しました');
         }
@@ -12582,13 +12738,10 @@ td { vertical-align: middle; }
             return JSON.parse(JSON.stringify(_qaDataCache));
         }
 
-        // データ保存（キャッシュ＋localStorage＋Supabase）
+        // データ保存（キャッシュ＋localStorageのみ — DB pushは各アクション関数で個別に行う）
         function qaSaveData(data) {
             _qaDataCache = data;
             localStorage.setItem(QA_DATA_KEY, JSON.stringify(data));
-            // Supabaseへのプッシュをデバウンス（500ms）
-            if (_qaDbSaveTimer) clearTimeout(_qaDbSaveTimer);
-            _qaDbSaveTimer = setTimeout(function() { _qaPushDataToDB(data); }, 500);
         }
 
         // 設定読込（同期・キャッシュから）
@@ -12605,12 +12758,82 @@ td { vertical-align: middle; }
             _qaDbSettingsSaveTimer = setTimeout(function() { _qaPushSettingsToDB(s); }, 500);
         }
 
-        // ★ Supabase: データをDBにプッシュ（upsert＋削除検出）
-        async function _qaPushDataToDB(data) {
-            const pid = projectGetCurrent();
+        // ★ アイテム単位のDBデバウンスタイマー管理
+        const _qaItemSaveTimers = {};
+
+        // ★ 単一アイテムをDBにupsert（デバウンス300ms）
+        function _qaQueueItemSave(item) {
+            var itemId = item.id;
+            if (_qaItemSaveTimers[itemId]) clearTimeout(_qaItemSaveTimers[itemId]);
+            _qaItemSaveTimers[itemId] = setTimeout(function() {
+                delete _qaItemSaveTimers[itemId];
+                _qaUpsertItemToDB(item);
+            }, 300);
+        }
+
+        // ★ 単一アイテムをDBにupsert（即座実行）
+        async function _qaUpsertItemToDB(item) {
+            var pid = projectGetCurrent();
+            try {
+                var row = {
+                    project_id: pid,
+                    item_id: item.id,
+                    no: item.no || 0,
+                    drawing_no: item.drawingNo || '',
+                    koushu: item.koushu || '',
+                    summary: item.summary || '',
+                    exchanges: item.exchanges || [],
+                    drawing_reflect: item.drawingReflect || false,
+                    updated_at: new Date().toISOString()
+                };
+                var result = await db.from('qa_items').upsert(row, { onConflict: 'project_id,item_id' });
+                if (result.error) console.error('qa_items upsert error:', result.error);
+            } catch(e) {
+                console.error('_qaUpsertItemToDB error:', e);
+            }
+        }
+
+        // ★ 単一アイテムをDBから削除
+        async function _qaDeleteItemFromDB(itemId) {
+            var pid = projectGetCurrent();
+            try {
+                await db.from('qa_items').delete().eq('project_id', pid).eq('item_id', itemId);
+            } catch(e) {
+                console.error('_qaDeleteItemFromDB error:', e);
+            }
+        }
+
+        // ★ 複数アイテムを一括upsert（リナンバリング等用）
+        async function _qaUpsertMultipleItemsToDB(items) {
+            var pid = projectGetCurrent();
+            try {
+                if (items.length === 0) return;
+                var rows = items.map(function(item) {
+                    return {
+                        project_id: pid,
+                        item_id: item.id,
+                        no: item.no || 0,
+                        drawing_no: item.drawingNo || '',
+                        koushu: item.koushu || '',
+                        summary: item.summary || '',
+                        exchanges: item.exchanges || [],
+                        drawing_reflect: item.drawingReflect || false,
+                        updated_at: new Date().toISOString()
+                    };
+                });
+                var result = await db.from('qa_items').upsert(rows, { onConflict: 'project_id,item_id' });
+                if (result.error) console.error('qa_items bulk upsert error:', result.error);
+            } catch(e) {
+                console.error('_qaUpsertMultipleItemsToDB error:', e);
+            }
+        }
+
+        // ★ 全データ一括push（マイグレーション専用）
+        async function _qaPushAllDataToDB(data) {
+            var pid = projectGetCurrent();
             try {
                 if (data.length > 0) {
-                    const rows = data.map(function(item) {
+                    var rows = data.map(function(item) {
                         return {
                             project_id: pid,
                             item_id: item.id,
@@ -12623,22 +12846,81 @@ td { vertical-align: middle; }
                             updated_at: new Date().toISOString()
                         };
                     });
-                    const { error } = await db.from('qa_items').upsert(rows, { onConflict: 'project_id,item_id' });
-                    if (error) console.error('qa_items upsert error:', error);
-                }
-                // 削除されたアイテムをDBから消す
-                const currentIds = data.map(function(d) { return d.id; });
-                const { data: dbRows, error: selErr } = await db.from('qa_items')
-                    .select('item_id')
-                    .eq('project_id', pid);
-                if (!selErr && dbRows) {
-                    const toDelete = dbRows.filter(function(r) { return !currentIds.includes(r.item_id); }).map(function(r) { return r.item_id; });
-                    if (toDelete.length > 0) {
-                        await db.from('qa_items').delete().eq('project_id', pid).in('item_id', toDelete);
-                    }
+                    await db.from('qa_items').upsert(rows, { onConflict: 'project_id,item_id' });
                 }
             } catch(e) {
-                console.error('_qaPushDataToDB error:', e);
+                console.error('_qaPushAllDataToDB error:', e);
+            }
+        }
+
+        // ★ Supabase Realtime: 他ユーザーの変更をリアルタイム受信
+        let _qaRealtimeChannel = null;
+        function _qaSubscribeRealtime() {
+            var pid = projectGetCurrent();
+            // 既存チャネルがあれば解除
+            if (_qaRealtimeChannel) {
+                db.removeChannel(_qaRealtimeChannel);
+                _qaRealtimeChannel = null;
+            }
+            _qaRealtimeChannel = db.channel('qa-items-' + pid)
+                .on('postgres_changes',
+                    { event: '*', schema: 'public', table: 'qa_items', filter: 'project_id=eq.' + pid },
+                    function(payload) {
+                        _qaHandleRealtimeEvent(payload);
+                    }
+                )
+                .subscribe();
+        }
+
+        // ★ Realtimeイベント処理
+        function _qaHandleRealtimeEvent(payload) {
+            var evt = payload.eventType;
+            var row = payload.new || {};
+            var oldRow = payload.old || {};
+
+            if (evt === 'INSERT') {
+                // 自分がまだ持っていないアイテムなら追加
+                if (!_qaDataCache.find(function(d) { return d.id === row.item_id; })) {
+                    _qaDataCache.push({
+                        id: row.item_id,
+                        no: row.no,
+                        drawingNo: row.drawing_no || '',
+                        koushu: row.koushu || '',
+                        summary: row.summary || '',
+                        exchanges: row.exchanges || [],
+                        drawingReflect: row.drawing_reflect || false
+                    });
+                    localStorage.setItem(QA_DATA_KEY, JSON.stringify(_qaDataCache));
+                    // QAタブがアクティブなら再描画
+                    var qaTabEl = document.getElementById('qaTab');
+                    if (qaTabEl && qaTabEl.classList.contains('active')) qaRender();
+                }
+            } else if (evt === 'UPDATE') {
+                var idx = _qaDataCache.findIndex(function(d) { return d.id === row.item_id; });
+                if (idx >= 0) {
+                    // 自分が直近で編集中のアイテムは上書きしない（デバウンス中）
+                    if (_qaItemSaveTimers[row.item_id]) return;
+                    _qaDataCache[idx] = {
+                        id: row.item_id,
+                        no: row.no,
+                        drawingNo: row.drawing_no || '',
+                        koushu: row.koushu || '',
+                        summary: row.summary || '',
+                        exchanges: row.exchanges || [],
+                        drawingReflect: row.drawing_reflect || false
+                    };
+                    localStorage.setItem(QA_DATA_KEY, JSON.stringify(_qaDataCache));
+                    var qaTabEl2 = document.getElementById('qaTab');
+                    if (qaTabEl2 && qaTabEl2.classList.contains('active')) qaRender();
+                }
+            } else if (evt === 'DELETE') {
+                var delId = oldRow.item_id;
+                if (delId) {
+                    _qaDataCache = _qaDataCache.filter(function(d) { return d.id !== delId; });
+                    localStorage.setItem(QA_DATA_KEY, JSON.stringify(_qaDataCache));
+                    var qaTabEl3 = document.getElementById('qaTab');
+                    if (qaTabEl3 && qaTabEl3.classList.contains('active')) qaRender();
+                }
             }
         }
 
@@ -12724,7 +13006,7 @@ td { vertical-align: middle; }
                 try { localData = JSON.parse(localStorage.getItem(QA_DATA_KEY)) || []; } catch(e) {}
                 if (localData.length > 0) {
                     console.log('QA: localStorageからSupabaseへ移行中...', localData.length, '件');
-                    await _qaPushDataToDB(localData);
+                    await _qaPushAllDataToDB(localData);
                 }
                 // 設定も移行
                 var localSettings = {};
@@ -12884,6 +13166,8 @@ td { vertical-align: middle; }
                     qaRestoreSettings();
                     qaPopulateFilterSummary();
                     qaRender();
+                    // ★ Realtimeで他ユーザーの変更を自動受信
+                    _qaSubscribeRealtime();
                 } catch(e) {
                     console.error('qaInit DB load error:', e);
                 }
@@ -12963,7 +13247,7 @@ td { vertical-align: middle; }
         function qaAddRow() {
             const data = qaMigrateData(qaLoadData());
             const nextNo = data.length > 0 ? Math.max(...data.map(d => d.no || 0)) + 1 : 1;
-            data.push({
+            const newItem = {
                 id: 'qa_' + Date.now(),
                 no: nextNo,
                 drawingNo: 'E-',
@@ -12971,8 +13255,10 @@ td { vertical-align: middle; }
                 summary: '',
                 exchanges: [{ questionDate:'', questioner:'', question:'', answerDate:'', answerer:'', answer:'', ketsugi:'', printed:'' }],
                 drawingReflect: false
-            });
+            };
+            data.push(newItem);
             qaSaveData(data);
+            _qaUpsertItemToDB(newItem); // ★ 新規アイテムのみDB保存
             qaRender();
         }
 
@@ -12982,6 +13268,8 @@ td { vertical-align: middle; }
             let data = qaLoadData().filter(d => d.id !== id);
             data.forEach((d, i) => d.no = i + 1);
             qaSaveData(data);
+            _qaDeleteItemFromDB(id); // ★ 削除されたアイテムをDBから消す
+            _qaUpsertMultipleItemsToDB(data); // ★ リナンバリング反映
             qaRender();
         }
 
@@ -12992,6 +13280,7 @@ td { vertical-align: middle; }
             if (!item) return;
             item.exchanges.push({ questionDate:'', questioner:'', question:'', answerDate:'', answerer:'', answer:'', ketsugi:'', printed:'' });
             qaSaveData(data);
+            _qaQueueItemSave(item); // ★ 変更アイテムのみDB保存
             qaRender();
         }
 
@@ -13002,6 +13291,7 @@ td { vertical-align: middle; }
             if (!item || item.exchanges.length <= 1) return;
             item.exchanges.splice(exIdx, 1);
             qaSaveData(data);
+            _qaQueueItemSave(item); // ★ 変更アイテムのみDB保存
             qaRender();
         }
 
@@ -13025,6 +13315,7 @@ td { vertical-align: middle; }
                 }
             }
             qaSaveData(data);
+            _qaQueueItemSave(item); // ★ 変更アイテムのみDB保存（デバウンス）
             qaRender();
         }
 
@@ -13035,16 +13326,18 @@ td { vertical-align: middle; }
             if (!item || !item.exchanges[exIdx]) return;
             item.exchanges[exIdx].ketsugi = value;
             qaSaveData(data);
+            _qaQueueItemSave(item); // ★ 変更アイテムのみDB保存
             qaRender();
         }
 
-        // 図面反映
+        // フィールド変更（工種・内容・図面番号・図面反映）
         function qaOnFieldChange(id, field, value) {
             const data = qaMigrateData(qaLoadData());
             const item = data.find(d => d.id === id);
             if (!item) return;
             item[field] = value;
             qaSaveData(data);
+            _qaQueueItemSave(item); // ★ 変更アイテムのみDB保存（デバウンス）
         }
 
         // 全選択
@@ -13481,15 +13774,18 @@ ${contentRows}
             // （新タブを開いた後だとブラウザの状態遷移でDOM更新が不完全になる場合がある）
             try {
                 const allData = qaMigrateData(qaLoadData());
+                var printedItems = [];
                 _qaPrintSelectedIds.forEach(sid => {
                     const found = allData.find(d => d.id === sid);
                     if (found) {
                         (found.exchanges || []).forEach(ex => {
                             if (!ex.printed) ex.printed = meetingNo;
                         });
+                        printedItems.push(found);
                     }
                 });
                 qaSaveData(allData);
+                if (printedItems.length > 0) _qaUpsertMultipleItemsToDB(printedItems); // ★ 変更分のみDB保存
                 qaRender();
             } catch(e) {
                 console.error('qaExecutePrint save/render error:', e);
