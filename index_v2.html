@@ -12570,16 +12570,179 @@ td { vertical-align: middle; }
         for (let i = 1; i <= 99; i++) QA_DRAWING_NOS.push(String(i));
         const LLE_COMPANY = 'エル・エル・イー電気株式会社';
 
+        // ★ Supabase対応: インメモリキャッシュ
+        let _qaDataCache = [];
+        let _qaSettingsCache = {};
+        let _qaDbLoaded = false;
+        let _qaDbSaveTimer = null;
+        let _qaDbSettingsSaveTimer = null;
+
+        // データ読込（同期・キャッシュから）
         function qaLoadData() {
-            try { return JSON.parse(localStorage.getItem(QA_DATA_KEY)) || []; }
-            catch(e) { return []; }
+            return JSON.parse(JSON.stringify(_qaDataCache));
         }
-        function qaSaveData(data) { localStorage.setItem(QA_DATA_KEY, JSON.stringify(data)); }
+
+        // データ保存（キャッシュ＋localStorage＋Supabase）
+        function qaSaveData(data) {
+            _qaDataCache = data;
+            localStorage.setItem(QA_DATA_KEY, JSON.stringify(data));
+            // Supabaseへのプッシュをデバウンス（500ms）
+            if (_qaDbSaveTimer) clearTimeout(_qaDbSaveTimer);
+            _qaDbSaveTimer = setTimeout(function() { _qaPushDataToDB(data); }, 500);
+        }
+
+        // 設定読込（同期・キャッシュから）
         function qaLoadSettings() {
-            try { return JSON.parse(localStorage.getItem(QA_SETTINGS_KEY)) || {}; }
-            catch(e) { return {}; }
+            return JSON.parse(JSON.stringify(_qaSettingsCache));
         }
-        function qaSaveSettingsData(s) { localStorage.setItem(QA_SETTINGS_KEY, JSON.stringify(s)); }
+
+        // 設定保存（キャッシュ＋localStorage＋Supabase）
+        function qaSaveSettingsData(s) {
+            _qaSettingsCache = s;
+            localStorage.setItem(QA_SETTINGS_KEY, JSON.stringify(s));
+            // Supabaseへのプッシュをデバウンス
+            if (_qaDbSettingsSaveTimer) clearTimeout(_qaDbSettingsSaveTimer);
+            _qaDbSettingsSaveTimer = setTimeout(function() { _qaPushSettingsToDB(s); }, 500);
+        }
+
+        // ★ Supabase: データをDBにプッシュ（upsert＋削除検出）
+        async function _qaPushDataToDB(data) {
+            const pid = projectGetCurrent();
+            try {
+                if (data.length > 0) {
+                    const rows = data.map(function(item) {
+                        return {
+                            project_id: pid,
+                            item_id: item.id,
+                            no: item.no || 0,
+                            drawing_no: item.drawingNo || '',
+                            koushu: item.koushu || '',
+                            summary: item.summary || '',
+                            exchanges: item.exchanges || [],
+                            drawing_reflect: item.drawingReflect || false,
+                            updated_at: new Date().toISOString()
+                        };
+                    });
+                    const { error } = await db.from('qa_items').upsert(rows, { onConflict: 'project_id,item_id' });
+                    if (error) console.error('qa_items upsert error:', error);
+                }
+                // 削除されたアイテムをDBから消す
+                const currentIds = data.map(function(d) { return d.id; });
+                const { data: dbRows, error: selErr } = await db.from('qa_items')
+                    .select('item_id')
+                    .eq('project_id', pid);
+                if (!selErr && dbRows) {
+                    const toDelete = dbRows.filter(function(r) { return !currentIds.includes(r.item_id); }).map(function(r) { return r.item_id; });
+                    if (toDelete.length > 0) {
+                        await db.from('qa_items').delete().eq('project_id', pid).in('item_id', toDelete);
+                    }
+                }
+            } catch(e) {
+                console.error('_qaPushDataToDB error:', e);
+            }
+        }
+
+        // ★ Supabase: 設定をDBにプッシュ（upsert）
+        async function _qaPushSettingsToDB(s) {
+            const pid = projectGetCurrent();
+            try {
+                const row = {
+                    project_id: pid,
+                    kantoku_list: s.kantokuList || '',
+                    seko_list: Array.isArray(s.sekoList) ? s.sekoList : [],
+                    summary_list: Array.isArray(s.summaryList) ? s.summaryList : [],
+                    meeting_places: Array.isArray(s.meetingPlaces) ? s.meetingPlaces : [],
+                    updated_at: new Date().toISOString()
+                };
+                const { error } = await db.from('qa_settings').upsert(row, { onConflict: 'project_id' });
+                if (error) console.error('qa_settings upsert error:', error);
+            } catch(e) {
+                console.error('_qaPushSettingsToDB error:', e);
+            }
+        }
+
+        // ★ Supabase: DBからデータを読み込み（初期化時に呼ぶ）
+        async function _qaLoadFromDB() {
+            const pid = projectGetCurrent();
+            try {
+                // QAデータ読込
+                const { data: items, error: itemErr } = await db.from('qa_items')
+                    .select('*')
+                    .eq('project_id', pid)
+                    .order('no', { ascending: true });
+                if (itemErr) throw itemErr;
+                if (items && items.length > 0) {
+                    _qaDataCache = items.map(function(row) {
+                        return {
+                            id: row.item_id,
+                            no: row.no,
+                            drawingNo: row.drawing_no || '',
+                            koushu: row.koushu || '',
+                            summary: row.summary || '',
+                            exchanges: row.exchanges || [],
+                            drawingReflect: row.drawing_reflect || false
+                        };
+                    });
+                    localStorage.setItem(QA_DATA_KEY, JSON.stringify(_qaDataCache));
+                }
+                // QA設定読込
+                const { data: settingsRows, error: setErr } = await db.from('qa_settings')
+                    .select('*')
+                    .eq('project_id', pid)
+                    .limit(1);
+                if (!setErr && settingsRows && settingsRows.length > 0) {
+                    const row = settingsRows[0];
+                    _qaSettingsCache = {
+                        kantokuList: row.kantoku_list || '',
+                        sekoList: row.seko_list || [],
+                        summaryList: row.summary_list || [],
+                        meetingPlaces: row.meeting_places || []
+                    };
+                    localStorage.setItem(QA_SETTINGS_KEY, JSON.stringify(_qaSettingsCache));
+                }
+                _qaDbLoaded = true;
+                return true;
+            } catch(e) {
+                console.error('_qaLoadFromDB error:', e);
+                return false;
+            }
+        }
+
+        // ★ localStorage → Supabase マイグレーション（初回のみ）
+        async function _qaMigrateLocalToDB() {
+            const pid = projectGetCurrent();
+            try {
+                // DBにデータがなければlocalStorageから移行
+                const { data: existing } = await db.from('qa_items')
+                    .select('id')
+                    .eq('project_id', pid)
+                    .limit(1);
+                if (existing && existing.length > 0) return; // 既にDBにデータあり
+
+                // localStorageからデータを読み込んでDBにプッシュ
+                var localData = [];
+                try { localData = JSON.parse(localStorage.getItem(QA_DATA_KEY)) || []; } catch(e) {}
+                if (localData.length > 0) {
+                    console.log('QA: localStorageからSupabaseへ移行中...', localData.length, '件');
+                    await _qaPushDataToDB(localData);
+                }
+                // 設定も移行
+                var localSettings = {};
+                try { localSettings = JSON.parse(localStorage.getItem(QA_SETTINGS_KEY)) || {}; } catch(e) {}
+                if (Object.keys(localSettings).length > 0) {
+                    await _qaPushSettingsToDB(localSettings);
+                }
+                // 打合せ場所も移行
+                var localPlaces = [];
+                try { localPlaces = JSON.parse(localStorage.getItem('elecCalc:meetingPlaces')) || []; } catch(e) {}
+                if (localPlaces.length > 0) {
+                    localSettings.meetingPlaces = localPlaces;
+                    await _qaPushSettingsToDB(localSettings);
+                }
+            } catch(e) {
+                console.error('_qaMigrateLocalToDB error:', e);
+            }
+        }
 
         function qaGetProjectName() {
             const list = projectGetList();
@@ -12682,25 +12845,49 @@ td { vertical-align: middle; }
 
         // 初期化
         let _qaInitDone = false;
-        function qaInit() {
+        async function qaInit() {
             if (!_qaInitDone) {
+                // ★ まずlocalStorageからキャッシュを暫定ロード（即座に表示するため）
+                try { _qaDataCache = JSON.parse(localStorage.getItem(QA_DATA_KEY)) || []; } catch(e) { _qaDataCache = []; }
+                try { _qaSettingsCache = JSON.parse(localStorage.getItem(QA_SETTINGS_KEY)) || {}; } catch(e) { _qaSettingsCache = {}; }
+
                 qaRestoreSettings();
                 qaPopulateFilterKoushu();
                 qaPopulateFilterSummary();
                 _qaInitDone = true;
-                // ★ 安全ネット: 別タブから戻ったときにQAタブを強制再描画
+
+                // ★ 安全ネット: 別タブから戻ったときにSupabaseから再読込＋再描画
                 document.addEventListener('visibilitychange', function() {
                     if (!document.hidden) {
-                        // 全モーダルを確実に閉じる
                         var pm = document.getElementById('qaPrintModal');
                         if (pm) pm.style.display = 'none';
-                        // QAタブがアクティブなら再描画
                         var qaTabEl = document.getElementById('qaTab');
                         if (qaTabEl && qaTabEl.classList.contains('active')) {
-                            try { qaRender(); } catch(e) { console.error('qaRender on visibility:', e); }
+                            // Supabaseから最新データを取得して再描画
+                            _qaLoadFromDB().then(function() {
+                                qaRestoreSettings();
+                                try { qaRender(); } catch(e) { console.error('qaRender on visibility:', e); }
+                            }).catch(function() {
+                                try { qaRender(); } catch(e) {}
+                            });
                         }
                     }
                 });
+
+                // 暫定描画（localStorageデータ）
+                qaRender();
+
+                // ★ Supabase: localStorageからの移行 → DBからロード → 再描画
+                try {
+                    await _qaMigrateLocalToDB();
+                    await _qaLoadFromDB();
+                    qaRestoreSettings();
+                    qaPopulateFilterSummary();
+                    qaRender();
+                } catch(e) {
+                    console.error('qaInit DB load error:', e);
+                }
+                return;
             }
             qaRender();
         }
@@ -13052,10 +13239,19 @@ td { vertical-align: middle; }
         const QA_MEETING_PLACES_KEY = 'elecCalc:meetingPlaces';
 
         function qaLoadMeetingPlaces() {
+            // Supabase対応: 設定キャッシュから取得（フォールバック: localStorage）
+            var s = qaLoadSettings();
+            if (Array.isArray(s.meetingPlaces) && s.meetingPlaces.length > 0) return s.meetingPlaces;
             try { return JSON.parse(localStorage.getItem(QA_MEETING_PLACES_KEY)) || []; }
             catch(e) { return []; }
         }
-        function qaSaveMeetingPlaces(list) { localStorage.setItem(QA_MEETING_PLACES_KEY, JSON.stringify(list)); }
+        function qaSaveMeetingPlaces(list) {
+            localStorage.setItem(QA_MEETING_PLACES_KEY, JSON.stringify(list));
+            // Supabase対応: 設定に統合して保存
+            var s = qaLoadSettings();
+            s.meetingPlaces = list;
+            qaSaveSettingsData(s);
+        }
 
         function qaAddMeetingPlace() {
             const name = prompt('打合せ場所を登録：', '');
