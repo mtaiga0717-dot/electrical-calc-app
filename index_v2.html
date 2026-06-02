@@ -13681,22 +13681,36 @@ td { vertical-align: middle; }
             const projSettings = loadProjectSettings();
             const projectName = qaGetProjectName();
 
-            // 名前に「様」を付けるヘルパー（エル・エル・イー電気株式会社の社員以外）
+            // 名前に「様」を付けるヘルパー（エル・エル・イー電気の社員以外）
             const lleSettings = qaLoadSettings();
             const lleSekoList = Array.isArray(lleSettings.sekoList) ? lleSettings.sekoList : [];
-            // LLE社員の名前セット（施工業者リストでLLE_COMPANYに所属する全員）
-            const lleMembers = new Set(lleSekoList.filter(e => e.company === LLE_COMPANY).map(e => e.name));
+            // LLE社員判定: 「エル・エル・イー」を含む会社名はすべてLLEとみなす
+            function _isLLECompany(comp) {
+                if (!comp) return false;
+                return comp.indexOf('エル・エル・イー') >= 0 || comp.indexOf('ＬＬＥ') >= 0 || comp.indexOf('LLE') >= 0 || comp.indexOf('lle') >= 0;
+            }
+            var lleMembers = new Set(lleSekoList.filter(function(e) { return _isLLECompany(e.company); }).map(function(e) { return e.name; }));
+            // 名前→会社名の逆引きマップ（PDF内で会社名+氏名を表示するため）
+            var _nameToCompany = {};
+            lleSekoList.forEach(function(e) { if (e.name) _nameToCompany[e.name] = e.company || ''; });
             function _qaAddSama(name) {
                 if (!name) return '';
                 // LLE社員なら様を付けない
                 if (lleMembers.has(name)) return name;
-                // 既に様が付いていたらLLE社員かチェックして除去
                 if (name.endsWith('様')) {
                     var baseName = name.slice(0, -1);
                     if (lleMembers.has(baseName)) return baseName;
                     return name;
                 }
                 return name + '様';
+            }
+            // 会社名+氏名（+様）を返す（PDF質疑/回答欄用）
+            function _qaPersonLabel(name) {
+                if (!name) return '';
+                var comp = _nameToCompany[name] || '';
+                var dispName = _qaAddSama(name);
+                if (comp) return comp + ' ' + dispName;
+                return dispName;
             }
 
             // 出席者を生成（既に取得済みの配列から）
@@ -13707,7 +13721,7 @@ td { vertical-align: middle; }
                 const name = entry.name;
                 const key = comp || '（未設定）';
                 if (!sekoByCompany[key]) sekoByCompany[key] = [];
-                sekoByCompany[key].push(comp === LLE_COMPANY ? name : _qaAddSama(name));
+                sekoByCompany[key].push(_isLLECompany(comp) ? name : _qaAddSama(name));
             });
             // 施工業者の出席者行を会社ごとに生成
             const sekoCompanies = Object.entries(sekoByCompany);
@@ -13740,7 +13754,7 @@ td { vertical-align: middle; }
                     contentRows += `<td class="qa-content-cell">`;
                     // 質疑部分
                     if (ex.question && ex.question.trim()) {
-                        contentRows += `<div class="q-block"><span class="q-label">質疑${totalRows > 1 ? (ei+1) : ''}${ex.questioner ? '（'+_qaAddSama(ex.questioner)+'）' : ''}：</span><br>`;
+                        contentRows += `<div class="q-block"><span class="q-label">質疑${totalRows > 1 ? (ei+1) : ''}${ex.questioner ? '（'+_qaPersonLabel(ex.questioner)+'）' : ''}：</span><br>`;
                         contentRows += `${(ex.question||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
                     }
                     // 回答部分（未入力でも書き込み用スペースを確保）
@@ -13748,7 +13762,7 @@ td { vertical-align: middle; }
                     const ketBadge = ex.ketsugi === '決定' ? '<span style="font-weight:bold;">[決定]</span> ' :
                                      ex.ketsugi === '継続' ? '<span style="font-weight:bold;">[継続]</span> ' :
                                      ex.ketsugi === '未決' ? '<span style="font-weight:bold;">[未決]</span> ' : '';
-                    contentRows += `<div class="a-block"><span class="a-label">回答${totalRows > 1 ? (ei+1) : ''}${ex.answerer ? '（'+_qaAddSama(ex.answerer)+'）' : ''}：</span><br>`;
+                    contentRows += `<div class="a-block"><span class="a-label">回答${totalRows > 1 ? (ei+1) : ''}${ex.answerer ? '（'+_qaPersonLabel(ex.answerer)+'）' : ''}：</span><br>`;
                     if (hasAnswer) {
                         contentRows += `${ketBadge}${(ex.answer||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}`;
                     } else {
