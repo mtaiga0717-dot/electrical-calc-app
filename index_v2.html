@@ -13221,8 +13221,7 @@ td { vertical-align: middle; }
                     qaRestoreSettings();
                     qaPopulateFilterSummary();
                     qaRender();
-                    // ★ Realtimeで他ユーザーの変更を自動受信
-                    _qaSubscribeRealtime();
+                    // Realtime無効（重複バグの原因のため廃止。タブ切替・visibilitychangeでDB同期）
                 } catch(e) {
                     console.error('qaInit DB load error:', e);
                 }
