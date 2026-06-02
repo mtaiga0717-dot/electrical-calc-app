@@ -13270,9 +13270,12 @@ td { vertical-align: middle; }
             _qaIgnoreRealtime = true;
             setTimeout(function() { _qaIgnoreRealtime = false; }, 3000);
             let data = qaLoadData().filter(d => d.id !== id);
+            // ★ 即座にリナンバリング（1,2,3...）
             data.sort(function(a, b) { return (a.no || 0) - (b.no || 0); });
+            data.forEach(function(d, i) { d.no = i + 1; });
             qaSaveData(data);
             _qaDeleteItemFromDB(id);
+            _qaUpsertMultipleItemsToDB(data); // リナンバリング反映
             qaRender();
         }
 
@@ -13341,6 +13344,7 @@ td { vertical-align: middle; }
             item[field] = value;
             qaSaveData(data);
             _qaQueueItemSave(item); // ★ 変更アイテムのみDB保存（デバウンス）
+            qaRender(); // ★ 即座に画面反映
         }
 
         // 全選択
