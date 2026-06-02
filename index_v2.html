@@ -12787,9 +12787,10 @@ td { vertical-align: middle; }
                     updated_at: new Date().toISOString()
                 };
                 var result = await db.from('qa_items').upsert(row, { onConflict: 'project_id,item_id' });
-                if (result.error) console.error('qa_items upsert error:', result.error);
+                if (result.error) { console.error('[QA] upsert error:', result.error); }
+                else { console.log('[QA] upserted:', item.id, 'no=' + item.no); }
             } catch(e) {
-                console.error('_qaUpsertItemToDB error:', e);
+                console.error('[QA] _qaUpsertItemToDB error:', e);
             }
         }
 
@@ -12946,13 +12947,15 @@ td { vertical-align: middle; }
         // ★ Supabase: DBからデータを読み込み（初期化時に呼ぶ）
         async function _qaLoadFromDB() {
             const pid = projectGetCurrent();
+            console.log('[QA] _qaLoadFromDB: project_id =', pid);
             try {
                 // QAデータ読込
                 const { data: items, error: itemErr } = await db.from('qa_items')
                     .select('*')
                     .eq('project_id', pid)
                     .order('no', { ascending: true });
-                if (itemErr) throw itemErr;
+                if (itemErr) { console.error('[QA] qa_items SELECT error:', itemErr); throw itemErr; }
+                console.log('[QA] qa_items loaded:', items ? items.length : 0, '件');
                 if (items && items.length > 0) {
                     _qaDataCache = items.map(function(row) {
                         return {
@@ -12966,6 +12969,8 @@ td { vertical-align: middle; }
                         };
                     });
                     localStorage.setItem(QA_DATA_KEY, JSON.stringify(_qaDataCache));
+                } else {
+                    console.log('[QA] DBにqa_itemsデータなし (project_id=' + pid + ')');
                 }
                 // QA設定読込
                 const { data: settingsRows, error: setErr } = await db.from('qa_settings')
@@ -12993,13 +12998,15 @@ td { vertical-align: middle; }
         // ★ localStorage → Supabase マイグレーション（初回のみ）
         async function _qaMigrateLocalToDB() {
             const pid = projectGetCurrent();
+            console.log('[QA] _qaMigrateLocalToDB: project_id =', pid);
             try {
                 // DBにデータがなければlocalStorageから移行
-                const { data: existing } = await db.from('qa_items')
+                const { data: existing, error: chkErr } = await db.from('qa_items')
                     .select('id')
                     .eq('project_id', pid)
                     .limit(1);
-                if (existing && existing.length > 0) return; // 既にDBにデータあり
+                if (chkErr) { console.error('[QA] migration check error:', chkErr); return; }
+                if (existing && existing.length > 0) { console.log('[QA] 既にDBにデータあり、移行スキップ'); return; }
 
                 // localStorageからデータを読み込んでDBにプッシュ
                 var localData = [];
