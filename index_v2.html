@@ -13736,14 +13736,18 @@ td { vertical-align: middle; }
                         contentRows += `<div class="q-block"><span class="q-label">質疑${totalRows > 1 ? (ei+1) : ''}${ex.questioner ? '（'+_qaAddSama(ex.questioner)+'）' : ''}：</span><br>`;
                         contentRows += `${(ex.question||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
                     }
-                    // 回答部分
-                    if (ex.answer && ex.answer.trim()) {
-                        const ketBadge = ex.ketsugi === '決定' ? '<span style="font-weight:bold;">[決定]</span> ' :
-                                         ex.ketsugi === '継続' ? '<span style="font-weight:bold;">[継続]</span> ' :
-                                         ex.ketsugi === '未決' ? '<span style="font-weight:bold;">[未決]</span> ' : '';
-                        contentRows += `<div class="a-block"><span class="a-label">回答${totalRows > 1 ? (ei+1) : ''}${ex.answerer ? '（'+_qaAddSama(ex.answerer)+'）' : ''}：</span><br>`;
-                        contentRows += `${ketBadge}${(ex.answer||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
+                    // 回答部分（未入力でも書き込み用スペースを確保）
+                    const hasAnswer = ex.answer && ex.answer.trim();
+                    const ketBadge = ex.ketsugi === '決定' ? '<span style="font-weight:bold;">[決定]</span> ' :
+                                     ex.ketsugi === '継続' ? '<span style="font-weight:bold;">[継続]</span> ' :
+                                     ex.ketsugi === '未決' ? '<span style="font-weight:bold;">[未決]</span> ' : '';
+                    contentRows += `<div class="a-block"><span class="a-label">回答${totalRows > 1 ? (ei+1) : ''}${ex.answerer ? '（'+_qaAddSama(ex.answerer)+'）' : ''}：</span><br>`;
+                    if (hasAnswer) {
+                        contentRows += `${ketBadge}${(ex.answer||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}`;
+                    } else {
+                        contentRows += `<div style="min-height:35px;"></div>`;
                     }
+                    contentRows += `</div>`;
                     contentRows += `</td></tr>`;
                 });
             });
@@ -13774,8 +13778,8 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 .koushu-cell { width:65px; font-weight:bold; font-size:8pt; vertical-align:top; }
 .summary-cell { width:80px; font-size:8pt; vertical-align:top; }
 .qa-content-cell { }
-.q-block { margin-bottom:4px; }
-.a-block { padding-top:4px; border-top:1px dashed #999; }
+.q-block { margin-bottom:6px; }
+.a-block { padding-top:6px; border-top:1px dashed #999; min-height:45px; }
 .q-label { font-weight:bold; font-size:8pt; }
 .a-label { font-weight:bold; font-size:8pt; }
 .footer { font-size: 7pt; color:#666; text-align:right; margin-top:8px; border-top:1px solid #999; padding-top:3px; }
