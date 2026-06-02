@@ -12873,6 +12873,9 @@ td { vertical-align: middle; }
                 .subscribe();
         }
 
+        // ★ 直近で自分が削除したアイテムIDを記録（Realtimeの復活を防ぐ）
+        var _qaRecentlyDeletedIds = {};
+
         // ★ Realtimeイベント処理
         function _qaHandleRealtimeEvent(payload) {
             var evt = payload.eventType;
@@ -12880,6 +12883,8 @@ td { vertical-align: middle; }
             var oldRow = payload.old || {};
 
             if (evt === 'INSERT') {
+                // 自分が削除した直後のアイテムは無視
+                if (_qaRecentlyDeletedIds[row.item_id]) return;
                 // 自分がまだ持っていないアイテムなら追加
                 if (!_qaDataCache.find(function(d) { return d.id === row.item_id; })) {
                     _qaDataCache.push({
@@ -12891,8 +12896,8 @@ td { vertical-align: middle; }
                         exchanges: row.exchanges || [],
                         drawingReflect: row.drawing_reflect || false
                     });
+                    _qaDataCache.sort(function(a, b) { return (a.no || 0) - (b.no || 0); });
                     localStorage.setItem(QA_DATA_KEY, JSON.stringify(_qaDataCache));
-                    // QAタブがアクティブなら再描画
                     var qaTabEl = document.getElementById('qaTab');
                     if (qaTabEl && qaTabEl.classList.contains('active')) qaRender();
                 }
@@ -13321,11 +13326,13 @@ td { vertical-align: middle; }
         // 行削除
         function qaDeleteRow(id) {
             if (!confirm('この質疑を削除しますか？')) return;
+            // ★ 削除IDを記録（Realtimeで復活しないように）
+            _qaRecentlyDeletedIds[id] = true;
+            setTimeout(function() { delete _qaRecentlyDeletedIds[id]; }, 10000);
             let data = qaLoadData().filter(d => d.id !== id);
-            data.forEach((d, i) => d.no = i + 1);
+            data.sort(function(a, b) { return (a.no || 0) - (b.no || 0); });
             qaSaveData(data);
-            _qaDeleteItemFromDB(id); // ★ 削除されたアイテムをDBから消す
-            _qaUpsertMultipleItemsToDB(data); // ★ リナンバリング反映
+            _qaDeleteItemFromDB(id);
             qaRender();
         }
 
@@ -13442,6 +13449,8 @@ td { vertical-align: middle; }
                 }
                 return true;
             });
+            // ★ No昇順で確実にソート
+            filtered.sort(function(a, b) { return (a.no || 0) - (b.no || 0); });
 
             const koushuOpts = QA_KOUSHU_LIST.map(k => `<option value="${k}">${k}</option>`).join('');
 
