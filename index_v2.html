@@ -13684,11 +13684,18 @@ td { vertical-align: middle; }
             // 名前に「様」を付けるヘルパー（エル・エル・イー電気株式会社の社員以外）
             const lleSettings = qaLoadSettings();
             const lleSekoList = Array.isArray(lleSettings.sekoList) ? lleSettings.sekoList : [];
+            // LLE社員の名前セット（施工業者リストでLLE_COMPANYに所属する全員）
             const lleMembers = new Set(lleSekoList.filter(e => e.company === LLE_COMPANY).map(e => e.name));
             function _qaAddSama(name) {
                 if (!name) return '';
+                // LLE社員なら様を付けない
                 if (lleMembers.has(name)) return name;
-                if (name.endsWith('様')) return name;
+                // 既に様が付いていたらLLE社員かチェックして除去
+                if (name.endsWith('様')) {
+                    var baseName = name.slice(0, -1);
+                    if (lleMembers.has(baseName)) return baseName;
+                    return name;
+                }
                 return name + '様';
             }
 
@@ -13773,13 +13780,14 @@ h2 { text-align:center; font-size: 13pt; margin: 8px 0; letter-spacing: 6px; }
 .content-table { }
 .content-table th { background:#1565c0; color:#fff; border:1px solid #333; padding:3px 6px; font-size:8.5pt; }
 .content-table td { border:1px solid #333; padding:4px 6px; font-size:8.5pt; vertical-align:top; }
+.content-table tr { page-break-inside: avoid; break-inside: avoid; }
 .no-cell { text-align:center; font-weight:bold; width:25px; vertical-align:top; }
 .drawing-cell { text-align:center; width:40px; font-size:8pt; vertical-align:top; }
 .koushu-cell { width:65px; font-weight:bold; font-size:8pt; vertical-align:top; }
 .summary-cell { width:80px; font-size:8pt; vertical-align:top; }
 .qa-content-cell { }
-.q-block { margin-bottom:6px; }
-.a-block { padding-top:6px; border-top:1px dashed #999; min-height:45px; }
+.q-block { margin-bottom:8px; padding-bottom:8px; border-bottom:1.5px solid #333; }
+.a-block { padding-top:8px; min-height:45px; }
 .q-label { font-weight:bold; font-size:8pt; }
 .a-label { font-weight:bold; font-size:8pt; }
 .footer { font-size: 7pt; color:#666; text-align:right; margin-top:8px; border-top:1px solid #999; padding-top:3px; }
