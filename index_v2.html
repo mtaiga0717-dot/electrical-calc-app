@@ -12804,9 +12804,10 @@ td { vertical-align: middle; }
             }
         }
 
-        // ★ 複数アイテムを一括upsert（リナンバリング等用）
+        // ★ 複数アイテムを一括upsert（Realtime反響を一時ミュート）
         async function _qaUpsertMultipleItemsToDB(items) {
             var pid = projectGetCurrent();
+            _qaIgnoreRealtime = true;
             try {
                 if (items.length === 0) return;
                 var rows = items.map(function(item) {
@@ -12826,6 +12827,8 @@ td { vertical-align: middle; }
                 if (result.error) console.error('qa_items bulk upsert error:', result.error);
             } catch(e) {
                 console.error('_qaUpsertMultipleItemsToDB error:', e);
+            } finally {
+                setTimeout(function() { _qaIgnoreRealtime = false; }, 2000);
             }
         }
 
@@ -12875,6 +12878,18 @@ td { vertical-align: middle; }
 
         // ★ 直近で自分が削除したアイテムIDを記録（Realtimeの復活を防ぐ）
         var _qaRecentlyDeletedIds = {};
+        // ★ 全件upsert中はRealtimeを無視
+        var _qaIgnoreRealtime = false;
+        // ★ キャッシュの重複No排除＋ソート
+        function _qaDedup() {
+            _qaDataCache.sort(function(a, b) { return (a.no || 0) - (b.no || 0); });
+            var seen = {};
+            _qaDataCache = _qaDataCache.filter(function(d) {
+                if (seen[d.id]) return false;
+                seen[d.id] = true;
+                return true;
+            });
+        }
 
         // ★ Realtimeイベント処理
         function _qaHandleRealtimeEvent(payload) {
@@ -12882,31 +12897,30 @@ td { vertical-align: middle; }
             var row = payload.new || {};
             var oldRow = payload.old || {};
 
+            // ★ 自分の操作によるRealtime反響を無視するフラグ（全件upsert中）
+            if (_qaIgnoreRealtime) return;
+
             if (evt === 'INSERT') {
-                // 自分が削除した直後のアイテムは無視
                 if (_qaRecentlyDeletedIds[row.item_id]) return;
-                // 同じIDまたは同じNoが既にあれば無視（重複防止）
-                if (_qaDataCache.find(function(d) { return d.id === row.item_id || d.no === row.no; })) return;
-                // 自分がまだ持っていないアイテムなら追加
-                if (true) {
-                    _qaDataCache.push({
-                        id: row.item_id,
-                        no: row.no,
-                        drawingNo: row.drawing_no || '',
-                        koushu: row.koushu || '',
-                        summary: row.summary || '',
-                        exchanges: row.exchanges || [],
-                        drawingReflect: row.drawing_reflect || false
-                    });
-                    _qaDataCache.sort(function(a, b) { return (a.no || 0) - (b.no || 0); });
-                    localStorage.setItem(QA_DATA_KEY, JSON.stringify(_qaDataCache));
-                    var qaTabEl = document.getElementById('qaTab');
-                    if (qaTabEl && qaTabEl.classList.contains('active')) qaRender();
-                }
+                // 同じIDが既にあれば無視
+                if (_qaDataCache.find(function(d) { return d.id === row.item_id; })) return;
+                _qaDataCache.push({
+                    id: row.item_id,
+                    no: row.no,
+                    drawingNo: row.drawing_no || '',
+                    koushu: row.koushu || '',
+                    summary: row.summary || '',
+                    exchanges: row.exchanges || [],
+                    drawingReflect: row.drawing_reflect || false
+                });
+                // 重複No排除してソート
+                _qaDedup();
+                localStorage.setItem(QA_DATA_KEY, JSON.stringify(_qaDataCache));
+                var qaTabEl = document.getElementById('qaTab');
+                if (qaTabEl && qaTabEl.classList.contains('active')) qaRender();
             } else if (evt === 'UPDATE') {
                 var idx = _qaDataCache.findIndex(function(d) { return d.id === row.item_id; });
                 if (idx >= 0) {
-                    // 自分が直近で編集中のアイテムは上書きしない（デバウンス中）
                     if (_qaItemSaveTimers[row.item_id]) return;
                     _qaDataCache[idx] = {
                         id: row.item_id,
@@ -13284,31 +13298,26 @@ td { vertical-align: middle; }
             return data;
         }
 
-        // 行追加
+        // 行追加（末尾追加 or No割り込み）
         function qaAddRow() {
             const data = qaMigrateData(qaLoadData());
             const maxNo = data.length > 0 ? Math.max(...data.map(d => d.no || 0)) : 0;
-            const input = prompt('追加するNo を入力（空欄 = 末尾に追加）\n既存Noを入力すると割り込み（以降のNoが自動で+1）：', '');
-            if (input === null) return; // キャンセル
+            const input = prompt('追加するNo を入力（空欄 = 末尾に追加）\n既存Noを入力 → 割り込み（以降+1）：', '');
+            if (input === null) return;
             let assignNo;
-            let shiftedItems = [];
             if (input.trim() === '') {
-                // 末尾追加
                 assignNo = maxNo + 1;
             } else {
                 assignNo = parseInt(input.trim(), 10);
                 if (isNaN(assignNo) || assignNo <= 0) { alert('有効な番号を入力してください'); return; }
-                // 割り込み: 同じNo以降を+1ずらす
-                var conflict = data.filter(function(d) { return d.no >= assignNo; });
-                if (conflict.length > 0) {
-                    // No降順でずらす（大きい方から+1して衝突回避）
-                    conflict.sort(function(a, b) { return b.no - a.no; });
-                    conflict.forEach(function(d) {
-                        d.no = d.no + 1;
-                        shiftedItems.push(d);
-                    });
-                }
             }
+            // 割り込み: assignNo以上を全部+1（降順で処理して衝突回避）
+            var needShift = data.filter(function(d) { return d.no >= assignNo; });
+            if (needShift.length > 0) {
+                needShift.sort(function(a, b) { return b.no - a.no; });
+                needShift.forEach(function(d) { d.no = d.no + 1; });
+            }
+            // 新規アイテム作成
             const newItem = {
                 id: 'qa_' + Date.now(),
                 no: assignNo,
@@ -13319,17 +13328,13 @@ td { vertical-align: middle; }
                 drawingReflect: false
             };
             data.push(newItem);
+            // ★ ソート → 連番に振り直し（1,2,3...）→ 重複を根本排除
             data.sort(function(a, b) { return (a.no || 0) - (b.no || 0); });
-            // 重複Noチェック（安全確認）
-            var seen = {};
-            data.forEach(function(d) {
-                while (seen[d.no]) { d.no++; }
-                seen[d.no] = true;
-            });
+            data.forEach(function(d, i) { d.no = i + 1; });
+            // 保存
             qaSaveData(data);
-            _qaUpsertItemToDB(newItem);
-            // ずらしたアイテムもDB更新
-            if (shiftedItems.length > 0) _qaUpsertMultipleItemsToDB(shiftedItems);
+            // DB: 全件一括upsert（No変更があるため）
+            _qaUpsertMultipleItemsToDB(data);
             qaRender();
         }
 
