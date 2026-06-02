@@ -12885,8 +12885,10 @@ td { vertical-align: middle; }
             if (evt === 'INSERT') {
                 // 自分が削除した直後のアイテムは無視
                 if (_qaRecentlyDeletedIds[row.item_id]) return;
+                // 同じIDまたは同じNoが既にあれば無視（重複防止）
+                if (_qaDataCache.find(function(d) { return d.id === row.item_id || d.no === row.no; })) return;
                 // 自分がまだ持っていないアイテムなら追加
-                if (!_qaDataCache.find(function(d) { return d.id === row.item_id; })) {
+                if (true) {
                     _qaDataCache.push({
                         id: row.item_id,
                         no: row.no,
@@ -12977,17 +12979,25 @@ td { vertical-align: middle; }
                     // ★ マージ: localStorageにしかないアイテムを保持する
                     var localData = _qaDataCache || [];
                     var dbIds = {};
-                    dbData.forEach(function(d) { dbIds[d.id] = true; });
-                    var localOnly = localData.filter(function(d) { return !dbIds[d.id]; });
+                    var dbNos = {};
+                    dbData.forEach(function(d) { dbIds[d.id] = true; dbNos[d.no] = true; });
+                    // ローカルにしかないアイテム（ID未登録かつNo未重複のもののみ）
+                    var localOnly = localData.filter(function(d) { return !dbIds[d.id] && !dbNos[d.no]; });
                     if (localOnly.length > 0) {
                         console.log('[QA] ローカルのみのアイテム:', localOnly.length, '件 → DBにも保存');
-                        // localStorageにしかないアイテムをDBにもpush
                         _qaUpsertMultipleItemsToDB(localOnly);
-                        // マージ結果をキャッシュに
-                        _qaDataCache = dbData.concat(localOnly).sort(function(a,b) { return (a.no||0) - (b.no||0); });
+                        _qaDataCache = dbData.concat(localOnly);
                     } else {
                         _qaDataCache = dbData;
                     }
+                    // ★ No重複を最終排除（DB側を優先）
+                    var seenNo = {};
+                    _qaDataCache = _qaDataCache.filter(function(d) {
+                        if (seenNo[d.no]) return false;
+                        seenNo[d.no] = true;
+                        return true;
+                    });
+                    _qaDataCache.sort(function(a,b) { return (a.no||0) - (b.no||0); });
                     localStorage.setItem(QA_DATA_KEY, JSON.stringify(_qaDataCache));
                 } else {
                     console.log('[QA] DBにqa_itemsデータなし (project_id=' + pid + ')');
