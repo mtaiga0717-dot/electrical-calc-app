@@ -13272,17 +13272,27 @@ td { vertical-align: middle; }
         // 行追加
         function qaAddRow() {
             const data = qaMigrateData(qaLoadData());
-            // No指定入力（空ならオート採番）
             const maxNo = data.length > 0 ? Math.max(...data.map(d => d.no || 0)) : 0;
-            const input = prompt('追加するNo を入力（空欄 = ' + (maxNo + 1) + '）：', '');
+            const input = prompt('追加するNo を入力（空欄 = 末尾に追加）\n既存Noを入力すると割り込み（以降のNoが自動で+1）：', '');
             if (input === null) return; // キャンセル
             let assignNo;
+            let shiftedItems = [];
             if (input.trim() === '') {
+                // 末尾追加
                 assignNo = maxNo + 1;
             } else {
                 assignNo = parseInt(input.trim(), 10);
                 if (isNaN(assignNo) || assignNo <= 0) { alert('有効な番号を入力してください'); return; }
-                if (data.find(d => d.no === assignNo)) { alert('No.' + assignNo + ' は既に存在します'); return; }
+                // 割り込み: 同じNo以降を+1ずらす
+                var conflict = data.filter(function(d) { return d.no >= assignNo; });
+                if (conflict.length > 0) {
+                    // No降順でずらす（大きい方から+1して衝突回避）
+                    conflict.sort(function(a, b) { return b.no - a.no; });
+                    conflict.forEach(function(d) {
+                        d.no = d.no + 1;
+                        shiftedItems.push(d);
+                    });
+                }
             }
             const newItem = {
                 id: 'qa_' + Date.now(),
@@ -13295,8 +13305,16 @@ td { vertical-align: middle; }
             };
             data.push(newItem);
             data.sort(function(a, b) { return (a.no || 0) - (b.no || 0); });
+            // 重複Noチェック（安全確認）
+            var seen = {};
+            data.forEach(function(d) {
+                while (seen[d.no]) { d.no++; }
+                seen[d.no] = true;
+            });
             qaSaveData(data);
             _qaUpsertItemToDB(newItem);
+            // ずらしたアイテムもDB更新
+            if (shiftedItems.length > 0) _qaUpsertMultipleItemsToDB(shiftedItems);
             qaRender();
         }
 
