@@ -9184,7 +9184,16 @@
                 let cells = `<td style="text-align:center;font-size:0.65rem;color:#1565c0;font-weight:bold;border:1px solid #ddd;padding:2px;">設計</td>`;
                 cells += `<td style="border:1px solid #ddd;font-size:0.68rem;padding:2px;">${cat}</td>`; // 区分
                 cells += `<td style="border:1px solid #ddd;"></td>`; // 起点
-                cells += `<td style="border:1px solid #ddd;font-size:0.68rem;padding:2px;color:#1565c0;">${cat === '動力' ? designRawVal + 'kW→' : ''}${dKva.toFixed(1)}kVA</td>`; // 負荷名称→設計容量表示
+                // 設計容量の表示ラベル
+                var designLabel = '';
+                if (matchedPanel && getPanelDesignKva(matchedPanel.name) > 0) {
+                    var pRaw = getPanelDesignKva(matchedPanel.name);
+                    designLabel = (matchedPanel.elec_type === '3φ3W') ? pRaw + 'kW→' + dKva.toFixed(1) + 'kVA' : dKva.toFixed(1) + 'kVA';
+                } else {
+                    var fRaw = Number(fd.design_capacity) || 0;
+                    designLabel = (cat === '動力' && fRaw > 0) ? fRaw + 'kW→' + dKva.toFixed(1) + 'kVA' : dKva.toFixed(1) + 'kVA';
+                }
+                cells += `<td style="border:1px solid #ddd;font-size:0.68rem;padding:2px;color:#1565c0;">${designLabel}</td>`;
                 cells += `<td style="border:1px solid #ddd;font-size:0.72rem;text-align:right;padding:2px;font-weight:bold;">${dKva.toFixed(2)}</td>`; // 負荷容量
                 cells += `<td style="border:1px solid #ddd;"></td>`; // 設計値(入力は上行)
                 cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${demandFactor}</td>`; // 需要率
