@@ -9018,12 +9018,93 @@
                 filtered = filtered.filter(f => (f.feeder_category || '電灯') === categoryFilter);
             }
 
+            // ★ 設計値行を生成する関数
+            function createDesignRow(feeder) {
+                const fd = localFeederData[feeder.id] || {};
+                const designRawVal = Number(fd.design_capacity) || 0;
+                if (designRawVal <= 0) return null; // 設計値未入力なら行なし
+
+                const cat = fd.feeder_category || feeder.feeder_category || '電灯';
+                const autoVolt = (() => { const p = allPanels.find(pp => pp.name === feeder.load_name); if (!p) return null; const t = p.elec_type; return t === '3φ3W' ? 200 : (t === '1φ3W' ? 200 : 100); })();
+                const voltage = autoVolt || feeder.voltage || 100;
+                const autoPhaseVal = (() => { const p = allPanels.find(pp => pp.name === feeder.load_name); return p ? p.elec_type : null; })();
+                const phase = autoPhaseVal || feeder.phase_type || '1φ2W';
+                const pf = Number(fd.power_factor) || (cat === '動力' ? 0.8 : 1.0);
+                const demandFactor = feeder.demand_factor || getDemandFactor(designRawVal);
+
+                // 設計値 kVA換算
+                let dKva = designRawVal;
+                if (cat === '動力' && phase === '3φ3W') {
+                    const dEff = 0.85;
+                    const dIm = (designRawVal * 1000) / (Math.sqrt(3) * voltage * pf * dEff);
+                    dKva = Math.sqrt(3) * voltage * dIm / 1000;
+                }
+                const dDemand = (dKva * demandFactor) / 100;
+                let dCurrent = 0;
+                if (phase === '3φ3W') dCurrent = dDemand * 1000 / (Math.sqrt(3) * voltage);
+                else if (phase === '1φ3W') dCurrent = dDemand * 1000 / 200;
+                else dCurrent = dDemand * 1000 / voltage;
+
+                const cableType = feeder.cable_type || 'CV';
+                const ambTemp = Number(fd.ambient_temp) || 30;
+                const grpCnt = Number(fd.grouping_count) || 1;
+                const instMethod = fd.install_method || 'rack_single';
+                const dCableSize = (typeof selectCableSizeCorrected === 'function') ? selectCableSizeCorrected(dCurrent, cableType, ambTemp, grpCnt, instMethod) : 0;
+                const length = feeder.cable_length || 0;
+                const dVd = (typeof calculateVoltageDrop === 'function') ? calculateVoltageDrop(dCurrent, length, dCableSize, phase, pf) : 0;
+                const dVdPct = voltage > 0 ? (dVd / voltage * 100) : 0;
+                const vdRule = (typeof getAllowedVdPercent === 'function') ? getAllowedVdPercent(feeder, length) : { allowed: 4.0 };
+                const dVdOk = dVdPct <= vdRule.allowed ? 'OK' : '×';
+                const dBreaker = (typeof selectBreaker === 'function') ? selectBreaker(dCurrent, feeder.breaker_type) : { af: 0, at: 0 };
+
+                // 接地線
+                const gndCalcD = (typeof calcGroundWireSize === 'function') ? calcGroundWireSize(dBreaker.at) : { size: 0 };
+
+                const colCount = document.querySelector('#feedersTable thead tr')?.children.length || 30;
+                const tr = document.createElement('tr');
+                tr.style.cssText = 'background:#e3f2fd;border-bottom:2px solid #1565c0;';
+                // 幹線No列にラベル
+                let cells = `<td style="text-align:center;font-size:0.65rem;color:#1565c0;font-weight:bold;border:1px solid #ddd;padding:2px;">設計</td>`;
+                cells += `<td style="border:1px solid #ddd;font-size:0.68rem;padding:2px;">${cat}</td>`; // 区分
+                cells += `<td style="border:1px solid #ddd;"></td>`; // 起点
+                cells += `<td style="border:1px solid #ddd;font-size:0.68rem;padding:2px;color:#1565c0;">${cat === '動力' ? designRawVal + 'kW→' : ''}${dKva.toFixed(1)}kVA</td>`; // 負荷名称→設計容量表示
+                cells += `<td style="border:1px solid #ddd;font-size:0.72rem;text-align:right;padding:2px;font-weight:bold;">${dKva.toFixed(2)}</td>`; // 負荷容量
+                cells += `<td style="border:1px solid #ddd;"></td>`; // 設計値(入力は上行)
+                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${demandFactor}</td>`; // 需要率
+                cells += `<td style="border:1px solid #ddd;text-align:right;padding:2px;font-size:0.72rem;">${dDemand.toFixed(2)}</td>`; // 需要容量
+                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${phase}</td>`; // 相
+                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${voltage}</td>`; // 電圧
+                cells += `<td style="border:1px solid #ddd;text-align:right;padding:2px;font-size:0.72rem;font-weight:bold;">${dCurrent.toFixed(2)}</td>`; // 電流
+                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${cableType}</td>`; // ケーブル種別
+                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;font-weight:bold;">${dCableSize}</td>`; // ケーブルサイズ
+                // 残りの列は簡略表示
+                cells += `<td style="border:1px solid #ddd;"></td>`; // 温度
+                cells += `<td style="border:1px solid #ddd;"></td>`; // 条数
+                cells += `<td style="border:1px solid #ddd;"></td>`; // 補正
+                cells += `<td style="border:1px solid #ddd;text-align:right;padding:2px;font-size:0.72rem;">${length}</td>`; // こう長
+                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${pf}</td>`; // 力率
+                cells += `<td style="border:1px solid #ddd;text-align:right;padding:2px;font-size:0.72rem;">${dVd.toFixed(2)}</td>`; // VD
+                cells += `<td style="border:1px solid #ddd;text-align:right;padding:2px;font-size:0.72rem;">${dVdPct.toFixed(2)}</td>`; // VD%
+                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;font-weight:bold;color:${dVdOk==='OK'?'#1b5e20':'#c62828'};">${dVdOk}</td>`; // VD判定
+                cells += `<td style="border:1px solid #ddd;"></td>`; // 遮断器種別
+                cells += `<td style="border:1px solid #ddd;text-align:right;padding:2px;font-size:0.72rem;">${dBreaker.af}</td>`; // AF
+                cells += `<td style="border:1px solid #ddd;text-align:right;padding:2px;font-size:0.72rem;">${dBreaker.at}</td>`; // AT
+                // 残り列を空で埋める（接地線・操作等）
+                const remaining = colCount - 23;
+                for (let rr = 0; rr < remaining; rr++) cells += `<td style="border:1px solid #ddd;"></td>`;
+                tr.innerHTML = cells;
+                return tr;
+            }
+
             const renderTreeGroup = (list) => {
                 const ordered = buildFeederTreeOrder(list);
                 let counter = 0;
                 ordered.forEach(({ feeder, depth, isLast, ancestorHasMore }) => {
                     counter++;
                     tbody.appendChild(createFeederRow(feeder, counter, { depth, isLast, ancestorHasMore }));
+                    // ★ 設計値行を追加（設計値が入力されている場合のみ）
+                    const dRow = createDesignRow(feeder);
+                    if (dRow) tbody.appendChild(dRow);
                 });
             };
 
