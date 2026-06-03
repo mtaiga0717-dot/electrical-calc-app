@@ -6317,7 +6317,16 @@
         function createPanelDesignRow(panel, summaries) {
             const row = document.createElement('tr');
             row.style.cssText = 'background:#e3f2fd;border-bottom:2px solid #1565c0;';
-            const designKva = getPanelDesignKva(panel.name);
+            const designRawInput = getPanelDesignKva(panel.name); // 入力値（3φ3W=kW, それ以外=kVA）
+            const pElecType = panel.elec_type || '1φ3W';
+            const is3phase = (pElecType === '3φ3W');
+            // ★ 3φ3Wはkw入力→kVA換算、それ以外はkVAそのまま
+            let designKva = designRawInput;
+            if (is3phase && designRawInput > 0) {
+                var dpf = 0.8, deff = 0.85;
+                var dIm = (designRawInput * 1000) / (Math.sqrt(3) * 200 * dpf * deff);
+                designKva = Math.sqrt(3) * 200 * dIm / 1000;
+            }
             // 設計需要率（-1 = 未設定 → 実負荷側の需要率を使う）
             const designDemandRaw = getPanelDesignDemand(panel.name);
             const realDemandRate = getDemandRate(panel.name);
@@ -6325,9 +6334,8 @@
             const factor = designDemandRate / 100;
             const dTotal = designKva * factor;
             // 電流計算（需要率適用前の電流と適用後の電流）
-            const pElecType = panel.elec_type || '1φ3W';
             let dCurrentRaw = 0; // 需要率適用前
-            if (pElecType === '3φ3W') dCurrentRaw = designKva * 1000 / (Math.sqrt(3) * 200);
+            if (is3phase) dCurrentRaw = designKva * 1000 / (Math.sqrt(3) * 200);
             else if (pElecType === '1φ3W') dCurrentRaw = designKva * 1000 / 200;
             else dCurrentRaw = designKva * 1000 / 100;
             let dCurrentDemand = dCurrentRaw * factor; // 需要率適用後
@@ -6344,10 +6352,12 @@
             // 盤名称・種別・主遮断器・AF・AT・操作は行1でrowspan=2済み → ここでは出さない
             row.innerHTML = `
                 <td colspan="5" style="text-align:center;padding:2px;background:#e3f2fd;">
-                    <span style="font-weight:bold;color:#1565c0;font-size:0.72rem;">設計kVA→</span>
+                    <span style="font-weight:bold;color:#1565c0;font-size:0.72rem;">設計${is3phase ? 'kW' : 'kVA'}→</span>
                     <input type="number" step="0.01" class="panel-design-kva-input" data-panel-name="${panel.name}"
-                        value="${designKva || ''}" placeholder="kVA"
-                        style="width:80px;padding:0.2rem 0.3rem;border:1px solid #1565c0;border-radius:4px;text-align:right;font-weight:bold;color:#1565c0;background:#fff;" />
+                        value="${designRawInput || ''}" placeholder="${is3phase ? 'kW' : 'kVA'}"
+                        style="width:80px;padding:0.2rem 0.3rem;border:1px solid #1565c0;border-radius:4px;text-align:right;font-weight:bold;color:#1565c0;background:#fff;"
+                        title="${is3phase ? 'kW入力→kVA自動換算 (Im=kW/(√3×V×cosφ×η), kVA=√3×V×Im)' : 'kVA入力（そのまま使用）'}" />
+                    ${is3phase && designRawInput > 0 ? '<span style="font-size:0.65rem;color:#1565c0;margin-left:3px;">' + designRawInput + 'kW→' + designKva.toFixed(1) + 'kVA</span>' : ''}
                 </td>
                 <td style="font-weight:bold;color:#1565c0;background:#e3f2fd;">${designKva > 0 ? designKva.toFixed(2) : '-'}</td>
                 <td style="color:#1565c0;background:#e3f2fd;">${designKva > 0 ? dCurrentRaw.toFixed(1) + ' A' : '-'}</td>
