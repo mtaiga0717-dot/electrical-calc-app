@@ -12756,61 +12756,71 @@ td { vertical-align: middle; }
                 ? `<tr style="background:#e8f5e9;font-weight:bold;"><td colspan="31" style="padding:4px 8px;color:#1b5e20;font-size:8pt;">⏚ 接地母線（1350-14）: ${busSize100} mm²（各幹線接地線の最大値）</td></tr>`
                 : '';
 
-            // ---- ページ3: 設計値 vs 実負荷 比較表 ----
+            // ---- ページ3: 設計値 vs 実負荷 2行ペア統合表（ケーブル・接地含む） ----
             const normalData = feeders.map(f => calcFeederData(f, false));
-            let comparisonRows = '';
+            let unifiedRows = '';
             normalData.forEach((d, idx) => {
-                const bg = idx % 2 === 1 ? 'background:#f5f5f5;' : '';
-                const td = 'border:1px solid #999;padding:3px 6px;font-size:8pt;';
-                const tdR = td + 'text-align:right;';
-                const tdC = td + 'text-align:center;';
-                const diff = d.capacity > 0 ? ((d.capacity - d.designCapacity) / d.designCapacity * 100) : 0;
-                const diffStr = d.designCapacity > 0 ? (diff >= 0 ? '+' : '') + diff.toFixed(0) + '%' : '-';
-                const diffColor = Math.abs(diff) > 20 ? 'color:#c62828;font-weight:bold;' : (Math.abs(diff) > 10 ? 'color:#e65100;' : 'color:#1b5e20;');
-                comparisonRows += `<tr style="${bg}">
-                    <td style="${tdC}">${esc(d.feederNo)}</td>
-                    <td style="${tdC}">${d.cat === '動力' ? '動力' : '電灯'}</td>
-                    <td style="${td}font-weight:bold;">${esc(d.loadName)}</td>
-                    <td style="${tdR}">${fmt(d.designCapacity)}</td>
-                    <td style="${tdR}">${fmt(d.designCapacity * d.demandFactor / 100)}</td>
-                    <td style="${tdR}">${d.designCurrent.toFixed(1)}</td>
-                    <td style="${tdC}">${d.cableType} ${d.designCableSize || d.cableSizeCalc}</td>
-                    <td style="${tdR}">${d.designVdPct.toFixed(2)}</td>
-                    <td style="${tdR};border-right:3px solid #333;">${fmt(d.capacity)}</td>
-                    <td style="${tdR}">${fmt(d.demandCapacity)}</td>
-                    <td style="${tdR}">${d.current.toFixed(1)}</td>
-                    <td style="${tdC}">${d.cableType} ${d.cableSize}</td>
-                    <td style="${tdR}">${d.vdPct.toFixed(2)}</td>
-                    <td style="${tdC};${diffColor}">${diffStr}</td>
-                </tr>`;
-            });
-
-            // ---- ケーブルサマリー表 ----
-            let cableSummaryRows = '';
-            normalData.forEach((d, idx) => {
-                const bg = idx % 2 === 1 ? 'background:#f5f5f5;' : '';
-                const td = 'border:1px solid #999;padding:3px 6px;font-size:8.5pt;';
+                const bd = 'border:1px solid #999;';
+                const td = bd + 'padding:2px 4px;font-size:7.5pt;';
                 const tdR = td + 'text-align:right;';
                 const tdC = td + 'text-align:center;';
                 const okS = 'color:#1b5e20;font-weight:bold;';
-                const cableOk = d.cableSize >= d.cableSizeCalc ? 'OK' : '要確認';
-                const cableOkStyle = cableOk === 'OK' ? okS : 'color:#c62828;font-weight:bold;';
-                cableSummaryRows += `<tr style="${bg}">
-                    <td style="${tdC}">${esc(d.feederNo)}</td>
-                    <td style="${td}font-weight:bold;">${esc(d.loadName)}</td>
-                    <td style="${tdC}">${d.cat}</td>
-                    <td style="${tdR}">${d.current.toFixed(1)}</td>
-                    <td style="${tdC}">${d.cableType}</td>
-                    <td style="${tdR};font-weight:bold;">${d.cableSizeCalc} mm²</td>
-                    <td style="${tdR}">${d.cableSize} mm²</td>
-                    <td style="${tdC};${cableOkStyle}">${cableOk}</td>
-                    <td style="${tdC}">${d.groundDLabel}</td>
-                    <td style="${tdR};font-weight:bold;">${d.groundDRequired > 0 ? d.groundDRequired + ' mm²' : '-'}</td>
-                    <td style="${tdR}">${d.groundDSize > 0 ? d.groundDSize + ' mm²' : '-'}</td>
-                    <td style="${tdC}">${d.groundELBLabel}</td>
-                    <td style="${tdR};font-weight:bold;">${d.groundELBRequired > 0 ? d.groundELBRequired + ' mm²' : '-'}</td>
-                    <td style="${tdR}">${d.groundELBSize > 0 ? d.groundELBSize + ' mm²' : '-'}</td>
-                </tr>`;
+                const ngS = 'color:#c62828;font-weight:bold;';
+                const cableOk = d.cableSize >= d.cableSizeCalc ? 'OK' : '×';
+                // 差異率
+                const diff = d.designCapacity > 0 ? ((d.capacity - d.designCapacity) / d.designCapacity * 100) : 0;
+                const diffStr = d.designCapacity > 0 ? (diff >= 0 ? '+' : '') + diff.toFixed(0) + '%' : '-';
+                const diffColor = d.designCapacity > 0 ? (Math.abs(diff) > 20 ? ngS : (Math.abs(diff) > 10 ? 'color:#e65100;font-weight:bold;' : okS)) : '';
+                // 設計値行の計算
+                const dCap = d.designCapacity;
+                const dDem = dCap * d.demandFactor / 100;
+                const dCur = d.designCurrent;
+                const dVdP = d.designVdPct;
+                const dVdOk = dVdP <= (d.vdPct <= 4 ? 4 : 2) ? 'OK' : '×';
+                // --- 行1: 実負荷（白背景） ---
+                unifiedRows += `<tr style="border-top:2px solid #333;">`;
+                unifiedRows += `<td rowspan="2" style="${tdC}font-weight:bold;vertical-align:middle;">${esc(d.feederNo)}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.cat}</td>`;
+                unifiedRows += `<td rowspan="2" style="${td}font-weight:bold;vertical-align:middle;">${esc(d.loadName)}</td>`;
+                unifiedRows += `<td style="${tdC}background:#fff3e0;font-weight:bold;">実負荷</td>`;
+                unifiedRows += `<td style="${tdR}">${fmt(d.capacity)}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.demandFactor}</td>`;
+                unifiedRows += `<td style="${tdR}">${fmt(d.demandCapacity)}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.phase}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.voltage}</td>`;
+                unifiedRows += `<td style="${tdR}font-weight:bold;">${d.current.toFixed(1)}</td>`;
+                unifiedRows += `<td style="${tdR}">${d.vd.toFixed(2)}</td>`;
+                unifiedRows += `<td style="${tdR}">${d.vdPct.toFixed(2)}</td>`;
+                unifiedRows += `<td style="${tdC}${d.vdOk==='OK'?okS:ngS}">${d.vdOk}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.breakerType}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;">${d.breakerAF}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;">${d.breakerAT}</td>`;
+                // ケーブル列
+                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.cableType}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;font-weight:bold;">${d.cableSizeCalc}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;">${d.cableSize}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;${cableOk==='OK'?okS:ngS}">${cableOk}</td>`;
+                // 接地線列
+                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.groundDLabel}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;font-weight:bold;">${d.groundDRequired>0?d.groundDRequired:'-'}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;">${d.groundDSize>0?d.groundDSize:'-'}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.groundELBLabel}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;font-weight:bold;">${d.groundELBRequired>0?d.groundELBRequired:'-'}</td>`;
+                unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;">${d.groundELBSize>0?d.groundELBSize:'-'}</td>`;
+                // 差異列
+                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;${diffColor}">${diffStr}</td>`;
+                unifiedRows += `</tr>`;
+                // --- 行2: 設計値（青背景） ---
+                unifiedRows += `<tr style="background:#e3f2fd;">`;
+                unifiedRows += `<td style="${tdC}color:#1565c0;font-weight:bold;">設計値</td>`;
+                unifiedRows += `<td style="${tdR}">${dCap > 0 ? fmt(dCap) : '-'}</td>`;
+                unifiedRows += `<td style="${tdR}">${dCap > 0 ? fmt(dDem) : '-'}</td>`;
+                unifiedRows += `<td style="${tdR}font-weight:bold;">${dCap > 0 ? dCur.toFixed(1) : '-'}</td>`;
+                unifiedRows += `<td style="${tdR}">${dCap > 0 ? d.designVd.toFixed(2) : '-'}</td>`;
+                unifiedRows += `<td style="${tdR}">${dCap > 0 ? dVdP.toFixed(2) : '-'}</td>`;
+                unifiedRows += `<td style="${tdC}${dCap>0?(dVdOk==='OK'?okS:ngS):''}">${dCap > 0 ? dVdOk : '-'}</td>`;
+                // rowspan列は行1で出力済み
+                unifiedRows += `</tr>`;
             });
 
             // ---- テーブルヘッダ ----
@@ -12903,79 +12913,46 @@ td { vertical-align: middle; }
 <div class="note">根拠: 内線規程 JEAC8001 — 1305節(不平衡率)・1310節(電圧降下)・1340節(許容電流)・1350節(接地)・1360-10条(幹線分岐OCPD省略)・3705-8条 第3項(幹線OCPD上限)</div>
 <div class="footer">エル・エル・イー電気株式会社 — 幹線計算書レポート（需要率100%）　内線規程 JEAC8001 準拠</div>
 
-<!-- ===== ページ3: 設計値 vs 実負荷 比較表 ===== -->
+<!-- ===== ページ3: 設計値 vs 実負荷 統合表（2行ペア＋ケーブル・接地） ===== -->
 <div class="page-break"></div>
-<h1>設計値 vs 実負荷 比較表</h1>
+<h1>幹線計算書 — 設計値 vs 実負荷 比較 ＋ ケーブル・接地線</h1>
 <div class="meta">
     <div>${projName ? 'プロジェクト: ' + projName : ''}　幹線数: ${feeders.length}</div>
     <div>出力日: ${dateStr}</div>
 </div>
-<div class="filter-info">📋 表示区分: ${filterLabel}　｜　左: 設計値（手動入力）　右: 実負荷（回路DB集計）　差異: 容量の乖離率</div>
-<table>
+<div class="filter-info">📋 ${filterLabel}　｜　各幹線2行: <span style="background:#fff3e0;padding:1px 4px;">実負荷</span> / <span style="background:#e3f2fd;padding:1px 4px;">設計値</span>　｜　差異 = (実-設計)/設計</div>
+<table style="table-layout:auto;">
 <thead>
 <tr>
     <th rowspan="2">No</th>
     <th rowspan="2">区分</th>
     <th rowspan="2">負荷名称</th>
-    <th colspan="5" style="background:#1565c0;">設計値</th>
-    <th colspan="5" style="background:#c62828;">実負荷（回路DB集計）</th>
-    <th rowspan="2">差異</th>
-</tr>
-<tr>
-    <th style="background:#1565c0;">容量[kVA]</th>
-    <th style="background:#1565c0;">需要後[kVA]</th>
-    <th style="background:#1565c0;">電流[A]</th>
-    <th style="background:#1565c0;">必要ｹｰﾌﾞﾙ</th>
-    <th style="background:#1565c0;">VD率[%]</th>
-    <th style="background:#c62828;">容量[kVA]</th>
-    <th style="background:#c62828;">需要後[kVA]</th>
-    <th style="background:#c62828;">電流[A]</th>
-    <th style="background:#c62828;">採用ｹｰﾌﾞﾙ</th>
-    <th style="background:#c62828;">VD率[%]</th>
-</tr>
-</thead>
-<tbody>${comparisonRows}</tbody>
-</table>
-<div class="note">差異 = (実負荷 - 設計値) / 設計値 × 100%　｜　±10%以内=緑　10-20%=橙　20%超=赤</div>
-<div class="footer">エル・エル・イー電気株式会社 — 設計値 vs 実負荷 比較表</div>
-
-<!-- ===== ページ4: ケーブル・接地線サマリー ===== -->
-<div class="page-break"></div>
-<h1>必要最小ケーブル・接地線 一覧表</h1>
-<div class="meta">
-    <div>${projName ? 'プロジェクト: ' + projName : ''}　幹線数: ${feeders.length}</div>
-    <div>出力日: ${dateStr}</div>
-</div>
-<div class="filter-info">📋 表示区分: ${filterLabel}　｜　必要最小 = 計算による最低限のサイズ　｜　採用 = 現在の設定値</div>
-<table>
-<thead>
-<tr>
-    <th rowspan="2">No</th>
-    <th rowspan="2">負荷名称</th>
-    <th rowspan="2">区分</th>
-    <th rowspan="2">電流[A]</th>
+    <th rowspan="2"></th>
+    <th colspan="3" style="background:#1b5e20;">負荷</th>
+    <th rowspan="2">相</th>
+    <th rowspan="2">電圧</th>
+    <th rowspan="2">電流<br>[A]</th>
+    <th colspan="3" style="background:#b71c1c;">電圧降下</th>
+    <th colspan="3" style="background:#4a148c;">遮断器</th>
     <th colspan="4" style="background:#e65100;">幹線ケーブル</th>
     <th colspan="3" style="background:#2e7d32;">D種接地線</th>
     <th colspan="3" style="background:#558b2f;">ELB接地線</th>
+    <th rowspan="2">差異</th>
 </tr>
 <tr>
-    <th style="background:#e65100;">種別</th>
-    <th style="background:#e65100;">必要最小</th>
-    <th style="background:#e65100;">採用</th>
-    <th style="background:#e65100;">判定</th>
-    <th style="background:#2e7d32;">種別</th>
-    <th style="background:#2e7d32;">必要最小</th>
-    <th style="background:#2e7d32;">採用</th>
-    <th style="background:#558b2f;">種別</th>
-    <th style="background:#558b2f;">必要最小</th>
-    <th style="background:#558b2f;">採用</th>
+    <th style="background:#1b5e20;">容量<br>[kVA]</th><th style="background:#1b5e20;">需要率</th><th style="background:#1b5e20;">需要後<br>[kVA]</th>
+    <th style="background:#b71c1c;">VD[V]</th><th style="background:#b71c1c;">VD率[%]</th><th style="background:#b71c1c;">判定</th>
+    <th style="background:#4a148c;">種別</th><th style="background:#4a148c;">AF</th><th style="background:#4a148c;">AT</th>
+    <th style="background:#e65100;">種別</th><th style="background:#e65100;">必要<br>最小</th><th style="background:#e65100;">採用</th><th style="background:#e65100;">判定</th>
+    <th style="background:#2e7d32;">種別</th><th style="background:#2e7d32;">必要</th><th style="background:#2e7d32;">採用</th>
+    <th style="background:#558b2f;">種別</th><th style="background:#558b2f;">必要</th><th style="background:#558b2f;">採用</th>
 </tr>
 </thead>
-<tbody>${cableSummaryRows}</tbody>
+<tbody>${unifiedRows}</tbody>
 </table>
 ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;border:1px solid #2e7d32;border-radius:4px;font-size:9pt;font-weight:bold;color:#1b5e20;">⏚ 接地母線（内線規程 1350-14）: ' + busSize + ' mm²（各幹線接地線の最大値）</div>' : ''}
-<div class="note">必要最小ケーブル: 内線規程 JEAC8001 1340節(許容電流)による計算値　｜　接地線: 1350節による</div>
-<div class="footer">エル・エル・イー電気株式会社 — 必要最小ケーブル・接地線 一覧表</div>
+<div class="note">差異: ±10%以内=緑, 10-20%=橙, 20%超=赤　｜　根拠: 内線規程 JEAC8001 1340節(許容電流)・1350節(接地)</div>
+<div class="footer">エル・エル・イー電気株式会社 — 設計値vs実負荷 比較＋ケーブル・接地線一覧</div>
 </body></html>`;
 
             const w = window.open('', '_blank');
