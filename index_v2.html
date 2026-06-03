@@ -12663,7 +12663,8 @@ td { vertical-align: middle; }
                 else if (phase === '1φ3W') { designCurrent = designDemandCap * 1000 / 200; }
                 else { designCurrent = designDemandCap * 1000 / voltage; }
                 var designCableSize = (typeof selectCableSizeCorrected === 'function') ? selectCableSizeCorrected(designCurrent, cableType, ambientTemp, groupingCount, installMethod) : 0;
-                var designVd = (typeof calculateVoltageDrop === 'function') ? calculateVoltageDrop(designCurrent, length, designCableSize || cableSize, phase, powerFactor) : 0;
+                // ★ VD計算は実採用ケーブルで行う（設計電流を実ケーブルに流した場合のVD）
+                var designVd = (typeof calculateVoltageDrop === 'function') ? calculateVoltageDrop(designCurrent, length, cableSize, phase, powerFactor) : 0;
                 var designVdPct = voltage > 0 ? (designVd / voltage * 100) : 0;
 
                 // ★ 必要最小ケーブルサイズ（計算値）
@@ -12692,7 +12693,7 @@ td { vertical-align: middle; }
                 const tdC = td + 'text-align:center;';
                 const okStyle = 'color:#1b5e20;font-weight:bold;';
                 const ngStyle = 'color:#c62828;font-weight:bold;';
-                return `<tr style="${bg}">
+                return `<tr style="${bg}page-break-inside:avoid;break-inside:avoid;">
                     <td style="${tdC}">${esc(d.feederNo)}</td>
                     <td style="${tdC}">${d.cat === '動力' ? '動力' : '電灯'}</td>
                     <td style="${td}">${esc(d.sourceLabel)}</td>
@@ -12777,8 +12778,8 @@ td { vertical-align: middle; }
                 const dCur = d.designCurrent;
                 const dVdP = d.designVdPct;
                 const dVdOk = dVdP <= (d.vdPct <= 4 ? 4 : 2) ? 'OK' : '×';
-                // --- 行1: 実負荷（白背景） ---
-                unifiedRows += `<tr style="border-top:2px solid #333;">`;
+                // --- 行1: 実負荷（白背景） --- tbody単位でbreak-inside:avoid
+                unifiedRows += `</tbody><tbody class="feeder-pair"><tr style="border-top:2px solid #333;">`;
                 unifiedRows += `<td rowspan="2" style="${tdC}font-weight:bold;vertical-align:middle;">${esc(d.feederNo)}</td>`;
                 unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.cat}</td>`;
                 unifiedRows += `<td rowspan="2" style="${td}font-weight:bold;vertical-align:middle;">${esc(d.loadName)}</td>`;
@@ -12795,12 +12796,12 @@ td { vertical-align: middle; }
                 unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.breakerType}</td>`;
                 unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;">${d.breakerAF}</td>`;
                 unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;">${d.breakerAT}</td>`;
-                // ケーブル列
+                // ケーブル列（全て行ごとに分離）
                 unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.cableType}</td>`;
-                unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;font-weight:bold;">${d.cableSizeCalc}</td>`;
-                unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;">${d.cableSize}</td>`;
-                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;${cableOk==='OK'?okS:ngS}">${cableOk}</td>`;
-                // 接地線列
+                unifiedRows += `<td style="${tdR}font-weight:bold;background:#fff3e0;">${d.cableSizeCalc}</td>`;
+                unifiedRows += `<td style="${tdR}background:#fff3e0;">${d.cableSize}</td>`;
+                unifiedRows += `<td style="${tdC}background:#fff3e0;${cableOk==='OK'?okS:ngS}">${cableOk}</td>`;
+                // 接地線列（共通rowspan）
                 unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.groundDLabel}</td>`;
                 unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;font-weight:bold;">${d.groundDRequired>0?d.groundDRequired:'-'}</td>`;
                 unifiedRows += `<td rowspan="2" style="${tdR}vertical-align:middle;">${d.groundDSize>0?d.groundDSize:'-'}</td>`;
@@ -12811,6 +12812,7 @@ td { vertical-align: middle; }
                 unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;${diffColor}">${diffStr}</td>`;
                 unifiedRows += `</tr>`;
                 // --- 行2: 設計値（青背景） ---
+                var dCableOk = dCap > 0 ? (d.cableSize >= d.designCableSize ? 'OK' : '×') : '-';
                 unifiedRows += `<tr style="background:#e3f2fd;">`;
                 unifiedRows += `<td style="${tdC}color:#1565c0;font-weight:bold;">設計値</td>`;
                 unifiedRows += `<td style="${tdR}">${dCap > 0 ? fmt(dCap) : '-'}</td>`;
@@ -12819,8 +12821,12 @@ td { vertical-align: middle; }
                 unifiedRows += `<td style="${tdR}">${dCap > 0 ? d.designVd.toFixed(2) : '-'}</td>`;
                 unifiedRows += `<td style="${tdR}">${dCap > 0 ? dVdP.toFixed(2) : '-'}</td>`;
                 unifiedRows += `<td style="${tdC}${dCap>0?(dVdOk==='OK'?okS:ngS):''}">${dCap > 0 ? dVdOk : '-'}</td>`;
-                // rowspan列は行1で出力済み
-                unifiedRows += `</tr>`;
+                // ケーブル列（設計値行: 必要最小＋採用＋判定）
+                unifiedRows += `<td style="${tdR}font-weight:bold;background:#e3f2fd;">${dCap > 0 ? d.designCableSize : '-'}</td>`;
+                unifiedRows += `<td style="${tdR}background:#e3f2fd;">${d.cableSize}</td>`;
+                unifiedRows += `<td style="${tdC}background:#e3f2fd;${dCap>0?(dCableOk==='OK'?okS:ngS):''}">${dCableOk}</td>`;
+                // 接地線・差異は行1のrowspanで出力済み
+                unifiedRows += `</tr></tbody>`;
             });
 
             // ---- テーブルヘッダ ----
@@ -12876,6 +12882,7 @@ td { vertical-align: middle; }
 .footer { font-size: 7pt; color: #999; text-align: right; margin-top: 6px; border-top: 1px solid #ccc; padding-top: 3px; }
 .note { margin-top: 6px; font-size: 7.5pt; color: #555; }
 .page-break { page-break-before: always; margin-top: 20px; }
+.feeder-pair { break-inside: avoid; page-break-inside: avoid; }
 @media print { .no-print { display: none; } }
 </style></head><body>
 <div class="no-print" style="text-align:right;margin-bottom:8px;">
