@@ -9117,24 +9117,41 @@
             // ★ 設計値行を生成する関数
             function createDesignRow(feeder) {
                 const fd = localFeederData[feeder.id] || {};
-                const designRawVal = Number(fd.design_capacity) || 0;
-                if (designRawVal <= 0) return null; // 設計値未入力なら行なし
-
                 const cat = fd.feeder_category || feeder.feeder_category || '電灯';
                 const autoVolt = (() => { const p = allPanels.find(pp => pp.name === feeder.load_name); if (!p) return null; const t = p.elec_type; return t === '3φ3W' ? 200 : (t === '1φ3W' ? 200 : 100); })();
                 const voltage = autoVolt || feeder.voltage || 100;
                 const autoPhaseVal = (() => { const p = allPanels.find(pp => pp.name === feeder.load_name); return p ? p.elec_type : null; })();
                 const phase = autoPhaseVal || feeder.phase_type || '1φ2W';
                 const pf = Number(fd.power_factor) || (cat === '動力' ? 0.8 : 1.0);
-                const demandFactor = feeder.demand_factor || getDemandFactor(designRawVal);
 
-                // 設計値 kVA換算
-                let dKva = designRawVal;
-                if (cat === '動力' && phase === '3φ3W') {
-                    const dEff = 0.85;
-                    const dIm = (designRawVal * 1000) / (Math.sqrt(3) * voltage * pf * dEff);
-                    dKva = Math.sqrt(3) * voltage * dIm / 1000;
+                // ★ 盤一覧の設計kVA（kW→kVA換算済み）を優先取得
+                const matchedPanel = allPanels.find(pp => pp.name === feeder.load_name);
+                let dKva = 0;
+                if (matchedPanel) {
+                    const panelDesignRaw = getPanelDesignKva(matchedPanel.name);
+                    if (panelDesignRaw > 0) {
+                        const is3ph = (matchedPanel.elec_type === '3φ3W');
+                        if (is3ph) {
+                            var dpf = 0.8, deff = 0.85;
+                            var dImP = (panelDesignRaw * 1000) / (Math.sqrt(3) * 200 * dpf * deff);
+                            dKva = Math.sqrt(3) * 200 * dImP / 1000;
+                        } else {
+                            dKva = panelDesignRaw;
+                        }
+                    }
                 }
+                // 盤一覧に設計値がなければ、幹線の設計値フィールドから取得（従来互換）
+                if (dKva <= 0) {
+                    const designRawVal = Number(fd.design_capacity) || 0;
+                    if (designRawVal <= 0) return null;
+                    dKva = designRawVal;
+                    if (cat === '動力' && phase === '3φ3W') {
+                        const dEff = 0.85;
+                        const dIm = (designRawVal * 1000) / (Math.sqrt(3) * voltage * pf * dEff);
+                        dKva = Math.sqrt(3) * voltage * dIm / 1000;
+                    }
+                }
+                const demandFactor = feeder.demand_factor || getDemandFactor(dKva);
                 const dDemand = (dKva * demandFactor) / 100;
                 let dCurrent = 0;
                 if (phase === '3φ3W') dCurrent = dDemand * 1000 / (Math.sqrt(3) * voltage);
@@ -12755,14 +12772,31 @@ td { vertical-align: middle; }
                 // ★ 設計値（手動入力）での計算も返す
                 // 動力: 設計値はkW入力 → kVA換算 (回路DBと同じ方式: VA = √3 × 200 × Im × 台数)
                 // 電灯: 設計値はkVAそのまま
-                var designRaw = Number(fd.design_capacity) || manualCapacity || 0;
-                var designCapacity = designRaw;
-                if (cat === '動力' && designRaw > 0 && phase === '3φ3W') {
-                    // kW → Im算出 → kVA換算（回路DBの容量換算と同じロジック）
-                    var dPf = Number(fd.power_factor) || 0.8;
-                    var dEff = MOTOR_DEFAULT_EFF || 0.85;
-                    var dIm = (designRaw * 1000) / (Math.sqrt(3) * (voltage || 200) * dPf * dEff);
-                    designCapacity = Math.sqrt(3) * (voltage || 200) * dIm / 1000; // kVA
+                // ★ 盤一覧の設計kVA（kW→kVA換算済み）を優先取得
+                var designCapacity = 0;
+                if (matchedPanel) {
+                    var panelDesRaw = (typeof getPanelDesignKva === 'function') ? getPanelDesignKva(matchedPanel.name) : 0;
+                    if (panelDesRaw > 0) {
+                        var mpElec = matchedPanel.elec_type || '';
+                        if (mpElec === '3φ3W') {
+                            var dpf2 = 0.8, deff2 = 0.85;
+                            var dIm2 = (panelDesRaw * 1000) / (Math.sqrt(3) * 200 * dpf2 * deff2);
+                            designCapacity = Math.sqrt(3) * 200 * dIm2 / 1000;
+                        } else {
+                            designCapacity = panelDesRaw;
+                        }
+                    }
+                }
+                // 盤一覧に設計値がなければ幹線の設計値フィールドから（従来互換）
+                if (designCapacity <= 0) {
+                    var designRaw = Number(fd.design_capacity) || manualCapacity || 0;
+                    designCapacity = designRaw;
+                    if (cat === '動力' && designRaw > 0 && phase === '3φ3W') {
+                        var dPf = Number(fd.power_factor) || 0.8;
+                        var dEff = MOTOR_DEFAULT_EFF || 0.85;
+                        var dIm = (designRaw * 1000) / (Math.sqrt(3) * (voltage || 200) * dPf * dEff);
+                        designCapacity = Math.sqrt(3) * (voltage || 200) * dIm / 1000;
+                    }
                 }
                 var designDemandCap = (designCapacity * demandFactor) / 100;
                 var designCurrent = 0;
