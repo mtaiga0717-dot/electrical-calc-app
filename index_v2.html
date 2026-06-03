@@ -9165,6 +9165,20 @@
             const phase = autoPhase || feeder.phase_type || '1φ2W';
             // 力率デフォルト: 電灯=1.0, 動力=0.8 (内線規程 JEAC8001 / JIS C 8601 準拠)
             const powerFactor = localFeederData[feeder.id]?.power_factor || (feederCategory === '動力' ? 0.8 : 1.0);
+            // ★ 設計値のkVA換算（動力=kW→kVA、電灯=そのまま）
+            const designRaw = Number(localFeederData[feeder.id]?.design_capacity) || 0;
+            let designKva = designRaw;
+            if (feederCategory === '動力' && designRaw > 0 && (phase === '3φ3W')) {
+                const dPf = Number(localFeederData[feeder.id]?.power_factor) || 0.8;
+                const dEff = 0.85;
+                const dIm = (designRaw * 1000) / (Math.sqrt(3) * (voltage || 200) * dPf * dEff);
+                designKva = Math.sqrt(3) * (voltage || 200) * dIm / 1000;
+            }
+            const designDemand = (designKva * demandFactor) / 100;
+            let designCurrent = 0;
+            if (phase === '3φ3W') { designCurrent = designDemand * 1000 / (Math.sqrt(3) * voltage); }
+            else if (phase === '1φ3W') { designCurrent = designDemand * 1000 / 200; }
+            else { designCurrent = designDemand * 1000 / voltage; }
 
             let current = 0;
             if (phase === '3φ3W') {
@@ -9466,8 +9480,14 @@
                 <td>
                     <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="load_capacity" value="${capacity.toFixed(2)}" ${capacityEditable ? `style="background-color:#fff3e0;" title="手入力 (盤/機器自動集計に一致する負荷がないため)"` : 'readonly title="盤/機器から自動集計"'} />
                 </td>
-                <td>
-                    <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="design_capacity" value="${(Number(localFeederData[feeder.id]?.design_capacity) || 0).toFixed(2)}" style="background-color:#e3f2fd;" title="${feederCategory === '動力' ? '設計値[kW]入力 → kVA自動換算（レポートで実負荷と比較）' : '設計値[kVA]入力（レポートで実負荷と比較）'}" />
+                <td style="padding:2px;">
+                    <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="design_capacity" value="${designRaw || ''}" style="background-color:#e3f2fd;width:100%;margin-bottom:2px;" title="${feederCategory === '動力' ? '設計値[kW]入力 → kVA自動換算' : '設計値[kVA]入力'}" placeholder="${feederCategory === '動力' ? 'kW' : 'kVA'}" />
+                    ${designRaw > 0 ? `<div style="font-size:0.62rem;line-height:1.15;border-top:1px solid #ccc;padding-top:1px;">
+                        <span style="color:#1565c0;" title="設計値kVA換算">設:${designKva.toFixed(1)}</span>
+                        <span style="color:#999;">/</span>
+                        <span style="color:#c62828;" title="実負荷kVA">実:${capacity.toFixed(1)}</span>
+                        ${capacity > 0 ? `<br><span style="color:${Math.abs((capacity - designKva) / designKva * 100) > 20 ? '#c62828' : Math.abs((capacity - designKva) / designKva * 100) > 10 ? '#e65100' : '#1b5e20'};font-weight:bold;" title="差異率">${((capacity - designKva) / designKva * 100) >= 0 ? '+' : ''}${((capacity - designKva) / designKva * 100).toFixed(0)}%</span>` : ''}
+                    </div>` : ''}
                 </td>
                 <td>
                     <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="demand_factor" value="${demandFactor}" min="0" max="200" title="盤一覧の需要率と連動 (内線規程 JEAC8001 1305-1)" />
