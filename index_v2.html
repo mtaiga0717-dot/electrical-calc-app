@@ -9151,8 +9151,13 @@
                         dKva = Math.sqrt(3) * voltage * dIm / 1000;
                     }
                 }
-                const demandFactor = feeder.demand_factor || getDemandFactor(dKva);
-                const dDemand = (dKva * demandFactor) / 100;
+                // ★ 設計需要率: 盤一覧の設計需要率 → なければ実需要率
+                var designDemandFactor = feeder.demand_factor || getDemandFactor(dKva);
+                if (matchedPanel) {
+                    var pdRaw = getPanelDesignDemand(matchedPanel.name);
+                    if (pdRaw >= 0) designDemandFactor = pdRaw;
+                }
+                const dDemand = (dKva * designDemandFactor) / 100;
                 let dCurrent = 0;
                 if (phase === '3φ3W') dCurrent = dDemand * 1000 / (Math.sqrt(3) * voltage);
                 else if (phase === '1φ3W') dCurrent = dDemand * 1000 / 200;
@@ -9196,7 +9201,7 @@
                 cells += `<td style="border:1px solid #ddd;font-size:0.68rem;padding:2px;color:#1565c0;">${designLabel}</td>`;
                 cells += `<td style="border:1px solid #ddd;font-size:0.72rem;text-align:right;padding:2px;font-weight:bold;">${dKva.toFixed(2)}</td>`; // 負荷容量
                 cells += `<td style="border:1px solid #ddd;"></td>`; // 設計値(入力は上行)
-                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${demandFactor}</td>`; // 需要率
+                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${designDemandFactor}</td>`; // 設計需要率
                 cells += `<td style="border:1px solid #ddd;text-align:right;padding:2px;font-size:0.72rem;">${dDemand.toFixed(2)}</td>`; // 需要容量
                 cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${phase}</td>`; // 相
                 cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${voltage}</td>`; // 電圧
@@ -12807,7 +12812,13 @@ td { vertical-align: middle; }
                         designCapacity = Math.sqrt(3) * (voltage || 200) * dIm / 1000;
                     }
                 }
-                var designDemandCap = (designCapacity * demandFactor) / 100;
+                // ★ 設計需要率: 盤一覧の設計需要率 → なければ実需要率
+                var designDemandFactor = demandFactor;
+                if (matchedPanel && typeof getPanelDesignDemand === 'function') {
+                    var pdRaw2 = getPanelDesignDemand(matchedPanel.name);
+                    if (pdRaw2 >= 0) designDemandFactor = pdRaw2;
+                }
+                var designDemandCap = (designCapacity * designDemandFactor) / 100;
                 var designCurrent = 0;
                 if (phase === '3φ3W') { designCurrent = designDemandCap * 1000 / (Math.sqrt(3) * voltage); }
                 else if (phase === '1φ3W') { designCurrent = designDemandCap * 1000 / 200; }
@@ -12831,7 +12842,7 @@ td { vertical-align: middle; }
                     groundDStatus, groundELBStatus, groundDRequired, groundELBRequired,
                     gndCalc,
                     // 設計値
-                    designCapacity, designDemandCap, designCurrent, designCableSize, designVd, designVdPct
+                    designCapacity, designDemandFactor, designDemandCap, designCurrent, designCableSize, designVd, designVdPct
                 };
             }
 
@@ -12924,7 +12935,8 @@ td { vertical-align: middle; }
                 const diffColor = d.designCapacity > 0 ? (Math.abs(diff) > 20 ? ngS : (Math.abs(diff) > 10 ? 'color:#e65100;font-weight:bold;' : okS)) : '';
                 // 設計値行の計算
                 const dCap = d.designCapacity;
-                const dDem = dCap * d.demandFactor / 100;
+                const dDemFactor = d.designDemandFactor || d.demandFactor;
+                const dDem = dCap * dDemFactor / 100;
                 const dCur = d.designCurrent;
                 const dVdP = d.designVdPct;
                 const dVdOk = dVdP <= (d.vdPct <= 4 ? 4 : 2) ? 'OK' : '×';
@@ -12935,7 +12947,7 @@ td { vertical-align: middle; }
                 unifiedRows += `<td rowspan="2" style="${td}font-weight:bold;vertical-align:middle;">${esc(d.loadName)}</td>`;
                 unifiedRows += `<td style="${tdC}background:#fff3e0;font-weight:bold;">実負荷</td>`;
                 unifiedRows += `<td style="${tdR}">${fmt(d.capacity)}</td>`;
-                unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.demandFactor}</td>`;
+                unifiedRows += `<td style="${tdC}">${d.demandFactor}</td>`;
                 unifiedRows += `<td style="${tdR}">${fmt(d.demandCapacity)}</td>`;
                 unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.phase}</td>`;
                 unifiedRows += `<td rowspan="2" style="${tdC}vertical-align:middle;">${d.voltage}</td>`;
@@ -12966,6 +12978,7 @@ td { vertical-align: middle; }
                 unifiedRows += `<tr style="background:#e3f2fd;">`;
                 unifiedRows += `<td style="${tdC}color:#1565c0;font-weight:bold;">設計値</td>`;
                 unifiedRows += `<td style="${tdR}">${dCap > 0 ? fmt(dCap) : '-'}</td>`;
+                unifiedRows += `<td style="${tdC}">${dCap > 0 ? dDemFactor : '-'}</td>`;
                 unifiedRows += `<td style="${tdR}">${dCap > 0 ? fmt(dDem) : '-'}</td>`;
                 unifiedRows += `<td style="${tdR}font-weight:bold;">${dCap > 0 ? dCur.toFixed(1) : '-'}</td>`;
                 unifiedRows += `<td style="${tdR}">${dCap > 0 ? d.designVd.toFixed(2) : '-'}</td>`;
