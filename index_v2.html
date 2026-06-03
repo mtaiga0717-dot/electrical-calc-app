@@ -9049,7 +9049,11 @@
                 const ambTemp = Number(fd.ambient_temp) || 30;
                 const grpCnt = Number(fd.grouping_count) || 1;
                 const instMethod = fd.install_method || 'rack_single';
-                const dCableSize = (typeof selectCableSizeCorrected === 'function') ? selectCableSizeCorrected(dCurrent, cableType, ambTemp, grpCnt, instMethod) : 0;
+                // ★ 実採用ケーブルサイズを使用（実負荷行と同じケーブルで設計値の電流・VDを計算）
+                const cableAdoptMode = fd.cable_adopt || 'calc';
+                const cableSizeManualVal = Number(feeder.cable_size) || 0;
+                const cableSizeCalcVal = (typeof selectCableSizeCorrected === 'function') ? selectCableSizeCorrected(dCurrent, cableType, ambTemp, grpCnt, instMethod) : 0;
+                const dCableSize = (cableAdoptMode === 'manual' && cableSizeManualVal > 0) ? cableSizeManualVal : (Number(feeder.cable_size) || cableSizeCalcVal);
                 const length = feeder.cable_length || 0;
                 const dVd = (typeof calculateVoltageDrop === 'function') ? calculateVoltageDrop(dCurrent, length, dCableSize, phase, pf) : 0;
                 const dVdPct = voltage > 0 ? (dVd / voltage * 100) : 0;
