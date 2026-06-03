@@ -6014,13 +6014,20 @@
             });
         }
 
-        // ★ 盤設計kVA保存/読込
+        // ★ 盤設計kVA・設計需要率 保存/読込
         const PANEL_DESIGN_PREFIX = 'elecCalc:panelDesign:';
+        const PANEL_DESIGN_DEMAND_PREFIX = 'elecCalc:panelDesignDemand:';
         function getPanelDesignKva(panelName) {
             try { return Number(localStorage.getItem(PANEL_DESIGN_PREFIX + panelName)) || 0; } catch(e) { return 0; }
         }
         function setPanelDesignKva(panelName, val) {
             sharedSave(PANEL_DESIGN_PREFIX + panelName, String(val));
+        }
+        function getPanelDesignDemand(panelName) {
+            try { var v = localStorage.getItem(PANEL_DESIGN_DEMAND_PREFIX + panelName); return v !== null ? Number(v) : -1; } catch(e) { return -1; }
+        }
+        function setPanelDesignDemand(panelName, val) {
+            sharedSave(PANEL_DESIGN_DEMAND_PREFIX + panelName, String(val));
         }
 
         function renderPanels() {
@@ -6093,7 +6100,13 @@
                     if (el.classList.contains('panel-design-kva-input')) {
                         const v = Number(el.value) || 0;
                         setPanelDesignKva(el.dataset.panelName, v);
-                        renderPanels(); // 全体再描画
+                        renderPanels();
+                    }
+                    // ★ 設計需要率入力
+                    if (el.classList.contains('panel-design-demand-input')) {
+                        const v = el.value.trim() === '' ? -1 : (Number(el.value) || 0);
+                        setPanelDesignDemand(el.dataset.panelName, v);
+                        renderPanels();
                     }
                 });
             }
@@ -6305,18 +6318,24 @@
             const row = document.createElement('tr');
             row.style.cssText = 'background:#e3f2fd;border-bottom:2px solid #1565c0;';
             const designKva = getPanelDesignKva(panel.name);
-            const demandRate = getDemandRate(panel.name);
-            const factor = demandRate / 100;
+            // 設計需要率（-1 = 未設定 → 実負荷側の需要率を使う）
+            const designDemandRaw = getPanelDesignDemand(panel.name);
+            const realDemandRate = getDemandRate(panel.name);
+            const designDemandRate = designDemandRaw >= 0 ? designDemandRaw : realDemandRate;
+            const factor = designDemandRate / 100;
             const dTotal = designKva * factor;
-            // 電流計算
+            // 電流計算（需要率適用前の電流と適用後の電流）
             const pElecType = panel.elec_type || '1φ3W';
-            let dCurrent = 0;
-            if (pElecType === '3φ3W') dCurrent = dTotal * 1000 / (Math.sqrt(3) * 200);
-            else if (pElecType === '1φ3W') dCurrent = dTotal * 1000 / 200;
-            else dCurrent = dTotal * 1000 / 100;
+            let dCurrentRaw = 0; // 需要率適用前
+            if (pElecType === '3φ3W') dCurrentRaw = designKva * 1000 / (Math.sqrt(3) * 200);
+            else if (pElecType === '1φ3W') dCurrentRaw = designKva * 1000 / 200;
+            else dCurrentRaw = designKva * 1000 / 100;
+            let dCurrentDemand = dCurrentRaw * factor; // 需要率適用後
             const panelAT = Number(panel.at) || 0;
-            const atOk = panelAT > 0 && panelAT >= dCurrent;
-            const atBadge = panelAT === 0 ? '-' : `<span class="badge ${atOk ? 'badge-ok' : 'badge-ng'}">${atOk ? 'OK' : '×'}</span>`;
+            const atOkRaw = panelAT > 0 && panelAT >= dCurrentRaw;
+            const atBadgeRaw = panelAT === 0 ? '-' : `<span class="badge ${atOkRaw ? 'badge-ok' : 'badge-ng'}">${atOkRaw ? 'OK' : '×'}</span>`;
+            const atOkD = panelAT > 0 && panelAT >= dCurrentDemand;
+            const atBadgeD = panelAT === 0 ? '-' : `<span class="badge ${atOkD ? 'badge-ok' : 'badge-ng'}">${atOkD ? 'OK' : '×'}</span>`;
             // 差異率
             const diff = designKva > 0 && summaries.total > 0 ? ((summaries.total - designKva) / designKva * 100) : 0;
             const diffStr = designKva > 0 ? (diff >= 0 ? '+' : '') + diff.toFixed(0) + '%' : '';
@@ -6328,15 +6347,20 @@
                 <td colspan="5" style="text-align:center;padding:2px;">
                     <input type="number" step="0.01" class="panel-design-kva-input" data-panel-name="${panel.name}"
                         value="${designKva || ''}" placeholder="設計kVA"
-                        style="width:100px;padding:0.2rem 0.3rem;border:1px solid #1565c0;border-radius:4px;text-align:right;font-weight:bold;color:#1565c0;background:#fff;" />
+                        style="width:90px;padding:0.2rem 0.3rem;border:1px solid #1565c0;border-radius:4px;text-align:right;font-weight:bold;color:#1565c0;background:#fff;" />
                 </td>
                 <td style="font-weight:bold;color:#1565c0;">${designKva > 0 ? designKva.toFixed(2) : '-'}</td>
-                <td style="color:#1565c0;">${designKva > 0 ? dCurrent.toFixed(1) + ' A' : '-'}</td>
-                <td>${designKva > 0 ? atBadge : '-'}</td>
-                <td></td>
+                <td style="color:#1565c0;">${designKva > 0 ? dCurrentRaw.toFixed(1) + ' A' : '-'}</td>
+                <td>${designKva > 0 ? atBadgeRaw : '-'}</td>
+                <td style="text-align:center;padding:2px;">
+                    <input type="number" class="panel-design-demand-input" data-panel-name="${panel.name}"
+                        value="${designDemandRaw >= 0 ? designDemandRaw : ''}" placeholder="${realDemandRate}" min="0" max="200" step="1"
+                        style="width:55px;padding:0.2rem 0.3rem;border:1px solid #1565c0;border-radius:4px;text-align:right;font-weight:bold;color:#1565c0;background:#fff;"
+                        title="設計需要率[%]（空欄=実負荷側の需要率${realDemandRate}%を使用）" />
+                </td>
                 <td style="background:#e3f2fd;font-weight:bold;color:#1565c0;">${designKva > 0 ? dTotal.toFixed(2) : '-'}</td>
-                <td style="background:#e3f2fd;color:#1565c0;">${designKva > 0 ? (dCurrent).toFixed(1) + ' A' : '-'}</td>
-                <td>${designKva > 0 ? atBadge : '-'}</td>
+                <td style="background:#e3f2fd;color:#1565c0;">${designKva > 0 ? dCurrentDemand.toFixed(1) + ' A' : '-'}</td>
+                <td>${designKva > 0 ? atBadgeD : '-'}</td>
                 <td style="font-weight:bold;color:${diffColor};">${diffStr}</td>
                 <td></td>
             `;
@@ -10306,7 +10330,8 @@
             'elecCalc:motorMeta:',
             'elecCalc:actualMotorMeta:',
             'elecCalc:demandRate:',
-            'elecCalc:panelDesign:'
+            'elecCalc:panelDesign:',
+            'elecCalc:panelDesignDemand:'
         ];
 
         function projectGetList() {
