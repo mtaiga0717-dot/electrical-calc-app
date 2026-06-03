@@ -13085,7 +13085,7 @@ td { vertical-align: middle; }
 
 <!-- ===== ページ3: 設計値 vs 実負荷 統合表（2行ペア＋ケーブル・接地） ===== -->
 <div class="page-break"></div>
-<h1>幹線計算書 — 設計値 vs 実負荷 比較 ＋ ケーブル・接地線</h1>
+<h1>幹 線 計 算 書（設計値）</h1>
 <div class="meta">
     <div>${projName ? 'プロジェクト: ' + projName : ''}　幹線数: ${feeders.length}</div>
     <div>出力日: ${dateStr}</div>
@@ -13122,7 +13122,7 @@ td { vertical-align: middle; }
 </table>
 ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;border:1px solid #2e7d32;border-radius:4px;font-size:9pt;font-weight:bold;color:#1b5e20;">⏚ 接地母線（内線規程 1350-14）: ' + busSize + ' mm²（各幹線接地線の最大値）</div>' : ''}
 <div class="note">差異: ±10%以内=緑, 10-20%=橙, 20%超=赤　｜　根拠: 内線規程 JEAC8001 1340節(許容電流)・1350節(接地)</div>
-<div class="footer">エル・エル・イー電気株式会社 — 設計値vs実負荷 比較＋ケーブル・接地線一覧</div>
+<div class="footer">エル・エル・イー電気株式会社 — 幹線計算書（設計値）　内線規程 JEAC8001 準拠</div>
 </body></html>`;
 
             const w = window.open('', '_blank');
