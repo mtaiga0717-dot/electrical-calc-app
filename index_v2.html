@@ -1940,7 +1940,7 @@
                                 <th style="min-width:160px;">自（起点）</th>
                                 <th>負荷名称</th>
                                 <th>負荷容量[kVA]</th>
-                                <th style="background:#1565c0;color:#fff;">設計値[kVA]</th>
+                                <th style="background:#1565c0;color:#fff;" title="電灯=kVA入力 / 動力=kW入力→kVA自動換算">設計値</th>
                                 <th>需要率[%]</th>
                                 <th>需要容量[kVA]</th>
                                 <th>相</th>
@@ -9467,7 +9467,7 @@
                     <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="load_capacity" value="${capacity.toFixed(2)}" ${capacityEditable ? `style="background-color:#fff3e0;" title="手入力 (盤/機器自動集計に一致する負荷がないため)"` : 'readonly title="盤/機器から自動集計"'} />
                 </td>
                 <td>
-                    <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="design_capacity" value="${(Number(localFeederData[feeder.id]?.design_capacity) || 0).toFixed(2)}" style="background-color:#e3f2fd;" title="設計値（手動入力）— レポートで実負荷と比較" />
+                    <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="design_capacity" value="${(Number(localFeederData[feeder.id]?.design_capacity) || 0).toFixed(2)}" style="background-color:#e3f2fd;" title="${feederCategory === '動力' ? '設計値[kW]入力 → kVA自動換算（レポートで実負荷と比較）' : '設計値[kVA]入力（レポートで実負荷と比較）'}" />
                 </td>
                 <td>
                     <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="demand_factor" value="${demandFactor}" min="0" max="200" title="盤一覧の需要率と連動 (内線規程 JEAC8001 1305-1)" />
@@ -12541,7 +12541,17 @@ td { vertical-align: middle; }
                 const groundELBRequired = groundELBJudge ? groundELBJudge.required : 0;
 
                 // ★ 設計値（手動入力）での計算も返す
-                var designCapacity = Number(fd.design_capacity) || manualCapacity || 0;
+                // 動力: 設計値はkW入力 → kVA換算 (回路DBと同じ方式: VA = √3 × 200 × Im × 台数)
+                // 電灯: 設計値はkVAそのまま
+                var designRaw = Number(fd.design_capacity) || manualCapacity || 0;
+                var designCapacity = designRaw;
+                if (cat === '動力' && designRaw > 0 && phase === '3φ3W') {
+                    // kW → Im算出 → kVA換算（回路DBの容量換算と同じロジック）
+                    var dPf = Number(fd.power_factor) || 0.8;
+                    var dEff = MOTOR_DEFAULT_EFF || 0.85;
+                    var dIm = (designRaw * 1000) / (Math.sqrt(3) * (voltage || 200) * dPf * dEff);
+                    designCapacity = Math.sqrt(3) * (voltage || 200) * dIm / 1000; // kVA
+                }
                 var designDemandCap = (designCapacity * demandFactor) / 100;
                 var designCurrent = 0;
                 if (phase === '3φ3W') { designCurrent = designDemandCap * 1000 / (Math.sqrt(3) * voltage); }
