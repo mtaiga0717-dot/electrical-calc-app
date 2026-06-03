@@ -1940,6 +1940,7 @@
                                 <th style="min-width:160px;">自（起点）</th>
                                 <th>負荷名称</th>
                                 <th>負荷容量[kVA]</th>
+                                <th style="background:#1565c0;color:#fff;">設計値[kVA]</th>
                                 <th>需要率[%]</th>
                                 <th>需要容量[kVA]</th>
                                 <th>相</th>
@@ -9466,6 +9467,9 @@
                     <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="load_capacity" value="${capacity.toFixed(2)}" ${capacityEditable ? `style="background-color:#fff3e0;" title="手入力 (盤/機器自動集計に一致する負荷がないため)"` : 'readonly title="盤/機器から自動集計"'} />
                 </td>
                 <td>
+                    <input type="number" step="0.01" class="feeder-input" data-id="${feeder.id}" data-field="design_capacity" value="${(Number(localFeederData[feeder.id]?.design_capacity) || 0).toFixed(2)}" style="background-color:#e3f2fd;" title="設計値（手動入力）— レポートで実負荷と比較" />
+                </td>
+                <td>
                     <input type="number" class="feeder-input" data-id="${feeder.id}" data-field="demand_factor" value="${demandFactor}" min="0" max="200" title="盤一覧の需要率と連動 (内線規程 JEAC8001 1305-1)" />
                 </td>
                 <td>
@@ -9724,7 +9728,7 @@
             let value = element.value;
 
             // Local-only fields - don't send to DB
-            const LOCAL_ONLY_FIELDS = ['load_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw', 'source_type', 'source_circuit_id', 'source_transformer_id', 'ambient_temp', 'grouping_count', 'breaker_icu_ka', 'branch_len_for_relax', 'cable_adopt', 'breaker_adopt', 'install_method'];
+            const LOCAL_ONLY_FIELDS = ['load_capacity', 'design_capacity', 'demand_capacity', 'current', 'voltage_drop', 'vd_percent', 'power_factor', 'feeder_no', 'feeder_category', 'motor_total_kw', 'motor_max_kw', 'source_type', 'source_circuit_id', 'source_transformer_id', 'ambient_temp', 'grouping_count', 'breaker_icu_ka', 'branch_len_for_relax', 'cable_adopt', 'breaker_adopt', 'install_method'];
 
             if (LOCAL_ONLY_FIELDS.includes(field)) {
                 if (!localFeederData[feederId]) localFeederData[feederId] = {};
@@ -12537,7 +12541,7 @@ td { vertical-align: middle; }
                 const groundELBRequired = groundELBJudge ? groundELBJudge.required : 0;
 
                 // ★ 設計値（手動入力）での計算も返す
-                var designCapacity = manualCapacity || capacity;
+                var designCapacity = Number(fd.design_capacity) || manualCapacity || 0;
                 var designDemandCap = (designCapacity * demandFactor) / 100;
                 var designCurrent = 0;
                 if (phase === '3φ3W') { designCurrent = designDemandCap * 1000 / (Math.sqrt(3) * voltage); }
