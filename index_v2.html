@@ -1522,6 +1522,7 @@
                                 <th>操作</th>
                             </tr>
                         </thead>
+                        <!-- 設計kVA保存キー: elecCalc:panelDesign:{panelName} -->
                         <tbody id="panelsBody"></tbody>
                     </table>
                 </div>
@@ -6013,6 +6014,15 @@
             });
         }
 
+        // ★ 盤設計kVA保存/読込
+        const PANEL_DESIGN_PREFIX = 'elecCalc:panelDesign:';
+        function getPanelDesignKva(panelName) {
+            try { return Number(localStorage.getItem(PANEL_DESIGN_PREFIX + panelName)) || 0; } catch(e) { return 0; }
+        }
+        function setPanelDesignKva(panelName, val) {
+            sharedSave(PANEL_DESIGN_PREFIX + panelName, String(val));
+        }
+
         function renderPanels() {
             const tbody = document.getElementById('panelsBody');
             tbody.innerHTML = '';
@@ -6022,6 +6032,9 @@
                 const summaries = calculatePanelSummaries(panel.name, circuits);
                 const row = createPanelRow(panel, summaries);
                 tbody.appendChild(row);
+                // ★ 設計値行を追加
+                const designRow = createPanelDesignRow(panel, summaries);
+                tbody.appendChild(designRow);
             });
 
             // 需要率inputのイベント: tbodyへのデリゲーションに一本化
@@ -6067,14 +6080,21 @@
                 // 確定時: 最終値をもう一度保存して再描画＋幹線計算側へ同期
                 tbody.addEventListener('change', (e) => {
                     const el = e.target;
-                    if (!el.classList || !el.classList.contains('panel-demand-rate-input')) return;
-                    const n = Number(el.value);
-                    if (isNaN(n)) return;
-                    const clamped = Math.max(0, Math.min(200, n));
-                    setDemandRate(el.dataset.panelName, clamped);
-                    rerenderRow(el);
-                    // 幹線計算の対応幹線にも同期
-                    syncFeedersDemandFromPanel(el.dataset.panelName, clamped);
+                    if (!el.classList) return;
+                    if (el.classList.contains('panel-demand-rate-input')) {
+                        const n = Number(el.value);
+                        if (isNaN(n)) return;
+                        const clamped = Math.max(0, Math.min(200, n));
+                        setDemandRate(el.dataset.panelName, clamped);
+                        rerenderRow(el);
+                        syncFeedersDemandFromPanel(el.dataset.panelName, clamped);
+                    }
+                    // ★ 設計kVA入力
+                    if (el.classList.contains('panel-design-kva-input')) {
+                        const v = Number(el.value) || 0;
+                        setPanelDesignKva(el.dataset.panelName, v);
+                        renderPanels(); // 全体再描画
+                    }
                 });
             }
 
@@ -6277,6 +6297,49 @@
                 </td>
             `;
 
+            return row;
+        }
+
+        // ★ 盤の設計値行（2行目：青背景）
+        function createPanelDesignRow(panel, summaries) {
+            const row = document.createElement('tr');
+            row.style.cssText = 'background:#e3f2fd;border-bottom:2px solid #1565c0;';
+            const designKva = getPanelDesignKva(panel.name);
+            const demandRate = getDemandRate(panel.name);
+            const factor = demandRate / 100;
+            const dTotal = designKva * factor;
+            // 電流計算
+            const pElecType = panel.elec_type || '1φ3W';
+            let dCurrent = 0;
+            if (pElecType === '3φ3W') dCurrent = dTotal * 1000 / (Math.sqrt(3) * 200);
+            else if (pElecType === '1φ3W') dCurrent = dTotal * 1000 / 200;
+            else dCurrent = dTotal * 1000 / 100;
+            const panelAT = Number(panel.at) || 0;
+            const atOk = panelAT > 0 && panelAT >= dCurrent;
+            const atBadge = panelAT === 0 ? '-' : `<span class="badge ${atOk ? 'badge-ok' : 'badge-ng'}">${atOk ? 'OK' : '×'}</span>`;
+            // 差異率
+            const diff = designKva > 0 && summaries.total > 0 ? ((summaries.total - designKva) / designKva * 100) : 0;
+            const diffStr = designKva > 0 ? (diff >= 0 ? '+' : '') + diff.toFixed(0) + '%' : '';
+            const diffColor = designKva > 0 ? (Math.abs(diff) > 20 ? '#c62828' : (Math.abs(diff) > 10 ? '#e65100' : '#1b5e20')) : '#999';
+
+            row.innerHTML = `
+                <td style="font-weight:bold;color:#1565c0;font-size:0.75rem;">設計値</td>
+                <td></td><td></td><td></td><td></td>
+                <td colspan="5" style="text-align:center;padding:2px;">
+                    <input type="number" step="0.01" class="panel-design-kva-input" data-panel-name="${panel.name}"
+                        value="${designKva || ''}" placeholder="設計kVA"
+                        style="width:100px;padding:0.2rem 0.3rem;border:1px solid #1565c0;border-radius:4px;text-align:right;font-weight:bold;color:#1565c0;background:#fff;" />
+                </td>
+                <td style="font-weight:bold;color:#1565c0;">${designKva > 0 ? designKva.toFixed(2) : '-'}</td>
+                <td style="color:#1565c0;">${designKva > 0 ? dCurrent.toFixed(1) + ' A' : '-'}</td>
+                <td>${designKva > 0 ? atBadge : '-'}</td>
+                <td></td>
+                <td style="background:#e3f2fd;font-weight:bold;color:#1565c0;">${designKva > 0 ? dTotal.toFixed(2) : '-'}</td>
+                <td style="background:#e3f2fd;color:#1565c0;">${designKva > 0 ? (dCurrent).toFixed(1) + ' A' : '-'}</td>
+                <td>${designKva > 0 ? atBadge : '-'}</td>
+                <td style="font-weight:bold;color:${diffColor};">${diffStr}</td>
+                <td></td>
+            `;
             return row;
         }
 
@@ -9079,8 +9142,16 @@
                 cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${phase}</td>`; // 相
                 cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${voltage}</td>`; // 電圧
                 cells += `<td style="border:1px solid #ddd;text-align:right;padding:2px;font-size:0.72rem;font-weight:bold;">${dCurrent.toFixed(2)}</td>`; // 電流
-                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${cableType}</td>`; // ケーブル種別
-                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;font-weight:bold;">${dCableSize}</td>`; // ケーブルサイズ
+                // ケーブル列: 必要最小（設計）＋採用（実）＋判定
+                var dCableSizeCalc = (typeof selectCableSizeCorrected === 'function') ? selectCableSizeCorrected(dCurrent, cableType, ambTemp, grpCnt, instMethod) : 0;
+                var adoptedSize = (cableAdoptMode === 'manual' && cableSizeManualVal > 0) ? cableSizeManualVal : (Number(feeder.cable_size) || dCableSizeCalc);
+                var dCableOk = adoptedSize >= dCableSizeCalc ? 'OK' : '×';
+                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.72rem;">${cableType}</td>`;
+                cells += `<td style="border:1px solid #ddd;text-align:center;padding:2px;font-size:0.68rem;">
+                    <div style="color:#1565c0;font-weight:bold;">必要:${dCableSizeCalc}mm²</div>
+                    <div>採用:${adoptedSize}mm²</div>
+                    <div style="font-weight:bold;color:${dCableOk==='OK'?'#1b5e20':'#c62828'};">${dCableOk}</div>
+                </td>`;
                 // 残りの列は簡略表示
                 cells += `<td style="border:1px solid #ddd;"></td>`; // 温度
                 cells += `<td style="border:1px solid #ddd;"></td>`; // 条数
@@ -9608,7 +9679,8 @@
                     </select>
                 </td>
                 <td style="font-size:0.65rem;">
-                    <div title="自動計算（電流・温度・条数補正から）" style="color:#1565c0;font-weight:bold;margin-bottom:1px;">計:${cableSizeCalc}</div>
+                    <div title="実負荷電流から自動計算（温度・条数補正込）" style="color:#c62828;font-weight:bold;margin-bottom:1px;">実必要:${cableSizeCalc}mm²</div>
+                    ${designRaw > 0 ? `<div title="設計電流から自動計算" style="color:#1565c0;font-weight:bold;margin-bottom:1px;">設必要:${(typeof selectCableSizeCorrected === 'function' ? selectCableSizeCorrected(designCurrent, cableType, ambientTemp, groupingCount, installMethod) : 0)}mm²</div>` : ''}
                     <select class="feeder-select" data-id="${feeder.id}" data-field="cable_size" style="background-color:#fff3e0;font-size:0.7rem;" title="実選定サイズ（手動）">
                         <option value="">—</option>
                         ${CABLE_DATA.map(c => `<option value="${c.size}" ${c.size === cableSizeManual ? 'selected' : ''}>${c.size}</option>`).join('')}
@@ -10233,7 +10305,8 @@
             'actual_circuit_',
             'elecCalc:motorMeta:',
             'elecCalc:actualMotorMeta:',
-            'elecCalc:demandRate:'
+            'elecCalc:demandRate:',
+            'elecCalc:panelDesign:'
         ];
 
         function projectGetList() {
