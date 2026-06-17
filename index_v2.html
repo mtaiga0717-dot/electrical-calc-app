@@ -1655,6 +1655,16 @@
                     <button class="btn-action" style="background:#1565c0;" onclick="printCircuitReport()">📋 レポート印刷</button>
                 </div>
                 <div id="panelFilterSummary" class="panel-filter-summary pfs-hidden"></div>
+                <div style="background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:4px 10px;margin-bottom:4px;font-size:0.72rem;color:#555;display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+                    <span style="font-weight:bold;color:#333;">記号凡例:</span>
+                    <span>◎ 電灯200V</span>
+                    <span>○ 電灯100V</span>
+                    <span>□ ｺﾝｾﾝﾄ100V</span>
+                    <span>□□ ｺﾝｾﾝﾄ200V</span>
+                    <span>◇ 動力3Φ200V</span>
+                    <span>分岐 幹線ﾀｯﾌﾟ</span>
+                    <span style="color:#999;margin-left:auto;">※記号変更で区分・電圧・相を自動設定（遮断器は変更しません）</span>
+                </div>
                 <div class="circuits-table-wrapper" id="circuitsTableWrapper">
                     <table class="circuits-table" id="circuitsTable">
                         <thead>
@@ -7468,6 +7478,12 @@
                 }
             }
 
+            // AT判定結果を回路オブジェクトにキャッシュ（レポート出力等で参照）
+            circuit._atStatus = atStatus;
+            circuit._atNgReason = atNgReason;
+            circuit._currentA = current;
+            circuit._totalKva = total;
+
             row.innerHTML = `
                 <td>${rowNumber}</td>
                 <td>
@@ -8137,8 +8153,7 @@
                 const updateData = {
                     symbol: value,
                     voltage: voltage,
-                    phase: newPhase,
-                    breaker: defaults.breaker
+                    phase: newPhase
                 };
                 // 分岐に切り替えたら回路NOをクリア（NULLを使用 — INTEGER列に空文字を入れるとエラー）
                 if (value === '分岐') {
@@ -8154,7 +8169,6 @@
                     circuitObj.symbol = value;
                     circuitObj.voltage = voltage;
                     circuitObj.phase = newPhase;
-                    circuitObj.breaker = defaults.breaker;
                     circuitObj.category = newCategory;
                     if (value === '分岐') circuitObj.circuit_no = null;
                 }
@@ -8556,8 +8570,26 @@
         }
 
         // === 回路DBレポート印刷 ===
-        function printCircuitReport() {
+        async function printCircuitReport() {
             if (allPanels.length === 0) { alert('盤データがありません'); return; }
+
+            // AT判定キャッシュ確保: 未レンダリング回路があれば両カテゴリをレンダリング
+            const needsRender = allCircuits.some(c => c.type !== 'RC' && !c._atStatus);
+            if (needsRender) {
+                const filterEl = document.getElementById('circuitCategoryFilter');
+                const savedFilter = filterEl ? filterEl.value : '電灯';
+                try {
+                    if (filterEl) {
+                        filterEl.value = '電灯';
+                        await renderCircuits();
+                        filterEl.value = '動力';
+                        await renderCircuits();
+                        filterEl.value = savedFilter;
+                        await renderCircuits();
+                    }
+                } catch(e) { console.warn('AT判定プリレンダー失敗:', e); }
+            }
+
             const localCD = getLocalCircuitDataRaw();
             // プロジェクト名・ヘッダー
             const projName = (function(){
@@ -8601,7 +8633,7 @@
                 if (lightingCircuits.length > 0) {
                     sectionsHtml += '<div class="cat-hdr cat-light">電灯・コンセント回路</div>';
                     sectionsHtml += '<table><thead><tr>'
-                        + '<th>#</th><th>記号</th><th>回路No</th><th>相</th><th>遮断器</th><th>AF</th><th>AT</th>'
+                        + '<th>#</th><th>記号</th><th>回路No</th><th>相</th><th>遮断器</th><th>AF</th><th>AT</th><th>感度[mA]</th>'
                         + '<th>電圧</th><th>照明[VA]</th><th>ｺﾝｾﾝﾄ[VA]</th><th>FC[VA]</th><th>OA[VA]</th><th>幹線分岐[VA]</th>'
                         + '<th>合計[VA]</th><th>電流[A]</th><th>AT判定</th><th style="min-width:80px;">負荷名称</th>'
                         + '</tr></thead><tbody>';
@@ -8615,9 +8647,11 @@
                         const is3P=c.phase&&['R','S','T','R-S','S-T','R-T','RST'].includes(c.phase);
                         const cur=is3P?totalVA/(Math.sqrt(3)*v):totalVA/v;
                         const at=c.at||0;
-                        const atOk = c.symbol==='分岐' ? at>=cur : (at>=cur*1.25||cur===0);
+                        const atCached = c._atStatus || '-';
+                        const atOk = (atCached === 'OK' || atCached === '-');
                         sL+=lVA; sO+=oVA; sF+=fVA; sA+=aVA; sFd+=fdVA;
                         const bg = i%2===1 ? ' style="background:#f8f8f8;"' : '';
+                        const sensL = /ELCB|ELB/i.test(c.breaker||'') ? ((localCD[c.id]&&localCD[c.id].sensitivity)||'30') : '—';
                         sectionsHtml += '<tr' + bg + '>'
                             + '<td class="c">' + (i+1) + '</td>'
                             + '<td class="c">' + (c.symbol||'-') + '</td>'
@@ -8626,6 +8660,7 @@
                             + '<td class="c">' + (c.breaker||'-') + '</td>'
                             + '<td class="c">' + (c.af||'-') + '</td>'
                             + '<td class="c">' + (c.at||'-') + '</td>'
+                            + '<td class="c">' + sensL + '</td>'
                             + '<td class="c">' + v + '</td>'
                             + '<td class="r">' + (lVA||'-') + '</td>'
                             + '<td class="r">' + (oVA||'-') + '</td>'
@@ -8634,12 +8669,12 @@
                             + '<td class="r">' + (fdVA||'-') + '</td>'
                             + '<td class="r">' + totalVA.toLocaleString() + '</td>'
                             + '<td class="r">' + cur.toFixed(1) + '</td>'
-                            + '<td class="c ' + (atOk?'at-ok':'at-ng') + '">' + (atOk?'OK':'NG') + '</td>'
+                            + '<td class="c ' + (atOk?'at-ok':'at-ng') + '">' + atCached + '</td>'
                             + '<td class="l">' + (c.load_name||'') + '</td>'
                             + '</tr>';
                     });
                     const sTotal = sL+sO+sF+sA+sFd;
-                    sectionsHtml += '<tr class="sum-row"><td colspan="8" class="r" style="font-weight:bold;">合計</td>'
+                    sectionsHtml += '<tr class="sum-row"><td colspan="9" class="r" style="font-weight:bold;">合計</td>'
                         + '<td class="r">' + sL.toLocaleString() + '</td><td class="r">' + sO.toLocaleString() + '</td>'
                         + '<td class="r">' + sF.toLocaleString() + '</td><td class="r">' + sA.toLocaleString() + '</td>'
                         + '<td class="r">' + sFd.toLocaleString() + '</td><td class="r" style="font-weight:bold;">' + sTotal.toLocaleString() + '</td>'
@@ -8651,7 +8686,7 @@
                 if (motorCircuits.length > 0) {
                     sectionsHtml += '<div class="cat-hdr cat-motor">動力回路</div>';
                     sectionsHtml += '<table><thead><tr>'
-                        + '<th>#</th><th>記号</th><th>回路No</th><th>相</th><th>遮断器</th><th>AF</th><th>AT</th>'
+                        + '<th>#</th><th>記号</th><th>回路No</th><th>相</th><th>遮断器</th><th>AF</th><th>AT</th><th>感度[mA]</th>'
                         + '<th>電圧</th><th>kW</th><th>台数</th><th>Im[A]</th><th>始動</th>'
                         + '<th>合計[VA]</th><th>電流[A]</th><th>AT判定</th><th style="min-width:80px;">負荷名称</th>'
                         + '</tr></thead><tbody>';
@@ -8664,9 +8699,11 @@
                         const v=c.voltage||200;
                         const cur = totalVA/(Math.sqrt(3)*v);
                         const at=c.at||0;
-                        const atOk = at>=cur || cur===0;
+                        const atCachedM = c._atStatus || '-';
+                        const atOkM = (atCachedM === 'OK' || atCachedM === '-');
                         skW+=kw*cnt; sVA+=totalVA;
                         const bg = i%2===1 ? ' style="background:#f8f8f8;"' : '';
+                        const sensM = /ELCB|ELB/i.test(c.breaker||'') ? ((localCD[c.id]&&localCD[c.id].sensitivity)||'30') : '—';
                         sectionsHtml += '<tr' + bg + '>'
                             + '<td class="c">' + (i+1) + '</td>'
                             + '<td class="c">' + (c.symbol||'◇') + '</td>'
@@ -8675,6 +8712,7 @@
                             + '<td class="c">' + (c.breaker||'-') + '</td>'
                             + '<td class="c">' + (c.af||'-') + '</td>'
                             + '<td class="c">' + (c.at||'-') + '</td>'
+                            + '<td class="c">' + sensM + '</td>'
                             + '<td class="c">' + v + '</td>'
                             + '<td class="r">' + (kw||'-') + '</td>'
                             + '<td class="c">' + cnt + '</td>'
@@ -8682,11 +8720,11 @@
                             + '<td class="c">' + (startLabels[mm.startMethod]||mm.startMethod||'-') + '</td>'
                             + '<td class="r">' + totalVA.toLocaleString() + '</td>'
                             + '<td class="r">' + cur.toFixed(1) + '</td>'
-                            + '<td class="c ' + (atOk?'at-ok':'at-ng') + '">' + (atOk?'OK':'NG') + '</td>'
+                            + '<td class="c ' + (atOkM?'at-ok':'at-ng') + '">' + atCachedM + '</td>'
                             + '<td class="l">' + (c.load_name||'') + '</td>'
                             + '</tr>';
                     });
-                    sectionsHtml += '<tr class="sum-row motor"><td colspan="8" class="r" style="font-weight:bold;">合計</td>'
+                    sectionsHtml += '<tr class="sum-row motor"><td colspan="9" class="r" style="font-weight:bold;">合計</td>'
                         + '<td class="r">' + skW.toFixed(1) + '</td><td colspan="3"></td>'
                         + '<td class="r" style="font-weight:bold;">' + sVA.toLocaleString() + '</td>'
                         + '<td colspan="3"></td></tr>';
