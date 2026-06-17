@@ -1652,6 +1652,7 @@
                     <button class="btn-action" id="btnRemconExpand">リモコン展開</button>
                     <button class="btn-action btn-danger" id="btnRemconDelete">RC全削除</button>
                     <button class="btn-action" id="btnCsvExport">CSV出力</button>
+                    <button class="btn-action" style="background:#1565c0;" onclick="printCircuitReport()">📋 レポート印刷</button>
                 </div>
                 <div id="panelFilterSummary" class="panel-filter-summary pfs-hidden"></div>
                 <div class="circuits-table-wrapper" id="circuitsTableWrapper">
@@ -7889,8 +7890,7 @@
                 }
             }
             isRendering = true;
-            await renderCircuits();
-            isRendering = false;
+            try { await renderCircuits(); } finally { isRendering = false; }
             restoreCircuitFocusState(focusState);
         }
 
@@ -7944,8 +7944,7 @@
                 }
             }
             isRendering = true;
-            await renderCircuits();
-            isRendering = false;
+            try { await renderCircuits(); } finally { isRendering = false; }
             // 描画後にフォーカスを復元
             restoreCircuitFocusState(focusState);
         }
@@ -8059,8 +8058,7 @@
                 const kva = (parseFloat(value) || 0) / 1000;
                 setActualCircuit(circuitId, actualField, kva);
                 isRendering = true;
-                await renderCircuits();
-                isRendering = false;
+                try { await renderCircuits(); } finally { isRendering = false; }
                 return;
             }
 
@@ -8083,8 +8081,7 @@
                     } catch (e) { console.error(e); }
                 }
                 isRendering = true;
-                await renderCircuits();
-                isRendering = false;
+                try { await renderCircuits(); } finally { isRendering = false; }
                 return;
             }
 
@@ -8105,8 +8102,7 @@
                     if (error) throw error;
                     await loadCircuits();
                     isRendering = true;
-                    await renderCircuits();
-                    isRendering = false;
+                    try { await renderCircuits(); } finally { isRendering = false; }
                 } catch (error) {
                     isRendering = false;
                     console.error('Error updating circuit:', error);
@@ -8124,6 +8120,7 @@
                 const panelType = panelObj ? panelObj.elec_type : '1φ3W';
                 // カテゴリは記号デフォルトに従う
                 const newCategory = defaults.category;
+                const oldCategory = circuitObj ? (circuitObj.category || '電灯') : '電灯';
                 // 盤種別に合った相を設定
                 const phaseOptions = getPhaseOptions(panelName);
                 let newPhase;
@@ -8143,14 +8140,24 @@
                     phase: newPhase,
                     breaker: defaults.breaker
                 };
-                // 分岐に切り替えたら回路NOをクリア
+                // 分岐に切り替えたら回路NOをクリア（NULLを使用 — INTEGER列に空文字を入れるとエラー）
                 if (value === '分岐') {
-                    updateData.circuit_no = '';
+                    updateData.circuit_no = null;
                 }
                 // カテゴリはclient-sideなのでlocalCircuitDataに保存
                 if (!localCircuitData[circuitId]) localCircuitData[circuitId] = {};
                 localCircuitData[circuitId].category = defaults.category;
                 saveLocalCircuitData();
+
+                // メモリ上のcircuitオブジェクトにも即時反映（DB応答前の再描画対策）
+                if (circuitObj) {
+                    circuitObj.symbol = value;
+                    circuitObj.voltage = voltage;
+                    circuitObj.phase = newPhase;
+                    circuitObj.breaker = defaults.breaker;
+                    circuitObj.category = newCategory;
+                    if (value === '分岐') circuitObj.circuit_no = null;
+                }
 
                 try {
                     const { error } = await db
@@ -8160,13 +8167,16 @@
                     if (error) throw error;
                     await loadCircuits();
                     await loadPanels();
+                    // カテゴリが変わったらフィルタを新カテゴリに切替（回路が消える問題を防止）
+                    if (oldCategory !== newCategory) {
+                        document.getElementById('circuitCategoryFilter').value = newCategory;
+                    }
                     isRendering = true;
-                    await renderCircuits();
-                    isRendering = false;
+                    try { await renderCircuits(); } finally { isRendering = false; }
                 } catch (error) {
                     isRendering = false;
-                    console.error('Error updating circuit:', error);
-                    alert('エラーが発生しました');
+                    console.error('Error updating circuit symbol:', error, 'updateData:', updateData);
+                    alert('記号の更新でエラーが発生しました: ' + (error.message || error));
                 }
                 return;
             }
@@ -8185,8 +8195,7 @@
                     await loadCircuits();
                     await loadPanels();
                     isRendering = true;
-                    await renderCircuits();
-                    isRendering = false;
+                    try { await renderCircuits(); } finally { isRendering = false; }
                 } catch (error) {
                     isRendering = false;
                     console.error('Error updating circuit:', error);
@@ -8232,8 +8241,7 @@
                 // 子孫の回路変更を 分岐→子幹線 リンクで親へカスケード反映
                 await syncAllBranchFeeders();
                 isRendering = true;
-                await renderCircuits();
-                isRendering = false;
+                try { await renderCircuits(); } finally { isRendering = false; }
             } catch (error) {
                 isRendering = false;
                 console.error('Error updating circuit:', error);
@@ -8545,6 +8553,206 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        // === 回路DBレポート印刷 ===
+        function printCircuitReport() {
+            if (allPanels.length === 0) { alert('盤データがありません'); return; }
+            const localCD = getLocalCircuitDataRaw();
+            // プロジェクト名・ヘッダー
+            const projName = (function(){
+                try {
+                    const pj = JSON.parse(localStorage.getItem('elecCalc:projects') || '[]');
+                    const cur = localStorage.getItem('elecCalc:currentProject') || 'proj_default';
+                    const f = pj.find(p => p.id === cur);
+                    return f ? f.name : '';
+                } catch { return ''; }
+            })();
+            const ph = (function(){
+                try { return JSON.parse(localStorage.getItem('elecCalc:projectHeader') || '{}'); } catch { return {}; }
+            })();
+
+            const MOTOR_IM_TABLE_R = {0.2:2.9,0.4:4.4,0.75:6.6,1.5:10.6,2.2:14.4,3.7:22,5.5:32,7.5:43,11:62,15:83,18.5:102,22:120,30:163,37:198,45:242,55:291,75:395,90:474,110:577,132:693,160:826,200:1040,250:1300};
+            function getImR(kw) {
+                if (MOTOR_IM_TABLE_R[kw]) return MOTOR_IM_TABLE_R[kw];
+                const keys = Object.keys(MOTOR_IM_TABLE_R).map(Number).sort((a,b)=>a-b);
+                for (const k of keys) { if (k >= kw) return MOTOR_IM_TABLE_R[k]; }
+                return 0;
+            }
+
+            const startLabels = {direct:'直入',star_delta:'Y-Δ',inverter:'INV',soft:'ソフト'};
+
+            // 盤ごとにセクションHTML生成
+            let sectionsHtml = '';
+            allPanels.forEach(panel => {
+                const panelCircuits = allCircuits.filter(c => c.panel_name === panel.name && c.type !== 'RC');
+                const lightingCircuits = panelCircuits.filter(c => (c.category || '電灯') === '電灯');
+                const motorCircuits = panelCircuits.filter(c => (c.category || '電灯') === '動力');
+
+                sectionsHtml += '<div class="panel-section">';
+                sectionsHtml += '<div class="panel-title">';
+                sectionsHtml += '<span>' + panel.name + '</span>';
+                sectionsHtml += '<span class="panel-info">' + panel.elec_type + '　主幹: ' + (panel.main_breaker||'-')
+                    + ' AF' + (panel.af||'-') + '/AT' + (panel.at||'-')
+                    + '　電灯: ' + lightingCircuits.length + '回路　動力: ' + motorCircuits.length + '回路</span>';
+                sectionsHtml += '</div>';
+
+                // --- 電灯回路テーブル ---
+                if (lightingCircuits.length > 0) {
+                    sectionsHtml += '<div class="cat-hdr cat-light">電灯・コンセント回路</div>';
+                    sectionsHtml += '<table><thead><tr>'
+                        + '<th>#</th><th>記号</th><th>回路No</th><th>相</th><th>遮断器</th><th>AF</th><th>AT</th>'
+                        + '<th>電圧</th><th>照明[VA]</th><th>ｺﾝｾﾝﾄ[VA]</th><th>FC[VA]</th><th>OA[VA]</th><th>幹線分岐[VA]</th>'
+                        + '<th>合計[VA]</th><th>電流[A]</th><th>AT判定</th><th style="min-width:80px;">負荷名称</th>'
+                        + '</tr></thead><tbody>';
+                    let sL=0,sO=0,sF=0,sA=0,sFd=0;
+                    lightingCircuits.forEach((c, i) => {
+                        const lVA=Math.round((c.lighting||0)*1000), oVA=Math.round((c.outlet||0)*1000);
+                        const fVA=Math.round((c.fc||0)*1000), aVA=Math.round((c.oa||0)*1000);
+                        const fdVA=Math.round((c.feeder||0)*1000);
+                        const totalVA=lVA+oVA+fVA+aVA+fdVA;
+                        const v=c.voltage||100;
+                        const is3P=c.phase&&['R','S','T','R-S','S-T','R-T','RST'].includes(c.phase);
+                        const cur=is3P?totalVA/(Math.sqrt(3)*v):totalVA/v;
+                        const at=c.at||0;
+                        const atOk = c.symbol==='分岐' ? at>=cur : (at>=cur*1.25||cur===0);
+                        sL+=lVA; sO+=oVA; sF+=fVA; sA+=aVA; sFd+=fdVA;
+                        const bg = i%2===1 ? ' style="background:#f8f8f8;"' : '';
+                        sectionsHtml += '<tr' + bg + '>'
+                            + '<td class="c">' + (i+1) + '</td>'
+                            + '<td class="c">' + (c.symbol||'-') + '</td>'
+                            + '<td class="c">' + (c.circuit_no??'') + '</td>'
+                            + '<td class="c">' + (c.phase||'-') + '</td>'
+                            + '<td class="c">' + (c.breaker||'-') + '</td>'
+                            + '<td class="c">' + (c.af||'-') + '</td>'
+                            + '<td class="c">' + (c.at||'-') + '</td>'
+                            + '<td class="c">' + v + '</td>'
+                            + '<td class="r">' + (lVA||'-') + '</td>'
+                            + '<td class="r">' + (oVA||'-') + '</td>'
+                            + '<td class="r">' + (fVA||'-') + '</td>'
+                            + '<td class="r">' + (aVA||'-') + '</td>'
+                            + '<td class="r">' + (fdVA||'-') + '</td>'
+                            + '<td class="r">' + totalVA.toLocaleString() + '</td>'
+                            + '<td class="r">' + cur.toFixed(1) + '</td>'
+                            + '<td class="c ' + (atOk?'at-ok':'at-ng') + '">' + (atOk?'OK':'NG') + '</td>'
+                            + '<td class="l">' + (c.load_name||'') + '</td>'
+                            + '</tr>';
+                    });
+                    const sTotal = sL+sO+sF+sA+sFd;
+                    sectionsHtml += '<tr class="sum-row"><td colspan="8" class="r" style="font-weight:bold;">合計</td>'
+                        + '<td class="r">' + sL.toLocaleString() + '</td><td class="r">' + sO.toLocaleString() + '</td>'
+                        + '<td class="r">' + sF.toLocaleString() + '</td><td class="r">' + sA.toLocaleString() + '</td>'
+                        + '<td class="r">' + sFd.toLocaleString() + '</td><td class="r" style="font-weight:bold;">' + sTotal.toLocaleString() + '</td>'
+                        + '<td colspan="3"></td></tr>';
+                    sectionsHtml += '</tbody></table>';
+                }
+
+                // --- 動力回路テーブル ---
+                if (motorCircuits.length > 0) {
+                    sectionsHtml += '<div class="cat-hdr cat-motor">動力回路</div>';
+                    sectionsHtml += '<table><thead><tr>'
+                        + '<th>#</th><th>記号</th><th>回路No</th><th>相</th><th>遮断器</th><th>AF</th><th>AT</th>'
+                        + '<th>電圧</th><th>kW</th><th>台数</th><th>Im[A]</th><th>始動</th>'
+                        + '<th>合計[VA]</th><th>電流[A]</th><th>AT判定</th><th style="min-width:80px;">負荷名称</th>'
+                        + '</tr></thead><tbody>';
+                    let skW=0, sVA=0;
+                    motorCircuits.forEach((c, i) => {
+                        const mm = getMotorMeta(c.id);
+                        const kw=mm.kw||0, cnt=mm.count||1;
+                        const im = getImR(kw);
+                        const totalVA = Math.round(Math.sqrt(3)*200*im*cnt);
+                        const v=c.voltage||200;
+                        const cur = totalVA/(Math.sqrt(3)*v);
+                        const at=c.at||0;
+                        const atOk = at>=cur || cur===0;
+                        skW+=kw*cnt; sVA+=totalVA;
+                        const bg = i%2===1 ? ' style="background:#f8f8f8;"' : '';
+                        sectionsHtml += '<tr' + bg + '>'
+                            + '<td class="c">' + (i+1) + '</td>'
+                            + '<td class="c">' + (c.symbol||'◇') + '</td>'
+                            + '<td class="c">' + (c.circuit_no??'') + '</td>'
+                            + '<td class="c">' + (c.phase||'RST') + '</td>'
+                            + '<td class="c">' + (c.breaker||'-') + '</td>'
+                            + '<td class="c">' + (c.af||'-') + '</td>'
+                            + '<td class="c">' + (c.at||'-') + '</td>'
+                            + '<td class="c">' + v + '</td>'
+                            + '<td class="r">' + (kw||'-') + '</td>'
+                            + '<td class="c">' + cnt + '</td>'
+                            + '<td class="r">' + (im?im.toFixed(1):'-') + '</td>'
+                            + '<td class="c">' + (startLabels[mm.startMethod]||mm.startMethod||'-') + '</td>'
+                            + '<td class="r">' + totalVA.toLocaleString() + '</td>'
+                            + '<td class="r">' + cur.toFixed(1) + '</td>'
+                            + '<td class="c ' + (atOk?'at-ok':'at-ng') + '">' + (atOk?'OK':'NG') + '</td>'
+                            + '<td class="l">' + (c.load_name||'') + '</td>'
+                            + '</tr>';
+                    });
+                    sectionsHtml += '<tr class="sum-row motor"><td colspan="8" class="r" style="font-weight:bold;">合計</td>'
+                        + '<td class="r">' + skW.toFixed(1) + '</td><td colspan="3"></td>'
+                        + '<td class="r" style="font-weight:bold;">' + sVA.toLocaleString() + '</td>'
+                        + '<td colspan="3"></td></tr>';
+                    sectionsHtml += '</tbody></table>';
+                }
+
+                if (lightingCircuits.length === 0 && motorCircuits.length === 0) {
+                    sectionsHtml += '<div style="padding:6px 10px;color:#999;font-style:italic;font-size:8pt;">回路データなし</div>';
+                }
+                sectionsHtml += '</div>'; // panel-section
+            });
+
+            const now = new Date();
+            const dateStr = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate();
+
+            const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>回路DBレポート</title>
+<style>
+@page { size: A4 landscape; margin: 10mm 8mm; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Meiryo','Yu Gothic','Hiragino Sans',sans-serif; font-size:8pt; color:#222; padding:8px; line-height:1.25; }
+.rpt-header { text-align:center; padding:8px 0 6px; border-bottom:2px solid #00695c; margin-bottom:8px; }
+.rpt-header h1 { font-size:14pt; color:#00695c; letter-spacing:3px; margin:0; }
+.rpt-header .meta { font-size:7.5pt; color:#666; margin-top:3px; }
+.panel-section { margin-bottom:10px; border:1px solid #bbb; border-radius:3px; overflow:hidden; page-break-inside:avoid; }
+.panel-title { background:#00695c; color:#fff; padding:4px 8px; font-size:9.5pt; font-weight:bold; display:flex; justify-content:space-between; align-items:center; }
+.panel-info { font-weight:normal; font-size:7.5pt; opacity:0.85; }
+.cat-hdr { padding:2px 8px; font-weight:bold; font-size:8pt; border-bottom:1px solid #ccc; }
+.cat-light { background:#e8f5e9; color:#2e7d32; }
+.cat-motor { background:#e3f2fd; color:#1565c0; }
+table { width:100%; border-collapse:collapse; font-size:7.5pt; }
+th { background:#f0f0f0; border:1px solid #bbb; padding:2px 3px; text-align:center; font-weight:bold; white-space:nowrap; font-size:7pt; }
+td { border:1px solid #ddd; padding:1px 3px; white-space:nowrap; }
+td.c { text-align:center; }
+td.r { text-align:right; }
+td.l { text-align:left; white-space:normal; max-width:120px; overflow:hidden; text-overflow:ellipsis; }
+.sum-row { background:#e8f5e9; font-weight:bold; }
+.sum-row.motor { background:#e3f2fd; }
+.sum-row td { border-top:2px solid #999; }
+.at-ok { color:#2e7d32; font-weight:bold; }
+.at-ng { color:#c62828; font-weight:bold; }
+.rpt-footer { text-align:center; color:#aaa; font-size:6.5pt; padding:6px 0; border-top:1px solid #ddd; margin-top:8px; }
+@media print {
+    .no-print { display:none!important; }
+    .panel-section { page-break-inside:avoid; }
+}
+</style></head><body>
+<div class="no-print" style="text-align:right;margin-bottom:8px;">
+    <button onclick="window.print()" style="font-size:11pt;padding:6px 20px;background:#1565c0;color:#fff;border:none;border-radius:4px;cursor:pointer;">🖨️ 印刷 / PDF保存</button>
+    <button onclick="window.close()" style="font-size:11pt;padding:6px 20px;background:#78909c;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:8px;">閉じる</button>
+</div>
+<div class="rpt-header">
+    <h1>回 路 D B レ ポ ー ト</h1>
+    <div class="meta">${ph.client?'客先: '+ph.client+'　':''}${ph.location?'場所: '+ph.location+'　':''}プロジェクト: ${projName||'-'}　出力日: ${dateStr}　盤数: ${allPanels.length}</div>
+</div>
+${sectionsHtml}
+<div class="rpt-footer">エル・エル・イー電気株式会社　回路DBレポート　${dateStr}</div>
+</body></html>`;
+
+            const w = window.open('', '_blank');
+            if (!w) { alert('ポップアップがブロックされました。許可してください。'); return; }
+            w.document.write(fullHtml);
+            w.document.close();
+        }
+
+        function getLocalCircuitDataRaw() {
+            try { return JSON.parse(localStorage.getItem('elecCalc:localCircuitData') || '{}'); } catch { return {}; }
         }
 
         // FEEDERS FUNCTIONS
