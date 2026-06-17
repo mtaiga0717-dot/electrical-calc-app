@@ -784,13 +784,13 @@
         */
         .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(7),
         .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(7),
-        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(22),
-        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(22) {
+        .circuits-table-wrapper.mode-motor .circuits-table th:nth-child(23),
+        .circuits-table-wrapper.mode-motor .circuits-table td:nth-child(23) {
             display: none !important;
         }
         /* 浮かせヘッダも同期 */
         .circuits-floating-header.mode-motor .circuits-table th:nth-child(7),
-        .circuits-floating-header.mode-motor .circuits-table th:nth-child(22) {
+        .circuits-floating-header.mode-motor .circuits-table th:nth-child(23) {
             display: none !important;
         }
         /* モード別の表全体の縁取り色（視覚的な強調） */
@@ -811,7 +811,9 @@
         .circuits-table th:nth-child(11),
         .circuits-table td:nth-child(11) { min-width: 60px; }
         .circuits-table th:nth-child(12),
-        .circuits-table td:nth-child(12) { min-width: 60px; }
+        .circuits-table td:nth-child(12) { min-width: 68px; }
+        .circuits-table th:nth-child(13),
+        .circuits-table td:nth-child(13) { min-width: 60px; }
 
         .circuits-table input:focus,
         .circuits-table select:focus {
@@ -1667,6 +1669,7 @@
                                 <th>遮断器</th>
                                 <th>AF</th>
                                 <th>AT</th>
+                                <th title="ELCB定格感度電流 [mA]">感度[mA]</th>
                                 <th>電圧[V]</th>
                                 <th>照明[VA]</th>
                                 <th>ｺﾝｾﾝﾄ[VA]</th>
@@ -7278,21 +7281,21 @@
                 floating.classList.remove('mode-lighting', 'mode-motor');
                 floating.classList.add(categoryFilter === '動力' ? 'mode-motor' : 'mode-lighting');
             }
-            // thead のラベルをモードで切替（列13-17を動力用に差し替える）
+            // thead のラベルをモードで切替（列14-18を動力用に差し替える）※列12に感度[mA]挿入済み
             const ths = document.querySelectorAll('#circuitsTable thead tr th');
-            if (ths && ths.length >= 17) {
+            if (ths && ths.length >= 18) {
                 if (categoryFilter === '動力') {
-                    ths[12].textContent = 'kW';
-                    ths[13].textContent = '台数';
-                    ths[14].textContent = 'Im[A]';
-                    ths[15].textContent = '始動方式';
-                    ths[16].textContent = '3705-1表';
+                    ths[13].textContent = 'kW';
+                    ths[14].textContent = '台数';
+                    ths[15].textContent = 'Im[A]';
+                    ths[16].textContent = '始動方式';
+                    ths[17].textContent = '3705-1表';
                 } else {
-                    ths[12].textContent = '照明[VA]';
-                    ths[13].textContent = 'ｺﾝｾﾝﾄ[VA]';
-                    ths[14].textContent = 'FC[VA]';
-                    ths[15].textContent = 'OA[VA]';
-                    ths[16].textContent = '幹線分岐[VA]';
+                    ths[13].textContent = '照明[VA]';
+                    ths[14].textContent = 'ｺﾝｾﾝﾄ[VA]';
+                    ths[15].textContent = 'FC[VA]';
+                    ths[16].textContent = 'OA[VA]';
+                    ths[17].textContent = '幹線分岐[VA]';
                 }
             }
 
@@ -7345,6 +7348,7 @@
                             ${AT_VALUES.map(val => `<option value="${val}" ${circuit.at === val ? 'selected' : ''}>${val}</option>`).join('')}
                         </select>
                     </td>
+                    <td></td>
                     <td><input type="number" class="circuit-input" data-id="${circuit.id}" data-field="voltage" value="${circuit.voltage || 100}" readonly /></td>
                     <td></td>
                     <td></td>
@@ -7524,6 +7528,16 @@
                         ${AT_VALUES.map(val => `<option value="${val}" ${circuit.at === val ? 'selected' : ''}>${val}</option>`).join('')}
                     </select>
                 </td>
+                <td>${(() => {
+                    const brk = circuit.breaker || '';
+                    const isElcb = /ELCB|ELB/i.test(brk);
+                    if (!isElcb) return '<span style="color:#bdbdbd;">—</span>';
+                    const sens = (localCircuitData[circuit.id] && localCircuitData[circuit.id].sensitivity) || '30';
+                    const SENS_VALUES = [15, 30, 100, 200, 500, 1000];
+                    return '<select class="circuit-local" data-id="' + circuit.id + '" data-field="sensitivity" style="font-size:0.72rem;width:100%;" title="ELCB定格感度電流[mA]">'
+                        + SENS_VALUES.map(v => '<option value="' + v + '"' + (parseInt(sens) === v ? ' selected' : '') + '>' + v + '</option>').join('')
+                        + '</select>';
+                })()}</td>
                 <td><input type="number" class="circuit-input${isLighting && getVoltageForPhase(circuit.symbol, autoPhase) === 200 ? ' voltage-high-lighting' : ''}" data-id="${circuit.id}" data-field="voltage" value="${getVoltageForPhase(circuit.symbol, autoPhase)}" readonly /></td>
                 ${(() => {
                     const isMotorRow = (category === '動力');
@@ -8997,13 +9011,29 @@
                 for (const panel of allPanels) {
                     if (!panel.name) continue;
                     const existing = allFeeders.find(f => f.load_name === panel.name);
-                    if (existing) continue;
+                    if (existing) {
+                        // 既存幹線のブレーカー種別・AF・ATも盤から更新
+                        const updObj = {};
+                        if (panel.main_breaker) updObj.breaker_type = panel.main_breaker;
+                        if (Number(panel.af) > 0) updObj.breaker_af = Number(panel.af);
+                        if (Number(panel.at) > 0) updObj.breaker_at = Number(panel.at);
+                        if (Object.keys(updObj).length > 0) {
+                            await db.from('feeders').update(updObj).eq('id', existing.id);
+                            if (!localFeederData[existing.id]) localFeederData[existing.id] = {};
+                            if (updObj.breaker_af || updObj.breaker_at) localFeederData[existing.id].breaker_adopt = 'manual';
+                        }
+                        continue;
+                    }
                     // 盤電気種別から相・電圧を推定
                     const elecType = panel.elec_type || panel.type || '1φ2W';
                     let phase = '1φ2W', voltage = 100;
                     if (elecType === '1φ3W') { phase = '1φ3W'; voltage = 200; }
                     else if (elecType === '3φ3W') { phase = '3φ3W'; voltage = 200; }
-                    const { data, error } = await db.from('feeders').insert({
+                    // 盤の主遮断器・AF・ATを幹線に引き継ぐ
+                    const panelBreaker = panel.main_breaker || '';
+                    const panelAF = Number(panel.af) || 0;
+                    const panelATval = Number(panel.at) || 0;
+                    const insertObj = {
                         load_name: panel.name,
                         load_type: 'panel',
                         voltage: voltage,
@@ -9012,12 +9042,17 @@
                         cable_type: 'CV',
                         cable_length: 0,
                         project_id: projectGetCurrent()
-                    }).select().single();
+                    };
+                    if (panelBreaker) insertObj.breaker_type = panelBreaker;
+                    if (panelAF > 0) insertObj.breaker_af = panelAF;
+                    if (panelATval > 0) insertObj.breaker_at = panelATval;
+                    const { data, error } = await db.from('feeders').insert(insertObj).select().single();
                     if (error) { console.error('autoSync create feeder:', error); continue; }
-                    // 動力盤なら feeder_category='動力'
+                    // 動力盤なら feeder_category='動力'、ブレーカ採用=手動（盤から取得した値を使う）
                     if (data) {
                         if (!localFeederData[data.id]) localFeederData[data.id] = {};
                         localFeederData[data.id].feeder_category = (phase === '3φ3W') ? '動力' : '電灯';
+                        if (panelAF > 0 || panelATval > 0) localFeederData[data.id].breaker_adopt = 'manual';
                         createdCount++;
                     }
                 }
@@ -9362,15 +9397,17 @@
                     autoPhase = '3φ3W';
                 }
 
-                // Calculate motor totals from 動力 circuits
+                // Calculate motor totals from 動力 circuits（motorMeta の kW を使用）
                 const motorCircuits = panelCircuits.filter(c => (c.category || '電灯') === '動力');
                 if (motorCircuits.length > 0) {
                     autoMotorTotalKw = motorCircuits.reduce((sum, c) => {
-                        return sum + (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0);
+                        const m = getMotorMeta(c.id);
+                        return sum + (Number(m.kw) || 0) * (Number(m.count) || 1);
                     }, 0);
-                    autoMotorMaxKw = Math.max(...motorCircuits.map(c =>
-                        (c.lighting || 0) + (c.outlet || 0) + (c.fc || 0) + (c.oa || 0) + (c.feeder || 0)
-                    ));
+                    autoMotorMaxKw = Math.max(0, ...motorCircuits.map(c => {
+                        const m = getMotorMeta(c.id);
+                        return Number(m.kw) || 0;
+                    }));
                 }
             }
 
@@ -9432,9 +9469,24 @@
             const vdStatus = vdPercent <= vdRule.allowed ? 'OK' : '×';
             const vdStatusTitle = `許容${vdRule.allowed}% (${vdRule.sourceClass}・${vdRule.basis}) / ${vdRule.note}`;
 
+            // 内線規程AT (3705-3表) を先に計算 — 動力幹線のブレーカ自動選定に使用
+            let kiteiAT = '-';
+            const motorTotalKw = autoMotorTotalKw || localFeederData[feeder.id]?.motor_total_kw;
+            const motorMaxKw = autoMotorMaxKw || localFeederData[feeder.id]?.motor_max_kw;
+            if (motorTotalKw && motorMaxKw && phase === '3φ3W') {
+                const result = lookupMotorFeederBreaker200V(motorTotalKw, motorMaxKw);
+                if (result) kiteiAT = result.breakerAT;
+            }
+
+            // ブレーカ自動選定: 需要電流ベース → 動力幹線は3705-3表と比較し大きい方を採用
             const breakerCalc = selectBreaker(current, feeder.breaker_type);
-            const afCalc = breakerCalc.af;
-            const atCalc = breakerCalc.at;
+            let afCalc = breakerCalc.af;
+            let atCalc = breakerCalc.at;
+            if (typeof kiteiAT === 'number' && kiteiAT > atCalc) {
+                // 3705-3表の推奨ATが電流ベースより大きい場合、3705-3表に合わせる
+                atCalc = kiteiAT;
+                afCalc = AF_VALUES.find(v => v >= kiteiAT) || AF_VALUES[AF_VALUES.length - 1];
+            }
             const afManual = Number(feeder.breaker_af) || 0;
             const atManual = Number(feeder.breaker_at) || 0;
             const breakerAdopt = localFeederData[feeder.id]?.breaker_adopt || 'calc';
@@ -9466,15 +9518,6 @@
                         sourceWarningTitle = `子幹線の需要電流 ${current.toFixed(1)}A が親分岐AT ${parentAT}A を超えています（内線規程1310節: AT≧設計電流）`;
                     }
                 }
-            }
-
-            // Calculate 内線規程AT for 3φ3W feeders with motor data
-            let kiteiAT = '-';
-            const motorTotalKw = autoMotorTotalKw || localFeederData[feeder.id]?.motor_total_kw;
-            const motorMaxKw = autoMotorMaxKw || localFeederData[feeder.id]?.motor_max_kw;
-            if (motorTotalKw && motorMaxKw && phase === '3φ3W') {
-                const result = lookupMotorFeederBreaker200V(motorTotalKw, motorMaxKw);
-                if (result) kiteiAT = result.breakerAT;
             }
 
             // ================== 【規定拡充】追加判定 ==================
@@ -10212,17 +10255,7 @@
                 const vdRuleCsv = getAllowedVdPercent(feeder, length);
                 const vdStatus = vdPercent <= vdRuleCsv.allowed ? 'OK' : '×';
 
-                const breaker = selectBreaker(current, feeder.breaker_type);
-                const afManualCsv = Number(feeder.breaker_af) || 0;
-                const atManualCsv = Number(feeder.breaker_at) || 0;
-                const breakerAdoptCsv = localFeederData[feeder.id]?.breaker_adopt || 'calc';
-                const breakerAF = (breakerAdoptCsv === 'manual' && afManualCsv > 0) ? afManualCsv : breaker.af;
-                const breakerAT = (breakerAdoptCsv === 'manual' && atManualCsv > 0) ? atManualCsv : breaker.at;
-
-                // AT判定（幹線は内線規程 1310節: AT ≥ 設計電流。1.25倍は分岐回路のみ適用）
-                let atStatus = (breakerAT >= current) ? 'OK' : '×';
-
-                // 内線規程AT
+                // 内線規程AT (3705-3表) を先に計算 — 動力幹線のブレーカ自動選定で使用
                 let kiteiAT = '-';
                 const motorTotalKw = localFeederData[feeder.id]?.motor_total_kw;
                 const motorMaxKw = localFeederData[feeder.id]?.motor_max_kw;
@@ -10230,6 +10263,21 @@
                     const result = lookupMotorFeederBreaker200V(motorTotalKw, motorMaxKw);
                     if (result) kiteiAT = result.breakerAT;
                 }
+
+                const breaker = selectBreaker(current, feeder.breaker_type);
+                let afCalcCsv = breaker.af, atCalcCsv = breaker.at;
+                if (typeof kiteiAT === 'number' && kiteiAT > atCalcCsv) {
+                    atCalcCsv = kiteiAT;
+                    afCalcCsv = AF_VALUES.find(v => v >= kiteiAT) || afCalcCsv;
+                }
+                const afManualCsv = Number(feeder.breaker_af) || 0;
+                const atManualCsv = Number(feeder.breaker_at) || 0;
+                const breakerAdoptCsv = localFeederData[feeder.id]?.breaker_adopt || 'calc';
+                const breakerAF = (breakerAdoptCsv === 'manual' && afManualCsv > 0) ? afManualCsv : afCalcCsv;
+                const breakerAT = (breakerAdoptCsv === 'manual' && atManualCsv > 0) ? atManualCsv : atCalcCsv;
+
+                // AT判定（幹線は内線規程 1310節: AT ≥ 設計電流。1.25倍は分岐回路のみ適用）
+                let atStatus = (breakerAT >= current) ? 'OK' : '×';
 
                 // 自（起点）のラベル生成
                 const fSrc = getFeederSource(feeder.id);
@@ -12692,8 +12740,14 @@ td { vertical-align: middle; }
                     else if (pElecType === '3φ3W') { autoVoltage = 200; autoPhase = '3φ3W'; }
                     const motorCircuits = panelCircuits.filter(c => (c.category || '電灯') === '動力');
                     if (motorCircuits.length > 0) {
-                        autoMotorTotalKw = motorCircuits.reduce((sum, c) => sum + (c.lighting||0) + (c.outlet||0) + (c.fc||0) + (c.oa||0) + (c.feeder||0), 0);
-                        autoMotorMaxKw = Math.max(...motorCircuits.map(c => (c.lighting||0) + (c.outlet||0) + (c.fc||0) + (c.oa||0) + (c.feeder||0)));
+                        autoMotorTotalKw = motorCircuits.reduce((sum, c) => {
+                            const m = (typeof getMotorMeta === 'function') ? getMotorMeta(c.id) : { kw: 0, count: 1 };
+                            return sum + (Number(m.kw) || 0) * (Number(m.count) || 1);
+                        }, 0);
+                        autoMotorMaxKw = Math.max(0, ...motorCircuits.map(c => {
+                            const m = (typeof getMotorMeta === 'function') ? getMotorMeta(c.id) : { kw: 0 };
+                            return Number(m.kw) || 0;
+                        }));
                     }
                 }
 
@@ -12727,15 +12781,7 @@ td { vertical-align: middle; }
                 const vd = (typeof calculateVoltageDrop === 'function') ? calculateVoltageDrop(current, length, cableSize, phase, powerFactor) : 0;
                 const vdPct = voltage > 0 ? (vd / voltage * 100) : 0;
 
-                // ブレーカー
-                const breakerCalc = (typeof selectBreaker === 'function') ? selectBreaker(current, feeder.breaker_type) : { af: 0, at: 0 };
-                const afManual = Number(feeder.breaker_af) || 0;
-                const atManual = Number(feeder.breaker_at) || 0;
-                const breakerAdopt = fd.breaker_adopt || 'calc';
-                const breakerAF = (breakerAdopt === 'manual' && afManual > 0) ? afManual : breakerCalc.af;
-                const breakerAT = (breakerAdopt === 'manual' && atManual > 0) ? atManual : breakerCalc.at;
-
-                // 電動機
+                // 電動機 — 3705-3表を先に計算（ブレーカ自動選定で使用）
                 const motorTotalKw = autoMotorTotalKw || fd.motor_total_kw || '';
                 const motorMaxKw = autoMotorMaxKw || fd.motor_max_kw || '';
                 let kiteiAT = '';
@@ -12743,6 +12789,19 @@ td { vertical-align: middle; }
                     const result = lookupMotorFeederBreaker200V(motorTotalKw, motorMaxKw);
                     if (result) kiteiAT = result.breakerAT;
                 }
+
+                // ブレーカー — 動力幹線は3705-3表と比較し大きい方を採用
+                const breakerCalc = (typeof selectBreaker === 'function') ? selectBreaker(current, feeder.breaker_type) : { af: 0, at: 0 };
+                let afCalcR = breakerCalc.af, atCalcR = breakerCalc.at;
+                if (typeof kiteiAT === 'number' && kiteiAT > atCalcR) {
+                    atCalcR = kiteiAT;
+                    afCalcR = (typeof AF_VALUES !== 'undefined') ? (AF_VALUES.find(v => v >= kiteiAT) || afCalcR) : afCalcR;
+                }
+                const afManual = Number(feeder.breaker_af) || 0;
+                const atManual = Number(feeder.breaker_at) || 0;
+                const breakerAdopt = fd.breaker_adopt || 'calc';
+                const breakerAF = (breakerAdopt === 'manual' && afManual > 0) ? afManual : afCalcR;
+                const breakerAT = (breakerAdopt === 'manual' && atManual > 0) ? atManual : atCalcR;
 
                 // 起点
                 let sourceLabel = 'キュービクル';
