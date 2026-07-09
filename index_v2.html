@@ -14070,6 +14070,28 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
             document.querySelectorAll('#qaBody input[type="checkbox"].qa-select').forEach(cb => cb.checked = checked);
         }
 
+
+        // Shift+クリック範囲選択用
+        let _qaLastCheckedIndex = null;
+        function _qaInstallShiftClick() {
+            const qaBody = document.getElementById('qaBody');
+            if (!qaBody) return;
+            if (qaBody._shiftClickBound) return;
+            qaBody._shiftClickBound = true;
+            qaBody.addEventListener('click', function(e) {
+                const cb = e.target.closest('input.qa-select');
+                if (!cb) return;
+                const allCbs = Array.from(qaBody.querySelectorAll('input.qa-select'));
+                const currentIndex = allCbs.indexOf(cb);
+                if (e.shiftKey && _qaLastCheckedIndex !== null && _qaLastCheckedIndex !== currentIndex) {
+                    const s = Math.min(_qaLastCheckedIndex, currentIndex);
+                    const ed = Math.max(_qaLastCheckedIndex, currentIndex);
+                    const newState = cb.checked;
+                    for (let i = s; i <= ed; i++) { allCbs[i].checked = newState; }
+                }
+                _qaLastCheckedIndex = currentIndex;
+            });
+        }
         // フィルタクリア
         function qaClearFilter() {
             document.getElementById('qaFilterKoushu').value = '';
@@ -14218,6 +14240,9 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                 `<span class="qa-badge-miketsu">未決 ${miketsu}</span> ` +
                 `<span class="qa-badge-keizoku">継続 ${keizoku}</span> ` +
                 `<span class="qa-badge-kettei">決定 ${kettei}</span>`;
+        
+            // Shift+クリック範囲選択ハンドラーを設定
+            _qaInstallShiftClick();
         }
 
         // CSV出力
