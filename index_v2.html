@@ -14487,7 +14487,7 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
                         contentRows += `<td rowspan="${totalRows}" class="no-cell">${item.no}</td>`;
                         contentRows += `<td rowspan="${totalRows}" class="drawing-cell">${item.drawingNo || ''}</td>`;
                         contentRows += `<td rowspan="${totalRows}" class="koushu-cell">${item.koushu || ''}</td>`;
-                        contentRows += `<td rowspan="${totalRows}" class="summary-cell">${item.summary || ''}</td><td style="text-align:center">${item.floor||""}</td><td>${item.room||""}</td>`;
+                        contentRows += `<td rowspan="${totalRows}" class="summary-cell">${item.summary || ''}</td><td rowspan="${totalRows}" style="text-align:center">${item.floor||""}</td><td rowspan="${totalRows}">${item.room||""}</td>`;
                     }
                     // 質疑+回答を1セルに
                     contentRows += `<td class="qa-content-cell">`;
