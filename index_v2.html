@@ -13502,6 +13502,8 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                     summary: item.summary || '',
                     exchanges: item.exchanges || [],
                     drawing_reflect: item.drawingReflect || false,
+                    floor: item.floor || '',
+                    room: item.room || '',
                     updated_at: new Date().toISOString()
                 };
                 var result = await db.from('qa_items').upsert(row, { onConflict: 'project_id,item_id' });
@@ -13654,7 +13656,9 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                             koushu: row.koushu || '',
                             summary: row.summary || '',
                             exchanges: row.exchanges || [],
-                            drawingReflect: row.drawing_reflect || false
+                            drawingReflect: row.drawing_reflect || false,
+                            floor: row.floor || '',
+                            room: row.room || ''
                         };
                     });
                     localStorage.setItem(QA_DATA_KEY, JSON.stringify(_qaDataCache));
@@ -14086,7 +14090,7 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
         function qaDeleteFloor(floor){var fr=qaLoadFloorRooms();delete fr[floor];qaSaveFloorRooms(fr);qaShowFloorRoomManager()}
         async function qaSaveFloorRoomEdits(){var fr={};document.querySelectorAll('.qa-fr-rooms').forEach(function(inp){var floorInp=inp.closest('tr').querySelector('.qa-fr-floor');var floor=floorInp?floorInp.value.trim():inp.dataset.floor;if(floor)fr[floor]=inp.value.split(',').map(function(x){return x.trim()}).filter(function(x){return x})});document.querySelectorAll('.qa-new-row').forEach(function(row){var f=row.querySelector('.qa-fr-floor-new');var r=row.querySelector('.qa-fr-rooms-new');if(f&&f.value.trim()){fr[f.value.trim()]=r&&r.value.trim()?r.value.trim().split(',').map(function(x){return x.trim()}).filter(function(x){return x}):[]}});await qaSaveFloorRooms(fr);document.getElementById('qaFloorRoomModal').remove();qaRender();alert('保存しました')}
 
-        function qaUpdateRoomOptions(id){const data=qaLoadData();const item=data.find(d=>d.id===id);if(!item)return;item.room="";qaSaveData(data);_qaUpsertSingleItemToDB(item);const sel=document.getElementById("qaRoom_"+id);if(sel)sel.innerHTML="<option value=\"\">-</option>"+_qaGetRoomOptions(item.floor,"")}
+        function qaUpdateRoomOptions(id){const data=qaLoadData();const item=data.find(d=>d.id===id);if(!item)return;item.room="";qaSaveData(data);_qaUpsertItemToDB(item);const sel=document.getElementById("qaRoom_"+id);if(sel)sel.innerHTML="<option value=\"\">-</option>"+_qaGetRoomOptions(item.floor,"")}
 
 
         // Shift+クリック範囲選択用
