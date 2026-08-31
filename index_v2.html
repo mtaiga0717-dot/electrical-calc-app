@@ -2933,6 +2933,16 @@
                             </div>
                         </div>
                         <div style="align-self:flex-end;">
+
+                        <!-- 図面番号上限設定 -->
+                        <div style="margin-top:0.5rem;padding:0.4rem;background:#f3e5f5;border:1px solid #ce93d8;border-radius:4px;">
+                            <label style="font-weight:bold;font-size:0.85rem;">図面番号 プルダウン上限</label>
+                            <div style="display:flex;gap:0.8rem;margin-top:0.3rem;flex-wrap:wrap;">
+                                <label style="font-size:0.82rem;">E- <input type="number" id="qaDrawLimitE" min="1" max="999" value="99" style="width:50px;font-size:0.82rem;"></label>
+                                <label style="font-size:0.82rem;">A- <input type="number" id="qaDrawLimitA" min="1" max="999" value="99" style="width:50px;font-size:0.82rem;"></label>
+                                <label style="font-size:0.82rem;">M- <input type="number" id="qaDrawLimitM" min="1" max="999" value="99" style="width:50px;font-size:0.82rem;"></label>
+                            </div>
+                        </div>
                             <button class="btn-action" style="background:#1565c0;color:#fff;" onclick="qaSaveSettings()">設定を保存</button>
                         </div>
                     </div>
@@ -13440,6 +13450,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
         const QA_DATA_KEY = 'elecCalc:qaData';
         const QA_SETTINGS_KEY = 'elecCalc:qaSettings';
         const QA_KOUSHU_LIST = ['外構','受変電','幹線・動力','電灯','計測','ｺﾝｾﾝﾄ','換気','情報','交換','ﾃﾚﾋﾞ','誘導','映像音響','入退','拡声','火報','監視ｶﾒﾗ'];
+        const QA_DRAWING_PREFIXES = ['E-','A-','M-'];
         const QA_DRAWING_NOS = [];
         for (let i = 1; i <= 99; i++) QA_DRAWING_NOS.push(String(i));
         const LLE_COMPANY = 'エル・エル・イー電気株式会社';
@@ -13465,6 +13476,55 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
         // 設定読込（同期・キャッシュから）
         function qaLoadSettings() {
             return JSON.parse(JSON.stringify(_qaSettingsCache));
+        }
+
+        // ★ 図面番号 複数対応ヘルパー
+        function _qaParseDrawingNos(val) {
+            if (!val) return [{prefix:"E-",num:""}];
+            try {
+                var parsed = JSON.parse(val);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch(e) {}
+            // 旧形式 "E-16" からの変換
+            var m = String(val).match(/^(E-|A-|M-)(\d*)$/);
+            if (m) return [{prefix:m[1],num:m[2]}];
+            return [{prefix:"E-",num:""}];
+        }
+        function _qaGetDrawingLimit(prefix) {
+            var s = qaLoadSettings();
+            var limits = s.drawingNoLimits || {E:99,A:99,M:99};
+            var key = prefix.replace("-","");
+            return limits[key] || 99;
+        }
+        function _qaFormatDrawingNos(drawingNos) {
+            if (!drawingNos || !Array.isArray(drawingNos)) return "";
+            return drawingNos.filter(function(d){return d.num;}).map(function(d){return d.prefix+d.num;}).join(", ");
+        }
+        function qaUpdateDrawingNo(id, index, field, value) {
+            var item = _qaDataCache.find(function(d){return d.id===id;});
+            if (!item) return;
+            if (!item.drawingNos) item.drawingNos = [{prefix:"E-",num:""}];
+            if (index < item.drawingNos.length) {
+                item.drawingNos[index][field] = value;
+            }
+            _qaUpsertItemToDB(item);
+            qaRender();
+        }
+        function qaAddDrawingNo(id) {
+            var item = _qaDataCache.find(function(d){return d.id===id;});
+            if (!item) return;
+            if (!item.drawingNos) item.drawingNos = [{prefix:"E-",num:""}];
+            item.drawingNos.push({prefix:"E-",num:""});
+            _qaUpsertItemToDB(item);
+            qaRender();
+        }
+        function qaRemoveDrawingNo(id, index) {
+            var item = _qaDataCache.find(function(d){return d.id===id;});
+            if (!item || !item.drawingNos) return;
+            if (item.drawingNos.length <= 1) return;
+            item.drawingNos.splice(index, 1);
+            _qaUpsertItemToDB(item);
+            qaRender();
         }
 
         // 設定保存（キャッシュ＋localStorage＋Supabase）
@@ -13497,7 +13557,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                     project_id: pid,
                     item_id: item.id,
                     no: item.no || 0,
-                    drawing_no: item.drawingNo || '',
+                    drawing_no: JSON.stringify(item.drawingNos || []),
                     koushu: item.koushu || '',
                     summary: item.summary || '',
                     exchanges: item.exchanges || [],
@@ -13535,7 +13595,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                         project_id: pid,
                         item_id: item.id,
                         no: item.no || 0,
-                        drawing_no: item.drawingNo || '',
+                        drawing_no: JSON.stringify(item.drawingNos || []),
                         koushu: item.koushu || '',
                         summary: item.summary || '',
                         exchanges: item.exchanges || [],
@@ -13562,7 +13622,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                             project_id: pid,
                             item_id: item.id,
                             no: item.no || 0,
-                            drawing_no: item.drawingNo || '',
+                            drawing_no: JSON.stringify(item.drawingNos || []),
                             koushu: item.koushu || '',
                             summary: item.summary || '',
                             exchanges: item.exchanges || [],
@@ -13652,7 +13712,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                         return {
                             id: row.item_id,
                             no: row.no,
-                            drawingNo: row.drawing_no || '',
+                            drawingNos: _qaParseDrawingNos(row.drawing_no),
                             koushu: row.koushu || '',
                             summary: row.summary || '',
                             exchanges: row.exchanges || [],
@@ -13742,7 +13802,12 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
             s.kantokuList = document.getElementById('qaKantokuList').value;
             s.sekoList = JSON.parse(JSON.stringify(_qaSekoListData));
             s.summaryList = JSON.parse(JSON.stringify(_qaSummaryListData));
-            qaSaveSettingsData(s);
+            s.drawingNoLimits = {
+                E: parseInt(document.getElementById('qaDrawLimitE').value) || 99,
+                A: parseInt(document.getElementById('qaDrawLimitA').value) || 99,
+                M: parseInt(document.getElementById('qaDrawLimitM').value) || 99
+            };
+                        qaSaveSettingsData(s);
             qaPopulateFilterSummary();
             alert('設定を保存しました');
             qaRender();
@@ -13826,6 +13891,15 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
             // 大まかな内容リスト
             _qaSummaryListData = Array.isArray(s.summaryList) ? JSON.parse(JSON.stringify(s.summaryList)) : [];
             qaRenderSummaryList();
+        
+            // 図面番号上限の復元
+            var _dnl = s.drawingNoLimits || {E:99,A:99,M:99};
+            var _elE = document.getElementById('qaDrawLimitE');
+            var _elA = document.getElementById('qaDrawLimitA');
+            var _elM = document.getElementById('qaDrawLimitM');
+            if (_elE) _elE.value = _dnl.E || 99;
+            if (_elA) _elA.value = _dnl.A || 99;
+            if (_elM) _elM.value = _dnl.M || 99;
         }
 
         // 初期化
@@ -13944,6 +14018,14 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
             });
             if (changed) qaSaveData(data);
             return data;
+            // drawingNo(旧string) → drawingNos(新array) マイグレーション
+            _qaDataCache.forEach(function(item) {
+                if (item.drawingNo !== undefined && item.drawingNos === undefined) {
+                    item.drawingNos = _qaParseDrawingNos(item.drawingNo);
+                    delete item.drawingNo;
+                }
+            });
+        
         }
 
         // 行追加（末尾追加 or No割り込み）
@@ -13969,7 +14051,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
             const newItem = {
                 id: 'qa_' + Date.now(),
                 no: assignNo,
-                drawingNo: 'E-',
+                drawingNos: [{prefix:'E-',num:''}],
                 koushu: '',
                 summary: '',
                 exchanges: [{ questionDate:'', questioner:'', question:'', answerDate:'', answerer:'', answer:'', ketsugi:'', printed:'' }],
@@ -14201,7 +14283,25 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
                     if (isFirst) {
                         html += `<td rowspan="${exCount}"><input type="checkbox" class="qa-select" value="${item.id}"></td>`;
                         html += `<td rowspan="${exCount}" style="text-align:center;font-weight:bold;">${item.no}</td>`;
-                        html += `<td rowspan="${exCount}" style="white-space:nowrap;"><span style="font-size:0.8rem;">E-</span><select style="font-size:0.78rem;width:40px;" onchange="qaOnFieldChange('${item.id}','drawingNo', this.value ? 'E-'+this.value : '')"><option value="">-</option>${QA_DRAWING_NOS.map(n => '<option value=\"'+n+'\"'+((item.drawingNo||'')==='E-'+n?' selected':'')+'>'+n+'</option>').join('')}</select></td>`;
+                        html += '<td rowspan="' + exCount + '" style="white-space:nowrap;font-size:0.72rem;">';
+                var _dns = item.drawingNos || [{prefix:"E-",num:""}];
+                _dns.forEach(function(dn, di) {
+                    html += '<div style="display:flex;align-items:center;gap:1px;margin-bottom:1px;">';
+                    html += '<select style="font-size:0.72rem;width:30px;padding:0 0 0 1px;" onchange="qaUpdateDrawingNo(\x27' + item.id + '\x27,' + di + ',\x27prefix\x27,this.value)">';
+                    QA_DRAWING_PREFIXES.forEach(function(p) {
+                        html += '<option value="' + p + '"' + (dn.prefix===p?' selected':'') + '>' + p.replace('-','') + '</option>';
+                    });
+                    html += '</select>';
+                    var _lim = _qaGetDrawingLimit(dn.prefix);
+                    html += '<select style="font-size:0.72rem;width:36px;padding:0;" onchange="qaUpdateDrawingNo(\x27' + item.id + '\x27,' + di + ',\x27num\x27,this.value)"><option value="">-</option>';
+                    for (var _ni = 1; _ni <= _lim; _ni++) {
+                        html += '<option value="' + _ni + '"' + (String(dn.num)===String(_ni)?' selected':'') + '>' + _ni + '</option>';
+                    }
+                    html += '</select>';
+                    if (di > 0) html += '<span style="cursor:pointer;color:red;font-size:0.65rem;padding:0 1px;line-height:1;" onclick="qaRemoveDrawingNo(\x27' + item.id + '\x27,' + di + ')">\u2715</span>';
+                    html += '</div>';
+                });
+                html += '<span style="cursor:pointer;color:#1565c0;font-size:0.65rem;" onclick="qaAddDrawingNo(\x27' + item.id + '\x27)">\uff0b</span></td>'
                         html += `<td rowspan="${exCount}"><select onchange="qaOnFieldChange('${item.id}','koushu',this.value)"><option value="">-</option>${koushuOpts.replace('value="'+item.koushu+'"', 'value="'+item.koushu+'" selected')}</select></td>`;
                         html += `<td rowspan="${exCount}"><select style="font-size:0.78rem;" onchange="qaOnFieldChange('${item.id}','summary',this.value)"><option value="">-</option>${summaryOpts.replace('value="'+(item.summary||'').replace(/"/g,'&quot;')+'"', 'value="'+(item.summary||'').replace(/"/g,'&quot;')+'" selected')}</select></td>`;
                 html+=`<td rowspan="${exCount}"><select style="font-size:0.78rem;width:100%;" onchange="qaOnFieldChange('${item.id}','floor',this.value);qaUpdateRoomOptions('${item.id}')"><option value="">-</option>${_qaGetFloorOptions(item.floor)}</select></td>`;
@@ -14279,7 +14379,7 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
                 (d.exchanges||[]).forEach((ex, ei) => {
                     csv += [
                         ei === 0 ? d.no : '',
-                        ei === 0 ? '"'+(d.drawingNo||'').replace(/"/g,'""')+'"' : '',
+                        ei === 0 ? '"'+(_qaFormatDrawingNos(d.drawingNos)).replace(/"/g,'""')+'"' : '',
                         ei === 0 ? d.koushu : '',
                         ei === 0 ? '"'+(d.summary||'').replace(/"/g,'""')+'"' : '',
                         ex.questionDate || '',
@@ -14485,7 +14585,7 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
                     contentRows += `<tr>`;
                     if (ei === 0) {
                         contentRows += `<td rowspan="${totalRows}" class="no-cell">${item.no}</td>`;
-                        contentRows += `<td rowspan="${totalRows}" class="drawing-cell">${item.drawingNo || ''}</td>`;
+                        contentRows += `<td rowspan="${totalRows}" class="drawing-cell">${_qaFormatDrawingNos(item.drawingNos)}</td>`;
                         contentRows += `<td rowspan="${totalRows}" class="koushu-cell">${item.koushu || ''}</td>`;
                         contentRows += `<td rowspan="${totalRows}" class="summary-cell">${item.summary || ''}</td><td rowspan="${totalRows}" style="text-align:center">${item.floor||""}</td><td rowspan="${totalRows}">${item.room||""}</td>`;
                     }
