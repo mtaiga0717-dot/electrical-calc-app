@@ -15266,12 +15266,11 @@ ${contentRows}
             cols.forEach(function (f) {
                 h += '<th style="min-width:54px;" title="' + _lightEsc(f.kishu + ' / ' + f.kataban) + '">' + _lightEsc(f.symbol || '(記号なし)') + '</th>';
             });
-            h += '<th style="min-width:52px;">計</th><th style="min-width:76px;">VA計</th><th style="min-width:120px;">備考</th><th style="width:36px;">削除</th></tr>';
+            h += '<th style="min-width:120px;">備考</th><th style="width:36px;">削除</th></tr>';
             thead.innerHTML = h;
 
             var b = '';
             _lightRows.forEach(function (r, i) {
-                var t = _lightRowTotal(r, cols);
                 b += '<tr>';
                 b += '<td class="light-fix" style="text-align:center;">' + (i + 1) + '</td>';
                 if (useMaster) {
@@ -15285,13 +15284,11 @@ ${contentRows}
                     var c = _lightN(r.counts[f.id]);
                     b += '<td class="light-cnt"><input type="number" min="0" step="1" value="' + (c > 0 ? c : '') + '" onchange="lightCntChange(\'' + r.id + '\',\'' + f.id + '\',this.value)"></td>';
                 });
-                b += '<td data-rt="' + r.id + '" style="text-align:right;font-weight:bold;background:#fff8e1;">' + (t.n || '') + '</td>';
-                b += '<td data-rv="' + r.id + '" style="text-align:right;background:#fff8e1;">' + (t.va ? t.va.toLocaleString() : '') + '</td>';
                 b += '<td><input type="text" value="' + _lightEsc(r.remark) + '" onchange="lightRowChange(\'' + r.id + '\',\'remark\',this.value)"></td>';
                 b += '<td style="text-align:center;"><button class="btn-delete" onclick="lightDeleteSumRow(\'' + r.id + '\')">×</button></td>';
                 b += '</tr>';
             });
-            tbody.innerHTML = b || '<tr><td colspan="' + (cols.length + 7) + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 行を追加」から階・室名を登録してください</td></tr>';
+            tbody.innerHTML = b || '<tr><td colspan="' + (cols.length + 5) + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 行を追加」から階・室名を登録してください</td></tr>';
 
             lightRenderSumTotals();
             lightRenderAgg();
@@ -15302,23 +15299,12 @@ ${contentRows}
             var tfoot = document.getElementById('lightSumTfoot');
             if (!tfoot) return;
             var cols = _lightSumCols();
-            _lightRows.forEach(function (r) {
-                var t = _lightRowTotal(r, cols);
-                var c1 = document.querySelector('#lightSumTbody td[data-rt="' + r.id + '"]');
-                var c2 = document.querySelector('#lightSumTbody td[data-rv="' + r.id + '"]');
-                if (c1) c1.textContent = t.n || '';
-                if (c2) c2.textContent = t.va ? t.va.toLocaleString() : '';
-            });
-            var gN = 0, gVA = 0;
             var f = '<tr class="light-total"><td colspan="3" style="text-align:center;">合計</td>';
             cols.forEach(function (fx) {
                 var s = 0;
                 _lightRows.forEach(function (r) { s += _lightN(r.counts[fx.id]); });
-                gN += s; gVA += s * _lightN(fx.watt);
                 f += '<td style="text-align:center;">' + (s || '') + '</td>';
             });
-            f += '<td style="text-align:right;">' + (gN || '') + '</td>';
-            f += '<td style="text-align:right;">' + (gVA ? gVA.toLocaleString() : '') + '</td>';
             f += '<td></td><td></td></tr>';
             tfoot.innerHTML = f;
         }
