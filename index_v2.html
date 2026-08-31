@@ -15340,7 +15340,7 @@ ${contentRows}
             r[field] = (field === 'ordered') ? (value === true || value === 'true') : value;
             if (field === 'floor' && _lightRoomList(value).indexOf(r.room) < 0) r.room = '';
             _lightQueueRow(r);
-            if (field === 'floor') lightRenderSum();
+            if (field === 'floor' || field === 'ordered') lightRenderSum();
         }
         function lightCntChange(rowId, fxId, value) {
             var r = _lightRows.filter(function (x) { return x.id === rowId; })[0];
