@@ -14951,8 +14951,6 @@ ${contentRows}
             { f: 'watt',     label: '電力(VA)',       w: 74,  t: 'num' },
             { f: 'ra',       label: 'Ra',             w: 48,  t: 'num' },
             { f: 'kelvin',   label: '色温度(K)',      w: 76,  t: 'text' },
-            { f: 'ordered',  label: '注文済',         w: 52,  t: 'check' },
-            { f: 'orderedDate', label: '注文日',      w: 96,  t: 'date' },
             { f: 'remark',   label: '備考',           w: 130, t: 'text' }
         ];
 
@@ -14992,7 +14990,8 @@ ${contentRows}
                 var r2 = await db.from('lighting_counts').select('*').eq('project_id', pid).order('no', { ascending: true });
                 if (r2.error) throw r2.error;
                 _lightRows = (r2.data || []).map(function (row) {
-                    return { id: row.row_id, no: row.no || 0, floor: row.floor || '', room: row.room || '', counts: row.counts || {}, remark: row.remark || '' };
+                    return { id: row.row_id, no: row.no || 0, floor: row.floor || '', room: row.room || '', counts: row.counts || {},
+                             ordered: !!row.ordered, orderedDate: row.ordered_date || '', remark: row.remark || '' };
                 });
                 var r3 = await db.from('lighting_masters').select('*').eq('project_id', pid);
                 if (r3.error) throw r3.error;
@@ -15033,6 +15032,7 @@ ${contentRows}
                     project_id: projectGetCurrent(), row_id: row.id, no: row.no || 0,
                     floor: row.floor || '', room: row.room || '',
                     counts: row.counts || {}, remark: row.remark || '',
+                    ordered: !!row.ordered, ordered_date: row.orderedDate || '',
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'project_id,row_id' });
                 if (res.error) console.error('[LIGHT] upsert row error:', res.error);
@@ -15321,7 +15321,7 @@ ${contentRows}
             var maxNo = 0;
             _lightRows.forEach(function (r) { if ((r.no || 0) > maxNo) maxNo = r.no || 0; });
             var last = _lightRows[_lightRows.length - 1];
-            var row = { id: _lightUid('lc'), no: maxNo + 1, floor: last ? last.floor : '', room: '', counts: {}, remark: '' };
+            var row = { id: _lightUid('lc'), no: maxNo + 1, floor: last ? last.floor : '', room: '', counts: {}, ordered: false, orderedDate: '', remark: '' };
             _lightRows.push(row);
             _lightUpsertRow(row);
             lightRenderSum();
@@ -15337,7 +15337,7 @@ ${contentRows}
         function lightRowChange(id, field, value) {
             var r = _lightRows.filter(function (x) { return x.id === id; })[0];
             if (!r) return;
-            r[field] = value;
+            r[field] = (field === 'ordered') ? (value === true || value === 'true') : value;
             if (field === 'floor' && _lightRoomList(value).indexOf(r.room) < 0) r.room = '';
             _lightQueueRow(r);
             if (field === 'floor') lightRenderSum();
@@ -15364,7 +15364,8 @@ ${contentRows}
             cols.forEach(function (f) {
                 h += '<th style="min-width:54px;" title="' + _lightEsc(f.kishu + ' / ' + f.kataban) + '">' + _lightEsc(f.symbol || '(記号なし)') + '</th>';
             });
-            h += '<th style="min-width:120px;">備考</th><th style="width:36px;">削除</th></tr>';
+            h += '<th style="min-width:58px;background:#2e7d32;">注文済</th><th style="min-width:92px;background:#2e7d32;">注文日</th>'
+               + '<th style="min-width:120px;">備考</th><th style="width:36px;">削除</th></tr>';
             thead.innerHTML = h;
 
             var b = '';
@@ -15383,11 +15384,13 @@ ${contentRows}
                     var c = _lightN(r.counts[f.id]);
                     b += '<td class="light-cnt"><input type="number" min="0" step="1" value="' + (c > 0 ? c : '') + '" onchange="lightCntChange(\'' + r.id + '\',\'' + f.id + '\',this.value)"></td>';
                 });
+                b += '<td style="text-align:center;background:' + (r.ordered ? '#e8f5e9' : '') + ';"><input type="checkbox"' + (r.ordered ? ' checked' : '') + ' style="width:auto;" onchange="lightRowChange(\'' + r.id + '\',\'ordered\',this.checked)"></td>';
+                b += '<td style="background:' + (r.ordered ? '#e8f5e9' : '') + ';"><input type="date" value="' + _lightEsc(r.orderedDate) + '" onchange="lightRowChange(\'' + r.id + '\',\'orderedDate\',this.value)"></td>';
                 b += '<td><input type="text" value="' + _lightEsc(r.remark) + '" onchange="lightRowChange(\'' + r.id + '\',\'remark\',this.value)"></td>';
                 b += '<td style="text-align:center;"><button class="btn-delete" onclick="lightDeleteSumRow(\'' + r.id + '\')">×</button></td>';
                 b += '</tr>';
             });
-            tbody.innerHTML = b || '<tr><td colspan="' + (cols.length + 6) + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 行を追加」から階・室名を登録してください</td></tr>';
+            tbody.innerHTML = b || '<tr><td colspan="' + (cols.length + 8) + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 行を追加」から階・室名を登録してください</td></tr>';
 
             lightRenderSumTotals();
             lightRenderAgg();
@@ -15404,7 +15407,7 @@ ${contentRows}
                 _lightRows.forEach(function (r) { s += _lightN(r.counts[fx.id]); });
                 f += '<td style="text-align:center;">' + (s || '') + '</td>';
             });
-            f += '<td></td><td></td></tr>';
+            f += '<td></td><td></td><td></td><td></td></tr>';
             tfoot.innerHTML = f;
         }
 
@@ -15448,8 +15451,7 @@ ${contentRows}
                 + '<th style="min-width:100px;background:#2e7d32;">定価金額</th>'
                 + '<th style="min-width:84px;background:#2e7d32;">NET単価</th>'
                 + '<th style="min-width:100px;background:#2e7d32;">NET金額</th>'
-                + '<th style="min-width:90px;">合計VA</th><th style="min-width:100px;">合計lm</th>'
-                + '<th style="min-width:58px;">注文済</th><th style="min-width:88px;">注文日</th></tr>';
+                + '<th style="min-width:90px;">合計VA</th><th style="min-width:100px;">合計lm</th></tr>';
 
             var rows = _lightAggData();
             var b = '';
@@ -15478,8 +15480,6 @@ ${contentRows}
                        + '<td style="text-align:right;background:#e8f5e9;font-weight:bold;">' + _lightY(x.npAmt) + '</td>'
                        + '<td style="text-align:right;">' + (x.va ? x.va.toLocaleString() : '') + '</td>'
                        + '<td style="text-align:right;">' + (x.lm ? x.lm.toLocaleString() : '') + '</td>'
-                       + '<td style="text-align:center;' + (x.f.ordered ? 'background:#e8f5e9;color:#2e7d32;font-weight:bold;' : '') + '">' + (x.f.ordered ? '済' : '') + '</td>'
-                       + '<td style="text-align:center;' + (x.f.ordered ? 'background:#e8f5e9;' : '') + '">' + _lightEsc(x.f.orderedDate) + '</td>'
                        + '</tr>';
                 });
                 gN += sN; gVA += sVA; gLM += sLM; gDQ += sDQ; gLP += sLP; gNP += sNP;
@@ -15489,7 +15489,7 @@ ${contentRows}
                    + '<td style="text-align:right;">' + _lightY(sLP) + '</td><td></td>'
                    + '<td style="text-align:right;">' + _lightY(sNP) + '</td>'
                    + '<td style="text-align:right;">' + sVA.toLocaleString() + '</td>'
-                   + '<td style="text-align:right;">' + sLM.toLocaleString() + '</td><td></td><td></td></tr>';
+                   + '<td style="text-align:right;">' + sLM.toLocaleString() + '</td></tr>';
             });
             if (b) {
                 b += '<tr class="light-total" style="border-top:2px solid #ef6c00;"><td colspan="7" style="text-align:center;">総合計</td>'
@@ -15499,9 +15499,9 @@ ${contentRows}
                    + '<td style="text-align:right;">' + _lightY(gLP) + '</td><td></td>'
                    + '<td style="text-align:right;font-size:0.82rem;">' + _lightY(gNP) + '</td>'
                    + '<td style="text-align:right;">' + gVA.toLocaleString() + '</td>'
-                   + '<td style="text-align:right;">' + gLM.toLocaleString() + '</td><td></td><td></td></tr>';
+                   + '<td style="text-align:right;">' + gLM.toLocaleString() + '</td></tr>';
             }
-            tbody.innerHTML = b || '<tr><td colspan="18" style="text-align:center;padding:1rem;color:#999;">器具を登録すると集計されます</td></tr>';
+            tbody.innerHTML = b || '<tr><td colspan="16" style="text-align:center;padding:1rem;color:#999;">器具を登録すると集計されます</td></tr>';
         }
 
         /* ---------- CSV ---------- */
@@ -15536,9 +15536,9 @@ ${contentRows}
         function lightExportSumCsv() {
             var cols = _lightSumCols();
             var lines = [];
-            lines.push(['No', '階', '室名'].concat(cols.map(function (f) { return f.symbol || '(記号なし)'; })).concat(['備考']).map(_lightCsvCell).join(','));
+            lines.push(['No', '階', '室名'].concat(cols.map(function (f) { return f.symbol || '(記号なし)'; })).concat(['注文済', '注文日', '備考']).map(_lightCsvCell).join(','));
             _lightRows.forEach(function (r, i) {
-                var row = [i + 1, r.floor, r.room].concat(cols.map(function (f) { return _lightN(r.counts[f.id]) || ''; })).concat([r.remark]);
+                var row = [i + 1, r.floor, r.room].concat(cols.map(function (f) { return _lightN(r.counts[f.id]) || ''; })).concat([r.ordered ? '○' : '', r.orderedDate, r.remark]);
                 lines.push(row.map(_lightCsvCell).join(','));
             });
             var tot = ['', '', '合計'];
@@ -15547,14 +15547,14 @@ ${contentRows}
                 _lightRows.forEach(function (r) { s += _lightN(r.counts[f.id]); });
                 tot.push(s || '');
             });
-            tot.push('');
+            tot.push('', '', '');
             lines.push(tot.map(_lightCsvCell).join(','));
             lines.push('');
-            lines.push(['照会記号', '器種', '型番', 'メーカー', '分類', '電圧', '電力(VA)', '設計数量', '実行数量', '差', '定価', '定価金額', 'NET単価', 'NET金額', '合計VA', '合計lm', '注文済', '注文日'].map(_lightCsvCell).join(','));
+            lines.push(['照会記号', '器種', '型番', 'メーカー', '分類', '電圧', '電力(VA)', '設計数量', '実行数量', '差', '定価', '定価金額', 'NET単価', 'NET金額', '合計VA', '合計lm'].map(_lightCsvCell).join(','));
             _lightAggData().forEach(function (x) {
                 lines.push([x.f.symbol, x.f.kishu, x.f.kataban, x.f.maker, x.f.bunrui, x.f.voltage, _lightN(x.f.watt),
                             x.dq || '', x.n, x.diff, _lightN(x.f.listPrice) || '', x.lpAmt || '', _lightN(x.f.netPrice) || '', x.npAmt || '',
-                            x.va, x.lm, x.f.ordered ? '○' : '', x.f.orderedDate].map(_lightCsvCell).join(','));
+                            x.va, x.lm].map(_lightCsvCell).join(','));
             });
             _lightDownload('照明器具集計表_' + _lightProjName() + '.csv', lines.join('\n'));
         }
@@ -15649,6 +15649,7 @@ ${contentRows}
             mask.addEventListener('click', function (e) { if (e.target === mask) lightCloseOrderDialog(); });
             document.body.appendChild(mask);
             window.__lightOrderLines = lines;
+            window.__lightOrderRowIds = ids;
             var all = document.getElementById('lightOrdAll');
             if (all) all.addEventListener('change', function () {
                 document.querySelectorAll('#lightOrderMask input.light-ordsel').forEach(function (cb) { cb.checked = all.checked; });
@@ -15782,15 +15783,14 @@ ${contentRows}
             } catch (e) { console.error('lightDoExportOrder error:', e); }
 
             var stamp = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
-            picked.forEach(function (p) {
-                var it = _lightFx.filter(function (f) { return f.id === p.f.id; })[0];
-                if (!it) return;
-                it.ordered = true;
-                it.orderedDate = stamp;
-                _lightUpsertFx(it);
+            var oids = window.__lightOrderRowIds || [];
+            _lightRows.forEach(function (r) {
+                if (oids.indexOf(r.id) < 0) return;
+                r.ordered = true;
+                r.orderedDate = stamp;
+                _lightUpsertRow(r);
             });
-            lightRenderList();
-            lightRenderAgg();
+            lightRenderSum();
             lightCloseOrderDialog();
         }
 
