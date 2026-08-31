@@ -13551,6 +13551,9 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
 
         // ★ 単一アイテムをDBにupsert（即座実行）
         async function _qaUpsertItemToDB(item) {
+            _qaIgnoreRealtime = true;
+            if (window._qaIgnoreRtTimer) clearTimeout(window._qaIgnoreRtTimer);
+            window._qaIgnoreRtTimer = setTimeout(function() { _qaIgnoreRealtime = false; }, 3000);
             var pid = projectGetCurrent();
             try {
                 var row = {
