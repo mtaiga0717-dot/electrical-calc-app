@@ -1497,7 +1497,7 @@
                 <button onclick="projectRename()" style="font-size:0.7rem;padding:2px 8px;background:#1565c0;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="名称変更">名称変更</button>
                 <button onclick="projectDelete()" style="font-size:0.7rem;padding:2px 8px;background:#c62828;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="工事削除">削除</button>
                 <span style="color:#546e7a;margin:0 4px;">|</span>
-                <button onclick="openProjectSettings()" style="font-size:0.7rem;padding:2px 8px;background:#ff8f00;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="工事情報設定">⚙ 工事情報</button>
+                <button onclick="switchTab('siteMaster')" style="font-size:0.7rem;padding:2px 8px;background:#ff8f00;color:#fff;border:none;border-radius:3px;cursor:pointer;" title="現場マスタ（工事情報）">⚙ 工事情報</button>
                 <span id="projClientDisp" style="color:#b0bec5;font-size:0.72rem;margin-left:4px;"></span>
             </div>
             <div class="nav-tabs">
@@ -1510,6 +1510,7 @@
                 <button class="nav-tab" data-tab="weakCurrent" style="background:#00695c;color:#fff;">弱電幹線</button>
                 <button class="nav-tab" data-tab="qaTab" style="background:#1565c0;color:#fff;">質疑応答書</button>
                 <button class="nav-tab" data-tab="lighting" style="background:#ef6c00;color:#fff;">照明器具</button>
+                <button class="nav-tab" data-tab="siteMaster" style="background:#6a1b9a;color:#fff;">現場マスタ</button>
             </div>
         </div>
 
@@ -2827,24 +2828,7 @@
             <div id="weakCurrent" class="tab-content">
                 <h3 style="margin:0.5rem 0;">弱電幹線集計表</h3>
 
-                <!-- 設定: 担当者・宛先 登録 -->
-                <details style="margin-bottom:0.8rem;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:0.5rem;">
-                    <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem;color:#00695c;">⚙ 注文書設定（担当者・宛先の登録）</summary>
-                    <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.5rem;">
-                        <div>
-                            <label style="font-size:0.78rem;font-weight:bold;">担当者リスト（改行区切り）</label><br>
-                            <textarea id="wcTantouList" rows="4" cols="25" style="font-size:0.82rem;">望月勇希
-望月太雅</textarea>
-                            <br><button class="btn-action" style="background:#00695c;color:#fff;margin-top:0.3rem;" onclick="wcSaveSettings()">保存</button>
-                        </div>
-                        <div>
-                            <label style="font-size:0.78rem;font-weight:bold;">宛先リスト＝「○○　御中」（改行区切り）</label><br>
-                            <textarea id="wcAtesakiList" rows="4" cols="30" style="font-size:0.82rem;">すみや電器　黒川様
-因幡電機　鈴木様
-正電社　山田様</textarea>
-                        </div>
-                    </div>
-                </details>
+                <div style="margin-bottom:0.8rem;background:#f3e5f5;border:1px solid #ce93d8;border-radius:4px;padding:0.45rem 0.6rem;font-size:0.82rem;">&#9881; 担当者・宛先の登録は「現場マスタ」タブにまとめました　<button class="btn-action" style="background:#6a1b9a;color:#fff;margin-left:0.4rem;" onclick="switchTab('siteMaster')">現場マスタを開く</button></div>
 
                 <!-- 操作ボタン -->
                 <div style="margin-bottom:0.5rem;display:flex;gap:0.4rem;flex-wrap:wrap;">
@@ -2875,8 +2859,8 @@
                 <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;font-size:0.82rem;">
                     <div>宛先：<select id="wcAtesakiSelect" style="font-size:0.82rem;min-width:180px;" onchange="wcSaveData()"></select> 御中</div>
                     <div>担当：<select id="wcTantouSelect" style="font-size:0.82rem;min-width:120px;" onchange="wcSaveData()"></select></div>
-                    <div>工事件名：<input type="text" id="wcKoujiName" style="font-size:0.82rem;width:200px;" placeholder="手入力" oninput="wcSaveData()"></div>
-                    <div>工事番号：<input type="text" id="wcKoujiNo" style="font-size:0.82rem;width:140px;" placeholder="手入力" oninput="wcSaveData()"></div>
+                    <div>工事件名：<input type="text" id="wcKoujiName" style="font-size:0.82rem;width:200px;background:#f5f5f5;" readonly title="現場マスタで登録します"></div>
+                    <div>工事番号：<input type="text" id="wcKoujiNo" style="font-size:0.82rem;width:140px;background:#f5f5f5;" readonly title="現場マスタで登録します"></div>
                 </div>
 
                 <!-- テーブル -->
@@ -2928,46 +2912,7 @@
             <div id="qaTab" class="tab-content">
                 <h3 style="margin:0.5rem 0;">質疑応答書</h3>
 
-                <!-- 設定: 客先・出席者登録 -->
-                <details id="qaSettings" style="margin-bottom:0.8rem;background:#e8eaf6;border:1px solid #c5cae9;border-radius:4px;padding:0.5rem;">
-                    <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem;color:#1565c0;">⚙ 設定（監督員・施工業者・内容項目の登録）　※客先はヘッダーの「⚙工事情報」から設定</summary>
-                    <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.5rem;">
-                        <div>
-                            <label style="font-size:0.78rem;font-weight:bold;">監督員リスト（改行区切り）</label><br>
-                            <textarea id="qaKantokuList" rows="3" cols="25" style="font-size:0.82rem;" placeholder="石黒様&#10;荻野様"></textarea>
-                        </div>
-                        <div>
-                            <label style="font-size:0.78rem;font-weight:bold;">施工業者リスト</label><br>
-                            <div id="qaSekoListContainer" style="border:1px solid #ccc;border-radius:4px;padding:4px;background:#fff;min-width:250px;max-height:140px;overflow-y:auto;"></div>
-                            <div style="display:flex;gap:4px;margin-top:4px;align-items:center;">
-                                <input type="text" id="qaSekoCompany" style="font-size:0.8rem;width:100px;" placeholder="会社名">
-                                <input type="text" id="qaSekoName" style="font-size:0.8rem;width:80px;" placeholder="氏名">
-                                <button class="btn-action" style="background:#43a047;color:#fff;font-size:0.75rem;padding:0.15rem 0.4rem;" onclick="qaAddSeko()">＋追加</button>
-                            </div>
-                        </div>
-                        <div>
-                            <label style="font-size:0.78rem;font-weight:bold;">大まかな内容（項目登録）</label><br>
-                            <div id="qaSummaryListContainer" style="border:1px solid #ccc;border-radius:4px;padding:4px;background:#fff;min-width:200px;max-height:140px;overflow-y:auto;"></div>
-                            <div style="display:flex;gap:4px;margin-top:4px;align-items:center;">
-                                <input type="text" id="qaSummaryInput" style="font-size:0.8rem;width:150px;" placeholder="例：仕様確認">
-                                <button class="btn-action" style="background:#43a047;color:#fff;font-size:0.75rem;padding:0.15rem 0.4rem;" onclick="qaAddSummaryItem()">＋追加</button>
-                            </div>
-                        </div>
-                        <div style="align-self:flex-end;">
-
-                        <!-- 図面番号上限設定 -->
-                        <div style="margin-top:0.5rem;padding:0.4rem;background:#f3e5f5;border:1px solid #ce93d8;border-radius:4px;">
-                            <label style="font-weight:bold;font-size:0.85rem;">図面番号 プルダウン上限</label>
-                            <div style="display:flex;gap:0.8rem;margin-top:0.3rem;flex-wrap:wrap;">
-                                <label style="font-size:0.82rem;">E- <input type="number" id="qaDrawLimitE" min="1" max="999" value="99" style="width:50px;font-size:0.82rem;"></label>
-                                <label style="font-size:0.82rem;">A- <input type="number" id="qaDrawLimitA" min="1" max="999" value="99" style="width:50px;font-size:0.82rem;"></label>
-                                <label style="font-size:0.82rem;">M- <input type="number" id="qaDrawLimitM" min="1" max="999" value="99" style="width:50px;font-size:0.82rem;"></label>
-                            </div>
-                        </div>
-                            <button class="btn-action" style="background:#1565c0;color:#fff;" onclick="qaSaveSettings()">設定を保存</button>
-                        </div>
-                    </div>
-                </details>
+                <div style="margin-bottom:0.8rem;background:#f3e5f5;border:1px solid #ce93d8;border-radius:4px;padding:0.45rem 0.6rem;font-size:0.82rem;">&#9881; 監督員・施工業者・内容項目・図面番号の登録は「現場マスタ」タブにまとめました　<button class="btn-action" style="background:#6a1b9a;color:#fff;margin-left:0.4rem;" onclick="switchTab('siteMaster')">現場マスタを開く</button></div>
 
                 <!-- 操作ボタン -->
                 <div style="margin-bottom:0.5rem;display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
@@ -3079,6 +3024,87 @@
                             <thead id="lightAggThead"></thead>
                             <tbody id="lightAggTbody"></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 現場マスタ Tab -->
+            <div id="siteMaster" class="tab-content">
+                <h3 style="margin:0.5rem 0;">現場マスタ<span style="font-size:0.8rem;font-weight:normal;color:#888;margin-left:0.6rem;">工事プロジェクトごとの共通登録</span></h3>
+                <div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:4px;padding:0.5rem 0.7rem;font-size:0.8rem;margin-bottom:0.9rem;">ここで登録した内容は <b>弱電幹線</b>・<b>質疑応答書</b>・<b>照明器具</b> の各タブで共通に使われます。工事を切り替えると内容も切り替わります。</div>
+                <div style="border:1px solid #ddd;border-left:4px solid #6a1b9a;border-radius:4px;padding:0.7rem 0.9rem;margin-bottom:0.9rem;background:#fff;">
+                    <div style="font-weight:bold;font-size:0.92rem;color:#6a1b9a;margin-bottom:0.6rem;">① 工事情報</div>
+                    <div style="display:flex;gap:1.2rem;flex-wrap:wrap;align-items:flex-end;">
+                        <div><label style="font-size:0.78rem;font-weight:bold;">客先名</label><br><input type="text" id="smClientName" style="font-size:0.85rem;width:250px;padding:0.25rem;" placeholder="例：静岡市教育委員会"></div>
+                        <div><label style="font-size:0.78rem;font-weight:bold;">施工場所（住所）</label><br><input type="text" id="smPlace" style="font-size:0.85rem;width:300px;padding:0.25rem;" placeholder="例：静岡市葵区○○町1-2-3"></div>
+                        <div><label style="font-size:0.78rem;font-weight:bold;">工事件名</label><br><input type="text" id="smKoujiName" style="font-size:0.85rem;width:300px;padding:0.25rem;" placeholder="注文書・帳票に印字されます"></div>
+                        <div><label style="font-size:0.78rem;font-weight:bold;">工事番号</label><br><input type="text" id="smKoujiNo" style="font-size:0.85rem;width:160px;padding:0.25rem;"></div>
+                        <div><button class="btn-action" style="background:#6a1b9a;color:#fff;" onclick="smSaveKoji()">保存</button></div>
+                    </div>
+                    <div style="font-size:0.74rem;color:#888;margin-top:0.4rem;">※ 客先名はヘッダーに表示され、工事件名・工事番号は弱電幹線と照明器具の注文書に自動で入ります。</div>
+                </div>
+                <div style="border:1px solid #ddd;border-left:4px solid #00695c;border-radius:4px;padding:0.7rem 0.9rem;margin-bottom:0.9rem;background:#fff;">
+                    <div style="font-weight:bold;font-size:0.92rem;color:#00695c;margin-bottom:0.6rem;">② 注文書：自社担当者・発注先（宛先）</div>
+                    <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.5rem;">
+                        <div>
+                            <label style="font-size:0.78rem;font-weight:bold;">担当者リスト（改行区切り）</label><br>
+                            <textarea id="wcTantouList" rows="4" cols="25" style="font-size:0.82rem;">望月勇希
+望月太雅</textarea>
+                            <br><button class="btn-action" style="background:#00695c;color:#fff;margin-top:0.3rem;" onclick="wcSaveSettings()">保存</button>
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem;font-weight:bold;">宛先リスト＝「○○　御中」（改行区切り）</label><br>
+                            <textarea id="wcAtesakiList" rows="4" cols="30" style="font-size:0.82rem;">すみや電器　黒川様
+因幡電機　鈴木様
+正電社　山田様</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div style="border:1px solid #ddd;border-left:4px solid #ef6c00;border-radius:4px;padding:0.7rem 0.9rem;margin-bottom:0.9rem;background:#fff;">
+                    <div style="font-weight:bold;font-size:0.92rem;color:#ef6c00;margin-bottom:0.6rem;">③ 階・室名リスト</div>
+                    <div style="display:flex;gap:0.6rem;align-items:center;margin-bottom:0.5rem;">
+                        <button class="btn-action" style="background:#6a1b9a;color:#fff;" onclick="smOpenFloorRooms()">階・室名を編集</button>
+                        <button class="btn-action" onclick="smRenderFloorSummary()">&#8635; 表示更新</button>
+                        <span style="font-size:0.74rem;color:#888;">質疑応答書の階・室名プルダウン、照明器具の現場集計表で共通に使われます。</span>
+                    </div>
+                    <div id="smFloorSummary" style="font-size:0.8rem;"></div>
+                </div>
+                <div style="border:1px solid #ddd;border-left:4px solid #1565c0;border-radius:4px;padding:0.7rem 0.9rem;margin-bottom:0.9rem;background:#fff;">
+                    <div style="font-weight:bold;font-size:0.92rem;color:#1565c0;margin-bottom:0.6rem;">④ 質疑応答書：監督員・施工業者・内容項目・図面番号</div>
+                    <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.5rem;">
+                        <div>
+                            <label style="font-size:0.78rem;font-weight:bold;">監督員リスト（改行区切り）</label><br>
+                            <textarea id="qaKantokuList" rows="3" cols="25" style="font-size:0.82rem;" placeholder="石黒様&#10;荻野様"></textarea>
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem;font-weight:bold;">施工業者リスト</label><br>
+                            <div id="qaSekoListContainer" style="border:1px solid #ccc;border-radius:4px;padding:4px;background:#fff;min-width:250px;max-height:140px;overflow-y:auto;"></div>
+                            <div style="display:flex;gap:4px;margin-top:4px;align-items:center;">
+                                <input type="text" id="qaSekoCompany" style="font-size:0.8rem;width:100px;" placeholder="会社名">
+                                <input type="text" id="qaSekoName" style="font-size:0.8rem;width:80px;" placeholder="氏名">
+                                <button class="btn-action" style="background:#43a047;color:#fff;font-size:0.75rem;padding:0.15rem 0.4rem;" onclick="qaAddSeko()">＋追加</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem;font-weight:bold;">大まかな内容（項目登録）</label><br>
+                            <div id="qaSummaryListContainer" style="border:1px solid #ccc;border-radius:4px;padding:4px;background:#fff;min-width:200px;max-height:140px;overflow-y:auto;"></div>
+                            <div style="display:flex;gap:4px;margin-top:4px;align-items:center;">
+                                <input type="text" id="qaSummaryInput" style="font-size:0.8rem;width:150px;" placeholder="例：仕様確認">
+                                <button class="btn-action" style="background:#43a047;color:#fff;font-size:0.75rem;padding:0.15rem 0.4rem;" onclick="qaAddSummaryItem()">＋追加</button>
+                            </div>
+                        </div>
+                        <div style="align-self:flex-end;">
+
+                        <div style="margin-top:0.5rem;padding:0.4rem;background:#f3e5f5;border:1px solid #ce93d8;border-radius:4px;">
+                            <label style="font-weight:bold;font-size:0.85rem;">図面番号 プルダウン上限</label>
+                            <div style="display:flex;gap:0.8rem;margin-top:0.3rem;flex-wrap:wrap;">
+                                <label style="font-size:0.82rem;">E- <input type="number" id="qaDrawLimitE" min="1" max="999" value="99" style="width:50px;font-size:0.82rem;"></label>
+                                <label style="font-size:0.82rem;">A- <input type="number" id="qaDrawLimitA" min="1" max="999" value="99" style="width:50px;font-size:0.82rem;"></label>
+                                <label style="font-size:0.82rem;">M- <input type="number" id="qaDrawLimitM" min="1" max="999" value="99" style="width:50px;font-size:0.82rem;"></label>
+                            </div>
+                        </div>
+                            <button class="btn-action" style="background:#1565c0;color:#fff;" onclick="qaSaveSettings()">設定を保存</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -5989,6 +6015,8 @@
                 qaInit();
             } else if (tabName === 'lighting') {
                 lightInit();
+            } else if (tabName === 'siteMaster') {
+                smInit();
             }
         }
 
@@ -11127,8 +11155,9 @@ ${sectionsHtml}
             if (wcData.header) {
                 const kn = document.getElementById('wcKoujiName');
                 const kno = document.getElementById('wcKoujiNo');
-                if (kn) kn.value = wcData.header.koujiName || '';
-                if (kno) kno.value = wcData.header.koujiNo || '';
+                var _smPs = (typeof loadProjectSettings === 'function') ? loadProjectSettings() : {};
+                if (kn) kn.value = _smPs.koujiName || wcData.header.koujiName || '';
+                if (kno) kno.value = _smPs.koujiNo || wcData.header.koujiNo || '';
             }
         }
 
@@ -14802,6 +14831,60 @@ ${contentRows}
         }
 
     
+
+        /* ==================== 現場マスタ（工事ごとの共通登録） ==================== */
+        async function smInit() {
+            try { if (typeof wcInit === 'function') await wcInit(); } catch (e) { console.warn('[SM] wcInit', e); }
+            try { if (typeof qaInit === 'function') await qaInit(); } catch (e) { console.warn('[SM] qaInit', e); }
+            smLoadKoji();
+            smRenderFloorSummary();
+        }
+        function _smVal(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+        function _smSet(id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; }
+        function smLoadKoji() {
+            var s = (typeof loadProjectSettings === 'function') ? loadProjectSettings() : {};
+            _smSet('smClientName', s.clientName);
+            _smSet('smPlace', s.place);
+            _smSet('smKoujiName', s.koujiName);
+            _smSet('smKoujiNo', s.koujiNo);
+        }
+        function smSaveKoji() {
+            var s = (typeof loadProjectSettings === 'function') ? loadProjectSettings() : {};
+            s.clientName = _smVal('smClientName');
+            s.place = _smVal('smPlace');
+            s.koujiName = _smVal('smKoujiName');
+            s.koujiNo = _smVal('smKoujiNo');
+            if (typeof saveProjectSettingsData === 'function') saveProjectSettingsData(s);
+            var kn = document.getElementById('wcKoujiName'); if (kn) kn.value = s.koujiName || '';
+            var kno = document.getElementById('wcKoujiNo'); if (kno) kno.value = s.koujiNo || '';
+            try { if (typeof wcSaveData === 'function') wcSaveData(); } catch (e) {}
+            try { if (typeof projectUpdateClientDisp === 'function') projectUpdateClientDisp(); } catch (e) {}
+            var ps = document.getElementById('psClientName'); if (ps) ps.value = s.clientName || '';
+            var pp = document.getElementById('psPlace'); if (pp) pp.value = s.place || '';
+            alert('工事情報を保存しました');
+        }
+        function smRenderFloorSummary() {
+            var box = document.getElementById('smFloorSummary');
+            if (!box) return;
+            var fr = {};
+            try { if (typeof qaLoadFloorRooms === 'function') fr = qaLoadFloorRooms() || {}; } catch (e) {}
+            var floors = Object.keys(fr);
+            if (!floors.length) { box.innerHTML = '<span style="color:#999;">未登録です。「階・室名を編集」から登録してください。</span>'; return; }
+            var h = '<table class="light-table" style="width:auto;min-width:420px;"><thead><tr><th style="min-width:70px;">階</th><th style="min-width:60px;">室数</th><th style="min-width:320px;">室名</th></tr></thead><tbody>';
+            floors.forEach(function (f) {
+                var rooms = fr[f] || [];
+                h += '<tr><td style="text-align:center;font-weight:bold;">' + _lightEsc(f) + '</td>'
+                   + '<td style="text-align:center;">' + rooms.length + '</td>'
+                   + '<td>' + _lightEsc(rooms.join('、')) + '</td></tr>';
+            });
+            h += '</tbody></table>';
+            box.innerHTML = h;
+        }
+        function smOpenFloorRooms() {
+            try { if (typeof qaShowFloorRoomManager === 'function') qaShowFloorRoomManager(); }
+            catch (e) { alert('階・室名の編集画面を開けませんでした：' + (e.message || e)); }
+        }
+
         /* ==================== 照明器具一覧・現場集計表 ==================== */
         var _lightFx = [];
         var _lightRows = [];
@@ -15473,6 +15556,9 @@ ${contentRows}
             lightCloseOrderDialog();
             var st = _lightWcSettings();
             var h = _lightOrderHeader();
+            var _smPs2 = (typeof loadProjectSettings === 'function') ? loadProjectSettings() : {};
+            if (_smPs2.koujiName) h.koujiName = _smPs2.koujiName;
+            if (_smPs2.koujiNo) h.koujiNo = _smPs2.koujiNo;
             if (!h.koujiName) h.koujiName = _lightProjName();
 
             var body = '<div style="font-size:15px;font-weight:bold;color:#ef6c00;margin-bottom:10px;">注文書の作成（' + ids.length + ' 室 / ' + lines.length + ' 品目）</div>';
