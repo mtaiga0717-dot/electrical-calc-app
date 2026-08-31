@@ -14951,6 +14951,8 @@ ${contentRows}
             { f: 'watt',     label: '電力(VA)',       w: 74,  t: 'num' },
             { f: 'ra',       label: 'Ra',             w: 48,  t: 'num' },
             { f: 'kelvin',   label: '色温度(K)',      w: 76,  t: 'text' },
+            { f: 'ordered',  label: '注文済',         w: 52,  t: 'check' },
+            { f: 'orderedDate', label: '注文日',      w: 96,  t: 'date' },
             { f: 'remark',   label: '備考',           w: 130, t: 'text' }
         ];
 
@@ -14982,7 +14984,8 @@ ${contentRows}
                         bodyNo: row.body_no || '', barNo: row.lightbar_no || '',
                         seigyo: row.seigyo || '', voltage: row.voltage || '',
                         lumen: row.lumen || 0, watt: row.watt || 0, ra: row.ra || 0,
-                        kelvin: row.kelvin || '', remark: row.remark || ''
+                        kelvin: row.kelvin || '', ordered: !!row.ordered, orderedDate: row.ordered_date || '',
+                        remark: row.remark || ''
                     };
                 });
                 var r2 = await db.from('lighting_counts').select('*').eq('project_id', pid).order('no', { ascending: true });
@@ -15013,7 +15016,8 @@ ${contentRows}
                     body_no: item.bodyNo || '', lightbar_no: item.barNo || '',
                     seigyo: item.seigyo || '', voltage: item.voltage || '',
                     lumen: _lightN(item.lumen), watt: _lightN(item.watt), ra: _lightN(item.ra),
-                    kelvin: item.kelvin || '', remark: item.remark || '',
+                    kelvin: item.kelvin || '', ordered: !!item.ordered, ordered_date: item.orderedDate || '',
+                    remark: item.remark || '',
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'project_id,item_id' });
                 if (res.error) console.error('[LIGHT] upsert fixture error:', res.error);
@@ -15192,7 +15196,7 @@ ${contentRows}
                 id: _lightUid('lf'), no: maxNo + 1,
                 symbol: '', publicNo: '', kishu: '', bunrui: (_lightBunruiList()[0] || ''), keijou: '', maker: '',
                 kataban: '', bodyNo: '', barNo: '', seigyo: '', voltage: '100V',
-                lumen: 0, watt: 0, ra: 0, kelvin: '', remark: ''
+                lumen: 0, watt: 0, ra: 0, kelvin: '', ordered: false, orderedDate: '', remark: ''
             };
             _lightFx.push(it);
             _lightUpsertFx(it);
@@ -15214,7 +15218,9 @@ ${contentRows}
         function lightFxChange(id, field, value) {
             var it = _lightFx.filter(function (f) { return f.id === id; })[0];
             if (!it) return;
-            it[field] = (field === 'lumen' || field === 'watt' || field === 'ra') ? _lightN(value) : value;
+            if (field === 'lumen' || field === 'watt' || field === 'ra') it[field] = _lightN(value);
+            else if (field === 'ordered') it[field] = (value === true || value === 'true');
+            else it[field] = value;
             _lightQueueFx(it);
             if (field === 'symbol' || field === 'bunrui' || field === 'watt' || field === 'lumen' || field === 'kishu' || field === 'kataban') lightRenderSum();
         }
@@ -15254,6 +15260,10 @@ ${contentRows}
                            + '</div></td>';
                     } else if (c.t === 'fixed') {
                         b += '<td><select onchange="' + cb + '">' + _lightOpts(c.opts, v) + '</select></td>';
+                    } else if (c.t === 'check') {
+                        b += '<td style="text-align:center;background:' + (v ? '#e8f5e9' : '') + ';"><input type="checkbox"' + (v ? ' checked' : '') + ' style="width:auto;" onchange="lightFxChange(\'' + it.id + '\',\'' + c.f + '\',this.checked)"></td>';
+                    } else if (c.t === 'date') {
+                        b += '<td style="background:' + (v ? '#e8f5e9' : '') + ';"><input type="date" value="' + _lightEsc(v) + '" onchange="' + cb + '"></td>';
                     } else if (c.t === 'num') {
                         b += '<td class="light-num"><input type="number" step="any" value="' + _lightEsc(v) + '" onchange="' + cb + '"></td>';
                     } else {
@@ -15417,7 +15427,8 @@ ${contentRows}
                 + '<th style="min-width:150px;">型番</th><th style="min-width:100px;">メーカー</th>'
                 + '<th style="min-width:60px;">分類</th><th style="min-width:82px;">電圧</th>'
                 + '<th style="min-width:74px;">電力(VA)</th><th style="min-width:74px;">光束(lm)</th>'
-                + '<th style="min-width:60px;">総台数</th><th style="min-width:90px;">合計VA</th><th style="min-width:100px;">合計lm</th></tr>';
+                + '<th style="min-width:60px;">総台数</th><th style="min-width:90px;">合計VA</th><th style="min-width:100px;">合計lm</th>'
+                + '<th style="min-width:58px;">注文済</th><th style="min-width:88px;">注文日</th></tr>';
 
             var rows = _lightAggData();
             var b = '';
@@ -15441,21 +15452,23 @@ ${contentRows}
                        + '<td style="text-align:right;font-weight:bold;">' + (x.n || '') + '</td>'
                        + '<td style="text-align:right;">' + (x.va ? x.va.toLocaleString() : '') + '</td>'
                        + '<td style="text-align:right;">' + (x.lm ? x.lm.toLocaleString() : '') + '</td>'
+                       + '<td style="text-align:center;' + (x.f.ordered ? 'background:#e8f5e9;color:#2e7d32;font-weight:bold;' : '') + '">' + (x.f.ordered ? '済' : '') + '</td>'
+                       + '<td style="text-align:center;' + (x.f.ordered ? 'background:#e8f5e9;' : '') + '">' + _lightEsc(x.f.orderedDate) + '</td>'
                        + '</tr>';
                 });
                 gN += sN; gVA += sVA; gLM += sLM;
                 b += '<tr class="light-total"><td colspan="8" style="text-align:center;">' + (bn || '未分類') + ' 小計</td>'
                    + '<td style="text-align:right;">' + sN + '</td>'
                    + '<td style="text-align:right;">' + sVA.toLocaleString() + '</td>'
-                   + '<td style="text-align:right;">' + sLM.toLocaleString() + '</td></tr>';
+                   + '<td style="text-align:right;">' + sLM.toLocaleString() + '</td><td></td><td></td></tr>';
             });
             if (b) {
                 b += '<tr class="light-total" style="border-top:2px solid #ef6c00;"><td colspan="8" style="text-align:center;">総合計</td>'
                    + '<td style="text-align:right;">' + gN + '</td>'
                    + '<td style="text-align:right;">' + gVA.toLocaleString() + '</td>'
-                   + '<td style="text-align:right;">' + gLM.toLocaleString() + '</td></tr>';
+                   + '<td style="text-align:right;">' + gLM.toLocaleString() + '</td><td></td><td></td></tr>';
             }
-            tbody.innerHTML = b || '<tr><td colspan="11" style="text-align:center;padding:1rem;color:#999;">器具を登録すると集計されます</td></tr>';
+            tbody.innerHTML = b || '<tr><td colspan="13" style="text-align:center;padding:1rem;color:#999;">器具を登録すると集計されます</td></tr>';
         }
 
         /* ---------- CSV ---------- */
@@ -15483,7 +15496,7 @@ ${contentRows}
             var lines = [];
             lines.push(['No'].concat(LIGHT_COLS.map(function (c) { return c.label; })).map(_lightCsvCell).join(','));
             _lightFx.forEach(function (it, i) {
-                lines.push([i + 1].concat(LIGHT_COLS.map(function (c) { return it[c.f]; })).map(_lightCsvCell).join(','));
+                lines.push([i + 1].concat(LIGHT_COLS.map(function (c) { return (c.t === 'check') ? (it[c.f] ? '○' : '') : it[c.f]; })).map(_lightCsvCell).join(','));
             });
             _lightDownload('照明器具一覧_' + _lightProjName() + '.csv', lines.join('\n'));
         }
@@ -15701,8 +15714,8 @@ ${contentRows}
                      + '<td class="r">' + totalQty + '</td><td class="c">台</td>'
                      + '<td class="c">' + picked.length + ' 品目</td></tr>';
 
-            var html = '<html><head><meta charset="utf-8"><title>注文書</title><style>' + css + '</style></head><body>'
-                + '<div class="noprint bar"><button onclick="window.print()" style="padding:6px 18px;font-size:11pt;cursor:pointer;">印刷 / PDF保存</button></div>'
+            var html = '<html><head><meta charset="utf-8"><title>注文書</title><style>' + css + '</style></head>'
+                + '<body onload="setTimeout(function(){window.print();},400);">'
                 + '<div class="ttl">注　文　書</div><div class="ttl-rule"></div>'
                 + '<div class="head">'
                 +   '<div class="to">'
@@ -15732,6 +15745,17 @@ ${contentRows}
                 document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 setTimeout(function () { URL.revokeObjectURL(url); }, 120000);
             } catch (e) { console.error('lightDoExportOrder error:', e); }
+
+            var stamp = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+            picked.forEach(function (p) {
+                var it = _lightFx.filter(function (f) { return f.id === p.f.id; })[0];
+                if (!it) return;
+                it.ordered = true;
+                it.orderedDate = stamp;
+                _lightUpsertFx(it);
+            });
+            lightRenderList();
+            lightRenderAgg();
             lightCloseOrderDialog();
         }
 
