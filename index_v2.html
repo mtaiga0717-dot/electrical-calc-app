@@ -15404,21 +15404,18 @@ ${contentRows}
         function lightExportSumCsv() {
             var cols = _lightSumCols();
             var lines = [];
-            lines.push(['No', '階', '室名'].concat(cols.map(function (f) { return f.symbol || '(記号なし)'; })).concat(['計', 'VA計', '備考']).map(_lightCsvCell).join(','));
+            lines.push(['No', '階', '室名'].concat(cols.map(function (f) { return f.symbol || '(記号なし)'; })).concat(['備考']).map(_lightCsvCell).join(','));
             _lightRows.forEach(function (r, i) {
-                var t = _lightRowTotal(r, cols);
-                var row = [i + 1, r.floor, r.room].concat(cols.map(function (f) { return _lightN(r.counts[f.id]) || ''; })).concat([t.n || '', t.va || '', r.remark]);
+                var row = [i + 1, r.floor, r.room].concat(cols.map(function (f) { return _lightN(r.counts[f.id]) || ''; })).concat([r.remark]);
                 lines.push(row.map(_lightCsvCell).join(','));
             });
             var tot = ['', '', '合計'];
-            var gN = 0, gVA = 0;
             cols.forEach(function (f) {
                 var s = 0;
                 _lightRows.forEach(function (r) { s += _lightN(r.counts[f.id]); });
-                gN += s; gVA += s * _lightN(f.watt);
                 tot.push(s || '');
             });
-            tot.push(gN, gVA, '');
+            tot.push('');
             lines.push(tot.map(_lightCsvCell).join(','));
             lines.push('');
             lines.push(['照会記号', '器種', '型番', 'メーカー', '分類', '電圧', '電力(VA)', '光束(lm)', '総台数', '合計VA', '合計lm'].map(_lightCsvCell).join(','));
@@ -15455,25 +15452,22 @@ ${contentRows}
             h += '<div class="hd"><span>工事名：' + _lightEsc(pname) + '</span><span>作成日：' + ymd + '</span></div>';
             h += '<table><thead><tr><th style="width:8mm;">No</th><th style="width:18mm;">階</th><th style="width:32mm;">室名</th>';
             cols.forEach(function (f) { h += '<th>' + _lightEsc(f.symbol || '-') + '</th>'; });
-            h += '<th style="width:12mm;">計</th><th style="width:18mm;">VA計</th><th style="width:28mm;">備考</th></tr></thead><tbody>';
+            h += '<th style="width:28mm;">備考</th></tr></thead><tbody>';
             _lightRows.forEach(function (r, i) {
-                var t = _lightRowTotal(r, cols);
                 h += '<tr><td class="c">' + (i + 1) + '</td><td class="c">' + _lightEsc(r.floor) + '</td><td>' + _lightEsc(r.room) + '</td>';
                 cols.forEach(function (f) {
                     var c = _lightN(r.counts[f.id]);
                     h += '<td class="c">' + (c > 0 ? c : '') + '</td>';
                 });
-                h += '<td class="r">' + (t.n || '') + '</td><td class="r">' + (t.va ? t.va.toLocaleString() : '') + '</td><td>' + _lightEsc(r.remark) + '</td></tr>';
+                h += '<td>' + _lightEsc(r.remark) + '</td></tr>';
             });
-            var gN = 0, gVA = 0;
             var tf = '<tr class="tot"><td colspan="3" class="c">合計</td>';
             cols.forEach(function (f) {
                 var s = 0;
                 _lightRows.forEach(function (r) { s += _lightN(r.counts[f.id]); });
-                gN += s; gVA += s * _lightN(f.watt);
                 tf += '<td class="c">' + (s || '') + '</td>';
             });
-            tf += '<td class="r">' + gN + '</td><td class="r">' + gVA.toLocaleString() + '</td><td></td></tr>';
+            tf += '<td></td></tr>';
             h += tf + '</tbody></table>';
 
             h += '<div class="pb"></div>';
