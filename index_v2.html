@@ -14810,7 +14810,7 @@ ${contentRows}
         /* ==================== 照明器具一覧・現場集計表 ==================== */
         var _lightFx = [];
         var _lightRows = [];
-        var _lightMasters = { kishu: [], keijou: [], maker: [], seigyo: [] };
+        var _lightMasters = { kishu: [], bunrui: [], keijou: [], maker: [], seigyo: [] };
         var _lightInited = false;
         var _lightIgnoreRt = false;
         var _lightRtChannel = null;
@@ -14818,18 +14818,50 @@ ${contentRows}
 
         var LIGHT_MASTER_DEFS = [
             { key: 'kishu',  label: '器種' },
+            { key: 'bunrui', label: '分類' },
             { key: 'keijou', label: '形状' },
             { key: 'maker',  label: 'メーカー' },
             { key: 'seigyo', label: '制御' }
         ];
-        var LIGHT_BUNRUI = ['一般', '誘導', '非常'];
+        var LIGHT_MASTER_DEFAULTS = {
+            kishu: [
+                'ベースライト', 'ライン照明', '埋込ダウンライト', '直付ダウンライト', 'スポットライト',
+                'ブラケット', 'ペンダント', 'シーリングライト', '間接照明（建築化照明）',
+                '高天井器具', '投光器', '防湿防雨型器具', '軒下用器具', '屋外灯（ポール灯）', '街路灯',
+                '足元灯（フットライト）', '非常用照明器具', '誘導灯', '防爆型器具', 'その他'
+            ],
+            bunrui: ['一般', '誘導', '非常'],
+            keijou: [
+                '埋込', '半埋込', '直付', '吊下（ペンダント）', '壁付（ブラケット）',
+                '逆富士', 'トラフ', '反射笠付', 'ルーバー付', '下面開放', '下面パネル付',
+                'スクエア型', 'ライン型', '丸形', '角形',
+                'ダウンライト φ75', 'ダウンライト φ100', 'ダウンライト φ125', 'ダウンライト φ150', 'ダウンライト φ200',
+                '□600×600', '40形1灯', '40形2灯', '20形1灯', '20形2灯', '110形1灯'
+            ],
+            maker: [
+                'パナソニック', '遠藤照明', 'コイズミ照明', '大光電機', 'オーデリック',
+                '東芝ライテック', '三菱電機', 'ホタルクス', '岩崎電気', '日立',
+                'アイリスオーヤマ', '山田照明', 'DNライティング', 'ウシオライティング',
+                'モデュレックス', 'テスライティング', 'その他'
+            ],
+            seigyo: [
+                'なし（常時点灯）', '壁スイッチ', '三路スイッチ', '四路スイッチ', 'リモコンスイッチ',
+                '自動点滅器', 'タイムスイッチ', '人感センサ', '明るさセンサ', '人感＋明るさセンサ',
+                '調光（ライコン）', '調光（信号線式）', '調光（DALI）', '調光（PWM）',
+                '段調光', '中央監視', '非常時点灯（内蔵蓄電池）', '非常用電源（別置）'
+            ]
+        };
+        function _lightBunruiList() {
+            var m = (_lightMasters && _lightMasters.bunrui) || [];
+            return m.length ? m : LIGHT_MASTER_DEFAULTS.bunrui;
+        }
         var LIGHT_VOLT   = ['100V', '200V', '100〜242V'];
 
         var LIGHT_COLS = [
             { f: 'symbol',   label: '照会記号',       w: 72,  t: 'text' },
             { f: 'publicNo', label: '公共施設番号',   w: 92,  t: 'text' },
             { f: 'kishu',    label: '器種',           w: 130, t: 'master', m: 'kishu' },
-            { f: 'bunrui',   label: '分類',           w: 66,  t: 'fixed',  opts: LIGHT_BUNRUI },
+            { f: 'bunrui',   label: '分類',           w: 96,  t: 'master', m: 'bunrui' },
             { f: 'keijou',   label: '形状',           w: 120, t: 'master', m: 'keijou' },
             { f: 'maker',    label: 'メーカー',       w: 110, t: 'master', m: 'maker' },
             { f: 'kataban',  label: '型番',           w: 150, t: 'text' },
@@ -14882,7 +14914,7 @@ ${contentRows}
                 });
                 var r3 = await db.from('lighting_masters').select('*').eq('project_id', pid);
                 if (r3.error) throw r3.error;
-                var m = { kishu: [], keijou: [], maker: [], seigyo: [] };
+                var m = { kishu: [], bunrui: [], keijou: [], maker: [], seigyo: [] };
                 (r3.data || []).forEach(function (row) { if (m[row.kind]) m[row.kind] = row.values || []; });
                 _lightMasters = m;
                 console.log('[LIGHT] loaded fixtures=' + _lightFx.length + ' rows=' + _lightRows.length);
@@ -14984,6 +15016,7 @@ ${contentRows}
             _lightInited = true;
             try { if (typeof qaSyncFloorRoomsFromDB === 'function') await qaSyncFloorRoomsFromDB(); } catch (e) { console.warn('[LIGHT] floor_rooms sync skipped', e); }
             await _lightLoadFromDB();
+            await _lightSeedMasters();
             _lightSubscribeRt();
             lightRenderAll();
         }
@@ -14992,7 +15025,7 @@ ${contentRows}
             await _lightLoadFromDB();
             lightRenderAll();
         }
-        function lightRenderAll() { lightRenderMasterEdit(); lightRenderList(); lightRenderSum(); }
+        function lightRenderAll() { lightPopulateBunruiFilters(); lightRenderMasterEdit(); lightRenderList(); lightRenderSum(); }
         function lightSwitchView(v) {
             document.getElementById('lightViewList').style.display = (v === 'list') ? '' : 'none';
             document.getElementById('lightViewSum').style.display  = (v === 'sum')  ? '' : 'none';
@@ -15002,6 +15035,31 @@ ${contentRows}
         }
 
         /* ---------- マスタ ---------- */
+        async function _lightSeedMasters() {
+            var pending = [];
+            LIGHT_MASTER_DEFS.forEach(function (d) {
+                if (!_lightMasters[d.key] || _lightMasters[d.key].length === 0) {
+                    _lightMasters[d.key] = (LIGHT_MASTER_DEFAULTS[d.key] || []).slice();
+                    if (_lightMasters[d.key].length) pending.push(d.key);
+                }
+            });
+            for (var i = 0; i < pending.length; i++) { await _lightSaveMaster(pending[i]); }
+            if (pending.length) console.log('[LIGHT] seeded masters:', pending.join(', '));
+        }
+        function lightPopulateBunruiFilters() {
+            var list = _lightBunruiList();
+            ['lightFilterBunrui', 'lightSumFilterBunrui'].forEach(function (id) {
+                var sel = document.getElementById(id);
+                if (!sel) return;
+                var cur = sel.value;
+                var h = '<option value="">分類：すべて</option>';
+                list.forEach(function (b) {
+                    h += '<option value="' + _lightEsc(b) + '"' + (b === cur ? ' selected' : '') + '>' + _lightEsc(b) + '</option>';
+                });
+                sel.innerHTML = h;
+                sel.value = (list.indexOf(cur) >= 0) ? cur : '';
+            });
+        }
         function _lightOpts(list, val) {
             var h = '<option value=""></option>';
             var arr = (list || []).slice();
@@ -15054,7 +15112,7 @@ ${contentRows}
             _lightFx.forEach(function (f) { if ((f.no || 0) > maxNo) maxNo = f.no || 0; });
             var it = {
                 id: _lightUid('lf'), no: maxNo + 1,
-                symbol: '', publicNo: '', kishu: '', bunrui: '一般', keijou: '', maker: '',
+                symbol: '', publicNo: '', kishu: '', bunrui: (_lightBunruiList()[0] || ''), keijou: '', maker: '',
                 kataban: '', bodyNo: '', barNo: '', seigyo: '', voltage: '100V',
                 lumen: 0, watt: 0, ra: 0, kelvin: '', remark: ''
             };
@@ -15297,7 +15355,7 @@ ${contentRows}
 
             var rows = _lightAggData();
             var b = '';
-            var order = LIGHT_BUNRUI.concat(['']);
+            var order = _lightBunruiList().concat(['']);
             var gN = 0, gVA = 0, gLM = 0;
             order.forEach(function (bn) {
                 var grp = rows.filter(function (x) { return (x.f.bunrui || '') === bn; });
