@@ -1451,6 +1451,26 @@
         .qa-btn-add { background:#43a047; }
         .qa-btn-del { background:#e53935; }
         .qa-btn-sub { background:#1565c0; }
+
+        /* ===== 照明器具タブ ===== */
+        .light-table { width:100%; border-collapse:collapse; font-size:0.75rem; }
+        .light-table th { background:#ef6c00; color:#fff; padding:3px 4px; border:1px solid #d84315; position:sticky; top:0; z-index:2; white-space:nowrap; font-weight:bold; }
+        .light-table td { border:1px solid #ddd; padding:1px 2px; background:#fff; }
+        .light-table input, .light-table select { width:100%; border:1px solid transparent; background:transparent; font-size:0.75rem; padding:2px; box-sizing:border-box; }
+        .light-table input:focus, .light-table select:focus { border-color:#ef6c00; background:#fff8e1; outline:none; }
+        .light-table tbody tr:hover td { background:#fff3e0; }
+        .light-wrap { overflow:auto; max-height:64vh; border:1px solid #ccc; border-radius:3px; }
+        .light-sub { display:flex; gap:0.4rem; margin:0.5rem 0; flex-wrap:wrap; align-items:center; }
+        .light-viewbtn { padding:0.35rem 1rem; border:1px solid #ef6c00; background:#fff; color:#ef6c00; cursor:pointer; border-radius:3px; font-size:0.82rem; font-weight:bold; }
+        .light-viewbtn.active { background:#ef6c00; color:#fff; }
+        .light-star { background:#ef6c00; color:#fff; border:none; border-radius:2px; cursor:pointer; font-size:0.68rem; padding:2px 4px; line-height:1; flex:0 0 auto; }
+        .light-star:hover { background:#d84315; }
+        .light-num input { text-align:right; }
+        .light-table td.light-fix { position:sticky; left:0; z-index:1; background:#fafafa; }
+        .light-total td, .light-table tfoot td { background:#fff3e0 !important; font-weight:bold; text-align:right; }
+        .light-cnt input { text-align:center; }
+        .light-mcol { min-width:170px; }
+        .light-mcol textarea { width:100%; font-size:0.78rem; }
     </style>
 </head>
 <body>
@@ -1489,6 +1509,7 @@
                 <button class="nav-tab" data-tab="master">マスターデータ</button>
                 <button class="nav-tab" data-tab="weakCurrent" style="background:#00695c;color:#fff;">弱電幹線</button>
                 <button class="nav-tab" data-tab="qaTab" style="background:#1565c0;color:#fff;">質疑応答書</button>
+                <button class="nav-tab" data-tab="lighting" style="background:#ef6c00;color:#fff;">照明器具</button>
             </div>
         </div>
 
@@ -2999,6 +3020,74 @@
             </div>
 
             <!-- Master Tab -->
+
+            <!-- 照明器具 Tab -->
+            <div id="lighting" class="tab-content">
+                <h3 style="margin:0.5rem 0;">照明器具</h3>
+                <div class="light-sub">
+                    <button class="light-viewbtn active" id="lightViewBtn1" onclick="lightSwitchView('list')">照明器具一覧</button>
+                    <button class="light-viewbtn" id="lightViewBtn2" onclick="lightSwitchView('sum')">現場集計表</button>
+                    <span style="flex:1;"></span>
+                    <button class="btn-action" onclick="lightReload()">&#8635; 再読込</button>
+                </div>
+
+                <div id="lightViewList">
+                    <div class="light-sub">
+                        <button class="btn-action" style="background:#ef6c00;color:#fff;" onclick="lightAddFixture()">＋ 器具を追加</button>
+                        <select id="lightFilterBunrui" onchange="lightRenderList()" style="font-size:0.8rem;padding:0.25rem;">
+                            <option value="">分類：すべて</option>
+                            <option value="一般">一般</option>
+                            <option value="誘導">誘導</option>
+                            <option value="非常">非常</option>
+                        </select>
+                        <input id="lightSearch" type="text" placeholder="検索（記号 / 型番 / メーカー / 器種）" oninput="lightRenderList()" style="font-size:0.8rem;padding:0.25rem;width:230px;">
+                        <button class="btn-action" onclick="lightExportCsv()">CSV出力</button>
+                        <span id="lightListInfo" style="font-size:0.78rem;color:#666;"></span>
+                    </div>
+                    <div class="light-wrap">
+                        <table class="light-table" id="lightTable">
+                            <thead id="lightThead"></thead>
+                            <tbody id="lightTbody"></tbody>
+                        </table>
+                    </div>
+                    <details style="margin-top:0.6rem;background:#fff3e0;border:1px solid #ffcc80;border-radius:4px;padding:0.5rem;">
+                        <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem;color:#ef6c00;">&#9881; マスタ登録（器種・形状・メーカー・制御）</summary>
+                        <div id="lightMasterEdit" style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
+                    </details>
+                </div>
+
+                <div id="lightViewSum" style="display:none;">
+                    <div class="light-sub">
+                        <button class="btn-action" style="background:#ef6c00;color:#fff;" onclick="lightAddRow()">＋ 行を追加</button>
+                        <label style="font-size:0.8rem;"><input type="checkbox" id="lightOnlyUsed" onchange="lightRenderSum()" style="width:auto;"> 使用器具のみ表示</label>
+                        <select id="lightSumFilterBunrui" onchange="lightRenderSum()" style="font-size:0.8rem;padding:0.25rem;">
+                            <option value="">分類：すべて</option>
+                            <option value="一般">一般</option>
+                            <option value="誘導">誘導</option>
+                            <option value="非常">非常</option>
+                        </select>
+                        <button class="btn-action" onclick="lightPrint()">&#128424; 印刷 / PDF</button>
+                        <button class="btn-action" onclick="lightExportSumCsv()">CSV出力</button>
+                        <span id="lightSumInfo" style="font-size:0.78rem;color:#666;"></span>
+                    </div>
+                    <div style="font-size:0.74rem;color:#888;margin-bottom:0.3rem;">※ 階・室名は「質疑応答書」タブで登録したフロア／部屋リストを共有しています。未登録の場合は自由入力になります。</div>
+                    <div class="light-wrap">
+                        <table class="light-table" id="lightSumTable">
+                            <thead id="lightSumThead"></thead>
+                            <tbody id="lightSumTbody"></tbody>
+                            <tfoot id="lightSumTfoot"></tfoot>
+                        </table>
+                    </div>
+                    <h4 style="margin:0.9rem 0 0.3rem;color:#ef6c00;">器具別集計</h4>
+                    <div class="light-wrap" style="max-height:42vh;">
+                        <table class="light-table" id="lightAggTable">
+                            <thead id="lightAggThead"></thead>
+                            <tbody id="lightAggTbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div id="master" class="tab-content">
                 <div class="master-tables">
                     <div class="master-table">
@@ -5903,6 +5992,8 @@
                 wcInit();
             } else if (tabName === 'qaTab') {
                 qaInit();
+            } else if (tabName === 'lighting') {
+                lightInit();
             }
         }
 
@@ -14713,6 +14804,667 @@ ${contentRows}
             } catch(e) {
                 console.error('qaExecutePrint open tab error:', e);
             }
+        }
+
+    
+        /* ==================== 照明器具一覧・現場集計表 ==================== */
+        var _lightFx = [];
+        var _lightRows = [];
+        var _lightMasters = { kishu: [], keijou: [], maker: [], seigyo: [] };
+        var _lightInited = false;
+        var _lightIgnoreRt = false;
+        var _lightRtChannel = null;
+        var _lightSaveTimers = {};
+
+        var LIGHT_MASTER_DEFS = [
+            { key: 'kishu',  label: '器種' },
+            { key: 'keijou', label: '形状' },
+            { key: 'maker',  label: 'メーカー' },
+            { key: 'seigyo', label: '制御' }
+        ];
+        var LIGHT_BUNRUI = ['一般', '誘導', '非常'];
+        var LIGHT_VOLT   = ['100V', '200V', '100〜242V'];
+
+        var LIGHT_COLS = [
+            { f: 'symbol',   label: '照会記号',       w: 72,  t: 'text' },
+            { f: 'publicNo', label: '公共施設番号',   w: 92,  t: 'text' },
+            { f: 'kishu',    label: '器種',           w: 130, t: 'master', m: 'kishu' },
+            { f: 'bunrui',   label: '分類',           w: 66,  t: 'fixed',  opts: LIGHT_BUNRUI },
+            { f: 'keijou',   label: '形状',           w: 120, t: 'master', m: 'keijou' },
+            { f: 'maker',    label: 'メーカー',       w: 110, t: 'master', m: 'maker' },
+            { f: 'kataban',  label: '型番',           w: 150, t: 'text' },
+            { f: 'bodyNo',   label: '本体品番',       w: 130, t: 'text' },
+            { f: 'barNo',    label: 'ライトバー品番', w: 130, t: 'text' },
+            { f: 'seigyo',   label: '制御',           w: 110, t: 'master', m: 'seigyo' },
+            { f: 'voltage',  label: '電圧(V)',        w: 86,  t: 'fixed',  opts: LIGHT_VOLT },
+            { f: 'lumen',    label: '光束(lm)',       w: 74,  t: 'num' },
+            { f: 'watt',     label: '電力(VA)',       w: 74,  t: 'num' },
+            { f: 'ra',       label: 'Ra',             w: 48,  t: 'num' },
+            { f: 'kelvin',   label: '色温度(K)',      w: 76,  t: 'text' },
+            { f: 'remark',   label: '備考',           w: 130, t: 'text' }
+        ];
+
+        function _lightEsc(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+        function _lightUid(p) { return p + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7); }
+        function _lightN(v) { var n = Number(v); return isFinite(n) ? n : 0; }
+        function _lightGuardRt() {
+            _lightIgnoreRt = true;
+            if (window._lightRtTimer) clearTimeout(window._lightRtTimer);
+            window._lightRtTimer = setTimeout(function () { _lightIgnoreRt = false; }, 3000);
+        }
+
+        /* ---------- Supabase ---------- */
+        async function _lightLoadFromDB() {
+            var pid = projectGetCurrent();
+            try {
+                var r1 = await db.from('lighting_fixtures').select('*').eq('project_id', pid).order('no', { ascending: true });
+                if (r1.error) throw r1.error;
+                _lightFx = (r1.data || []).map(function (row) {
+                    return {
+                        id: row.item_id, no: row.no || 0,
+                        symbol: row.symbol || '', publicNo: row.public_no || '',
+                        kishu: row.kishu || '', bunrui: row.bunrui || '', keijou: row.keijou || '',
+                        maker: row.maker || '', kataban: row.kataban || '',
+                        bodyNo: row.body_no || '', barNo: row.lightbar_no || '',
+                        seigyo: row.seigyo || '', voltage: row.voltage || '',
+                        lumen: row.lumen || 0, watt: row.watt || 0, ra: row.ra || 0,
+                        kelvin: row.kelvin || '', remark: row.remark || ''
+                    };
+                });
+                var r2 = await db.from('lighting_counts').select('*').eq('project_id', pid).order('no', { ascending: true });
+                if (r2.error) throw r2.error;
+                _lightRows = (r2.data || []).map(function (row) {
+                    return { id: row.row_id, no: row.no || 0, floor: row.floor || '', room: row.room || '', counts: row.counts || {}, remark: row.remark || '' };
+                });
+                var r3 = await db.from('lighting_masters').select('*').eq('project_id', pid);
+                if (r3.error) throw r3.error;
+                var m = { kishu: [], keijou: [], maker: [], seigyo: [] };
+                (r3.data || []).forEach(function (row) { if (m[row.kind]) m[row.kind] = row.values || []; });
+                _lightMasters = m;
+                console.log('[LIGHT] loaded fixtures=' + _lightFx.length + ' rows=' + _lightRows.length);
+            } catch (e) {
+                console.error('[LIGHT] load error:', e);
+                alert('照明データの読込に失敗しました。\nSupabase に lighting_fixtures / lighting_counts / lighting_masters テーブルがあるか確認してください。\n\n' + (e.message || e));
+            }
+        }
+
+        async function _lightUpsertFx(item) {
+            _lightGuardRt();
+            try {
+                var res = await db.from('lighting_fixtures').upsert({
+                    project_id: projectGetCurrent(), item_id: item.id, no: item.no || 0,
+                    symbol: item.symbol || '', public_no: item.publicNo || '',
+                    kishu: item.kishu || '', bunrui: item.bunrui || '', keijou: item.keijou || '',
+                    maker: item.maker || '', kataban: item.kataban || '',
+                    body_no: item.bodyNo || '', lightbar_no: item.barNo || '',
+                    seigyo: item.seigyo || '', voltage: item.voltage || '',
+                    lumen: _lightN(item.lumen), watt: _lightN(item.watt), ra: _lightN(item.ra),
+                    kelvin: item.kelvin || '', remark: item.remark || '',
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'project_id,item_id' });
+                if (res.error) console.error('[LIGHT] upsert fixture error:', res.error);
+            } catch (e) { console.error('[LIGHT] upsert fixture ex:', e); }
+        }
+
+        async function _lightUpsertRow(row) {
+            _lightGuardRt();
+            try {
+                var res = await db.from('lighting_counts').upsert({
+                    project_id: projectGetCurrent(), row_id: row.id, no: row.no || 0,
+                    floor: row.floor || '', room: row.room || '',
+                    counts: row.counts || {}, remark: row.remark || '',
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'project_id,row_id' });
+                if (res.error) console.error('[LIGHT] upsert row error:', res.error);
+            } catch (e) { console.error('[LIGHT] upsert row ex:', e); }
+        }
+
+        async function _lightSaveMaster(kind) {
+            _lightGuardRt();
+            try {
+                var res = await db.from('lighting_masters').upsert({
+                    project_id: projectGetCurrent(), kind: kind,
+                    values: _lightMasters[kind] || [], updated_at: new Date().toISOString()
+                }, { onConflict: 'project_id,kind' });
+                if (res.error) console.error('[LIGHT] upsert master error:', res.error);
+            } catch (e) { console.error('[LIGHT] upsert master ex:', e); }
+        }
+
+        async function _lightDeleteFxDB(id) {
+            _lightGuardRt();
+            try { await db.from('lighting_fixtures').delete().eq('project_id', projectGetCurrent()).eq('item_id', id); }
+            catch (e) { console.error('[LIGHT] delete fixture ex:', e); }
+        }
+        async function _lightDeleteRowDB(id) {
+            _lightGuardRt();
+            try { await db.from('lighting_counts').delete().eq('project_id', projectGetCurrent()).eq('row_id', id); }
+            catch (e) { console.error('[LIGHT] delete row ex:', e); }
+        }
+
+        function _lightQueueFx(item) {
+            var k = 'f' + item.id;
+            if (_lightSaveTimers[k]) clearTimeout(_lightSaveTimers[k]);
+            _lightSaveTimers[k] = setTimeout(function () { _lightUpsertFx(item); }, 600);
+        }
+        function _lightQueueRow(row) {
+            var k = 'r' + row.id;
+            if (_lightSaveTimers[k]) clearTimeout(_lightSaveTimers[k]);
+            _lightSaveTimers[k] = setTimeout(function () { _lightUpsertRow(row); }, 600);
+        }
+
+        /* ---------- realtime ---------- */
+        function _lightSubscribeRt() {
+            var pid = projectGetCurrent();
+            if (_lightRtChannel) { try { db.removeChannel(_lightRtChannel); } catch (e) {} _lightRtChannel = null; }
+            var flt = 'project_id=eq.' + pid;
+            _lightRtChannel = db.channel('lighting-' + pid)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'lighting_fixtures', filter: flt }, _lightOnRt)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'lighting_counts',   filter: flt }, _lightOnRt)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'lighting_masters',  filter: flt }, _lightOnRt)
+                .subscribe();
+        }
+        function _lightOnRt() {
+            if (_lightIgnoreRt) return;
+            if (window._lightRtDebounce) clearTimeout(window._lightRtDebounce);
+            window._lightRtDebounce = setTimeout(async function () {
+                var ae = document.activeElement;
+                if (ae && ae.closest && ae.closest('#lighting')) return;
+                await _lightLoadFromDB();
+                lightRenderAll();
+            }, 1000);
+        }
+
+        /* ---------- init / view ---------- */
+        async function lightInit() {
+            if (_lightInited) { lightRenderAll(); return; }
+            _lightInited = true;
+            try { if (typeof qaSyncFloorRoomsFromDB === 'function') await qaSyncFloorRoomsFromDB(); } catch (e) { console.warn('[LIGHT] floor_rooms sync skipped', e); }
+            await _lightLoadFromDB();
+            _lightSubscribeRt();
+            lightRenderAll();
+        }
+        async function lightReload() {
+            try { if (typeof qaSyncFloorRoomsFromDB === 'function') await qaSyncFloorRoomsFromDB(); } catch (e) {}
+            await _lightLoadFromDB();
+            lightRenderAll();
+        }
+        function lightRenderAll() { lightRenderMasterEdit(); lightRenderList(); lightRenderSum(); }
+        function lightSwitchView(v) {
+            document.getElementById('lightViewList').style.display = (v === 'list') ? '' : 'none';
+            document.getElementById('lightViewSum').style.display  = (v === 'sum')  ? '' : 'none';
+            document.getElementById('lightViewBtn1').classList.toggle('active', v === 'list');
+            document.getElementById('lightViewBtn2').classList.toggle('active', v === 'sum');
+            if (v === 'sum') lightRenderSum();
+        }
+
+        /* ---------- マスタ ---------- */
+        function _lightOpts(list, val) {
+            var h = '<option value=""></option>';
+            var arr = (list || []).slice();
+            if (val && arr.indexOf(val) < 0) arr.push(val);
+            arr.forEach(function (o) {
+                h += '<option value="' + _lightEsc(o) + '"' + (o === val ? ' selected' : '') + '>' + _lightEsc(o) + '</option>';
+            });
+            return h;
+        }
+        function lightAddMaster(kind) {
+            var def = LIGHT_MASTER_DEFS.filter(function (d) { return d.key === kind; })[0];
+            var name = prompt((def ? def.label : kind) + ' に追加する項目名を入力してください');
+            if (!name) return;
+            name = name.trim();
+            if (!name) return;
+            if (!_lightMasters[kind]) _lightMasters[kind] = [];
+            if (_lightMasters[kind].indexOf(name) >= 0) { alert('すでに登録されています：' + name); return; }
+            _lightMasters[kind].push(name);
+            _lightSaveMaster(kind);
+            lightRenderMasterEdit();
+            lightRenderList();
+        }
+        function lightRenderMasterEdit() {
+            var wrap = document.getElementById('lightMasterEdit');
+            if (!wrap) return;
+            var h = '';
+            LIGHT_MASTER_DEFS.forEach(function (d) {
+                var v = (_lightMasters[d.key] || []).join('\n');
+                h += '<div class="light-mcol">'
+                   + '<label style="font-size:0.78rem;font-weight:bold;color:#ef6c00;">' + d.label + '（改行区切り）</label><br>'
+                   + '<textarea rows="7" data-mkind="' + d.key + '" style="font-size:0.78rem;">' + _lightEsc(v) + '</textarea>'
+                   + '<br><button class="btn-action" style="background:#ef6c00;color:#fff;margin-top:0.25rem;" onclick="lightSaveMasterText(\'' + d.key + '\')">保存</button>'
+                   + '</div>';
+            });
+            wrap.innerHTML = h;
+        }
+        function lightSaveMasterText(kind) {
+            var ta = document.querySelector('#lightMasterEdit textarea[data-mkind="' + kind + '"]');
+            if (!ta) return;
+            _lightMasters[kind] = ta.value.split('\n').map(function (s) { return s.trim(); }).filter(function (s) { return s; });
+            _lightSaveMaster(kind);
+            lightRenderList();
+            var def = LIGHT_MASTER_DEFS.filter(function (d) { return d.key === kind; })[0];
+            alert((def ? def.label : kind) + ' マスタを保存しました（' + _lightMasters[kind].length + ' 件）');
+        }
+
+        /* ---------- 照明器具一覧 ---------- */
+        function lightAddFixture() {
+            var maxNo = 0;
+            _lightFx.forEach(function (f) { if ((f.no || 0) > maxNo) maxNo = f.no || 0; });
+            var it = {
+                id: _lightUid('lf'), no: maxNo + 1,
+                symbol: '', publicNo: '', kishu: '', bunrui: '一般', keijou: '', maker: '',
+                kataban: '', bodyNo: '', barNo: '', seigyo: '', voltage: '100V',
+                lumen: 0, watt: 0, ra: 0, kelvin: '', remark: ''
+            };
+            _lightFx.push(it);
+            _lightUpsertFx(it);
+            lightRenderList();
+            lightRenderSum();
+        }
+        function lightDeleteFixture(id) {
+            var it = _lightFx.filter(function (f) { return f.id === id; })[0];
+            if (!it) return;
+            if (!confirm('照会記号「' + (it.symbol || '(未設定)') + '」を削除しますか？\n集計表の台数も一緒に削除されます。')) return;
+            _lightFx = _lightFx.filter(function (f) { return f.id !== id; });
+            _lightDeleteFxDB(id);
+            _lightRows.forEach(function (r) {
+                if (r.counts && r.counts[id] != null) { delete r.counts[id]; _lightQueueRow(r); }
+            });
+            lightRenderList();
+            lightRenderSum();
+        }
+        function lightFxChange(id, field, value) {
+            var it = _lightFx.filter(function (f) { return f.id === id; })[0];
+            if (!it) return;
+            it[field] = (field === 'lumen' || field === 'watt' || field === 'ra') ? _lightN(value) : value;
+            _lightQueueFx(it);
+            if (field === 'symbol' || field === 'bunrui' || field === 'watt' || field === 'lumen' || field === 'kishu' || field === 'kataban') lightRenderSum();
+        }
+        function lightRenderList() {
+            var thead = document.getElementById('lightThead');
+            var tbody = document.getElementById('lightTbody');
+            if (!thead || !tbody) return;
+            var h = '<tr><th style="width:36px;">No</th>';
+            LIGHT_COLS.forEach(function (c) { h += '<th style="min-width:' + c.w + 'px;">' + c.label + '</th>'; });
+            h += '<th style="width:36px;">削除</th></tr>';
+            thead.innerHTML = h;
+
+            var el1 = document.getElementById('lightFilterBunrui');
+            var el2 = document.getElementById('lightSearch');
+            var fb = el1 ? el1.value : '';
+            var q = (el2 ? el2.value : '').trim().toLowerCase();
+            var list = _lightFx.filter(function (it) {
+                if (fb && it.bunrui !== fb) return false;
+                if (q) {
+                    var s = (it.symbol + ' ' + it.kataban + ' ' + it.maker + ' ' + it.bodyNo + ' ' + it.kishu + ' ' + it.publicNo).toLowerCase();
+                    if (s.indexOf(q) < 0) return false;
+                }
+                return true;
+            });
+
+            var b = '';
+            list.forEach(function (it, i) {
+                b += '<tr>';
+                b += '<td class="light-fix" style="text-align:center;">' + (i + 1) + '</td>';
+                LIGHT_COLS.forEach(function (c) {
+                    var v = it[c.f];
+                    var cb = 'lightFxChange(\'' + it.id + '\',\'' + c.f + '\',this.value)';
+                    if (c.t === 'master') {
+                        b += '<td><div style="display:flex;gap:2px;align-items:center;">'
+                           + '<select onchange="' + cb + '">' + _lightOpts(_lightMasters[c.m], v) + '</select>'
+                           + '<button class="light-star" title="マスタに追加" onclick="lightAddMaster(\'' + c.m + '\')">★</button>'
+                           + '</div></td>';
+                    } else if (c.t === 'fixed') {
+                        b += '<td><select onchange="' + cb + '">' + _lightOpts(c.opts, v) + '</select></td>';
+                    } else if (c.t === 'num') {
+                        b += '<td class="light-num"><input type="number" step="any" value="' + _lightEsc(v) + '" onchange="' + cb + '"></td>';
+                    } else {
+                        b += '<td><input type="text" value="' + _lightEsc(v) + '" onchange="' + cb + '"></td>';
+                    }
+                });
+                b += '<td style="text-align:center;"><button class="btn-delete" onclick="lightDeleteFixture(\'' + it.id + '\')">×</button></td>';
+                b += '</tr>';
+            });
+            tbody.innerHTML = b || '<tr><td colspan="' + (LIGHT_COLS.length + 2) + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 器具を追加」から登録してください</td></tr>';
+            var info = document.getElementById('lightListInfo');
+            if (info) info.textContent = '表示 ' + list.length + ' 件 / 全 ' + _lightFx.length + ' 件';
+        }
+
+        /* ---------- 階 / 室名（質疑応答書タブの floor_rooms を共有） ---------- */
+        function _lightFloorRooms() {
+            try { if (typeof qaLoadFloorRooms === 'function') return qaLoadFloorRooms() || {}; } catch (e) {}
+            return {};
+        }
+        function _lightHasFloorMaster() {
+            var fr = _lightFloorRooms();
+            return Object.keys(fr).length > 0;
+        }
+        function _lightFloorList() { return Object.keys(_lightFloorRooms()); }
+        function _lightRoomList(floor) {
+            var fr = _lightFloorRooms();
+            return (floor && fr[floor]) ? fr[floor] : [];
+        }
+
+        /* ---------- 現場集計表（階×室名の拾い表） ---------- */
+        function _lightSumCols() {
+            var chk = document.getElementById('lightOnlyUsed');
+            var sel = document.getElementById('lightSumFilterBunrui');
+            var fb = sel ? sel.value : '';
+            var cols = _lightFx.filter(function (f) { return !fb || f.bunrui === fb; });
+            if (chk && chk.checked) {
+                cols = cols.filter(function (f) {
+                    return _lightRows.some(function (r) { return _lightN(r.counts[f.id]) > 0; });
+                });
+            }
+            return cols;
+        }
+        function _lightRowTotal(r, cols) {
+            var n = 0, va = 0, lm = 0;
+            cols.forEach(function (f) {
+                var c = _lightN(r.counts[f.id]);
+                if (c) { n += c; va += c * _lightN(f.watt); lm += c * _lightN(f.lumen); }
+            });
+            return { n: n, va: va, lm: lm };
+        }
+        function lightAddRow() {
+            var maxNo = 0;
+            _lightRows.forEach(function (r) { if ((r.no || 0) > maxNo) maxNo = r.no || 0; });
+            var last = _lightRows[_lightRows.length - 1];
+            var row = { id: _lightUid('lc'), no: maxNo + 1, floor: last ? last.floor : '', room: '', counts: {}, remark: '' };
+            _lightRows.push(row);
+            _lightUpsertRow(row);
+            lightRenderSum();
+        }
+        function lightDeleteSumRow(id) {
+            var r = _lightRows.filter(function (x) { return x.id === id; })[0];
+            if (!r) return;
+            if (!confirm('「' + (r.floor || '') + ' ' + (r.room || '(室名なし)') + '」の行を削除しますか？')) return;
+            _lightRows = _lightRows.filter(function (x) { return x.id !== id; });
+            _lightDeleteRowDB(id);
+            lightRenderSum();
+        }
+        function lightRowChange(id, field, value) {
+            var r = _lightRows.filter(function (x) { return x.id === id; })[0];
+            if (!r) return;
+            r[field] = value;
+            if (field === 'floor' && _lightRoomList(value).indexOf(r.room) < 0) r.room = '';
+            _lightQueueRow(r);
+            if (field === 'floor') lightRenderSum();
+        }
+        function lightCntChange(rowId, fxId, value) {
+            var r = _lightRows.filter(function (x) { return x.id === rowId; })[0];
+            if (!r) return;
+            if (!r.counts) r.counts = {};
+            var n = _lightN(value);
+            if (n > 0) r.counts[fxId] = n; else delete r.counts[fxId];
+            _lightQueueRow(r);
+            lightRenderSumTotals();
+            lightRenderAgg();
+        }
+        function lightRenderSum() {
+            var thead = document.getElementById('lightSumThead');
+            var tbody = document.getElementById('lightSumTbody');
+            if (!thead || !tbody) return;
+            var cols = _lightSumCols();
+            var useMaster = _lightHasFloorMaster();
+
+            var h = '<tr><th style="width:36px;">No</th><th style="min-width:80px;">階</th><th style="min-width:150px;">室名</th>';
+            cols.forEach(function (f) {
+                h += '<th style="min-width:54px;" title="' + _lightEsc(f.kishu + ' / ' + f.kataban) + '">' + _lightEsc(f.symbol || '(記号なし)') + '</th>';
+            });
+            h += '<th style="min-width:52px;">計</th><th style="min-width:76px;">VA計</th><th style="min-width:120px;">備考</th><th style="width:36px;">削除</th></tr>';
+            thead.innerHTML = h;
+
+            var b = '';
+            _lightRows.forEach(function (r, i) {
+                var t = _lightRowTotal(r, cols);
+                b += '<tr>';
+                b += '<td class="light-fix" style="text-align:center;">' + (i + 1) + '</td>';
+                if (useMaster) {
+                    b += '<td><select onchange="lightRowChange(\'' + r.id + '\',\'floor\',this.value)">' + _lightOpts(_lightFloorList(), r.floor) + '</select></td>';
+                    b += '<td><select onchange="lightRowChange(\'' + r.id + '\',\'room\',this.value)">' + _lightOpts(_lightRoomList(r.floor), r.room) + '</select></td>';
+                } else {
+                    b += '<td><input type="text" value="' + _lightEsc(r.floor) + '" onchange="lightRowChange(\'' + r.id + '\',\'floor\',this.value)"></td>';
+                    b += '<td><input type="text" value="' + _lightEsc(r.room) + '" onchange="lightRowChange(\'' + r.id + '\',\'room\',this.value)"></td>';
+                }
+                cols.forEach(function (f) {
+                    var c = _lightN(r.counts[f.id]);
+                    b += '<td class="light-cnt"><input type="number" min="0" step="1" value="' + (c > 0 ? c : '') + '" onchange="lightCntChange(\'' + r.id + '\',\'' + f.id + '\',this.value)"></td>';
+                });
+                b += '<td data-rt="' + r.id + '" style="text-align:right;font-weight:bold;background:#fff8e1;">' + (t.n || '') + '</td>';
+                b += '<td data-rv="' + r.id + '" style="text-align:right;background:#fff8e1;">' + (t.va ? t.va.toLocaleString() : '') + '</td>';
+                b += '<td><input type="text" value="' + _lightEsc(r.remark) + '" onchange="lightRowChange(\'' + r.id + '\',\'remark\',this.value)"></td>';
+                b += '<td style="text-align:center;"><button class="btn-delete" onclick="lightDeleteSumRow(\'' + r.id + '\')">×</button></td>';
+                b += '</tr>';
+            });
+            tbody.innerHTML = b || '<tr><td colspan="' + (cols.length + 7) + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 行を追加」から階・室名を登録してください</td></tr>';
+
+            lightRenderSumTotals();
+            lightRenderAgg();
+            var info = document.getElementById('lightSumInfo');
+            if (info) info.textContent = _lightRows.length + ' 室 / 器具 ' + cols.length + ' 種';
+        }
+        function lightRenderSumTotals() {
+            var tfoot = document.getElementById('lightSumTfoot');
+            if (!tfoot) return;
+            var cols = _lightSumCols();
+            _lightRows.forEach(function (r) {
+                var t = _lightRowTotal(r, cols);
+                var c1 = document.querySelector('#lightSumTbody td[data-rt="' + r.id + '"]');
+                var c2 = document.querySelector('#lightSumTbody td[data-rv="' + r.id + '"]');
+                if (c1) c1.textContent = t.n || '';
+                if (c2) c2.textContent = t.va ? t.va.toLocaleString() : '';
+            });
+            var gN = 0, gVA = 0;
+            var f = '<tr class="light-total"><td colspan="3" style="text-align:center;">合計</td>';
+            cols.forEach(function (fx) {
+                var s = 0;
+                _lightRows.forEach(function (r) { s += _lightN(r.counts[fx.id]); });
+                gN += s; gVA += s * _lightN(fx.watt);
+                f += '<td style="text-align:center;">' + (s || '') + '</td>';
+            });
+            f += '<td style="text-align:right;">' + (gN || '') + '</td>';
+            f += '<td style="text-align:right;">' + (gVA ? gVA.toLocaleString() : '') + '</td>';
+            f += '<td></td><td></td></tr>';
+            tfoot.innerHTML = f;
+        }
+
+        /* ---------- 器具別集計 ---------- */
+        function _lightAggData() {
+            var sel = document.getElementById('lightSumFilterBunrui');
+            var fb = sel ? sel.value : '';
+            var out = [];
+            _lightFx.forEach(function (f) {
+                if (fb && f.bunrui !== fb) return;
+                var n = 0;
+                _lightRows.forEach(function (r) { n += _lightN(r.counts[f.id]); });
+                out.push({ f: f, n: n, va: n * _lightN(f.watt), lm: n * _lightN(f.lumen) });
+            });
+            return out;
+        }
+        function lightRenderAgg() {
+            var thead = document.getElementById('lightAggThead');
+            var tbody = document.getElementById('lightAggTbody');
+            if (!thead || !tbody) return;
+            thead.innerHTML = '<tr>'
+                + '<th style="min-width:72px;">照会記号</th><th style="min-width:120px;">器種</th>'
+                + '<th style="min-width:150px;">型番</th><th style="min-width:100px;">メーカー</th>'
+                + '<th style="min-width:60px;">分類</th><th style="min-width:82px;">電圧</th>'
+                + '<th style="min-width:74px;">電力(VA)</th><th style="min-width:74px;">光束(lm)</th>'
+                + '<th style="min-width:60px;">総台数</th><th style="min-width:90px;">合計VA</th><th style="min-width:100px;">合計lm</th></tr>';
+
+            var rows = _lightAggData();
+            var b = '';
+            var order = LIGHT_BUNRUI.concat(['']);
+            var gN = 0, gVA = 0, gLM = 0;
+            order.forEach(function (bn) {
+                var grp = rows.filter(function (x) { return (x.f.bunrui || '') === bn; });
+                if (!grp.length) return;
+                var sN = 0, sVA = 0, sLM = 0;
+                grp.forEach(function (x) {
+                    sN += x.n; sVA += x.va; sLM += x.lm;
+                    b += '<tr>'
+                       + '<td style="text-align:center;font-weight:bold;">' + _lightEsc(x.f.symbol) + '</td>'
+                       + '<td>' + _lightEsc(x.f.kishu) + '</td>'
+                       + '<td>' + _lightEsc(x.f.kataban) + '</td>'
+                       + '<td>' + _lightEsc(x.f.maker) + '</td>'
+                       + '<td style="text-align:center;">' + _lightEsc(x.f.bunrui) + '</td>'
+                       + '<td style="text-align:center;">' + _lightEsc(x.f.voltage) + '</td>'
+                       + '<td style="text-align:right;">' + (_lightN(x.f.watt) || '') + '</td>'
+                       + '<td style="text-align:right;">' + (_lightN(x.f.lumen) ? _lightN(x.f.lumen).toLocaleString() : '') + '</td>'
+                       + '<td style="text-align:right;font-weight:bold;">' + (x.n || '') + '</td>'
+                       + '<td style="text-align:right;">' + (x.va ? x.va.toLocaleString() : '') + '</td>'
+                       + '<td style="text-align:right;">' + (x.lm ? x.lm.toLocaleString() : '') + '</td>'
+                       + '</tr>';
+                });
+                gN += sN; gVA += sVA; gLM += sLM;
+                b += '<tr class="light-total"><td colspan="8" style="text-align:center;">' + (bn || '未分類') + ' 小計</td>'
+                   + '<td style="text-align:right;">' + sN + '</td>'
+                   + '<td style="text-align:right;">' + sVA.toLocaleString() + '</td>'
+                   + '<td style="text-align:right;">' + sLM.toLocaleString() + '</td></tr>';
+            });
+            if (b) {
+                b += '<tr class="light-total" style="border-top:2px solid #ef6c00;"><td colspan="8" style="text-align:center;">総合計</td>'
+                   + '<td style="text-align:right;">' + gN + '</td>'
+                   + '<td style="text-align:right;">' + gVA.toLocaleString() + '</td>'
+                   + '<td style="text-align:right;">' + gLM.toLocaleString() + '</td></tr>';
+            }
+            tbody.innerHTML = b || '<tr><td colspan="11" style="text-align:center;padding:1rem;color:#999;">器具を登録すると集計されます</td></tr>';
+        }
+
+        /* ---------- CSV ---------- */
+        function _lightCsvCell(v) {
+            var s = String(v == null ? '' : v);
+            return (s.indexOf(',') >= 0 || s.indexOf('"') >= 0 || s.indexOf('\n') >= 0) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        }
+        function _lightDownload(name, text) {
+            var blob = new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = name; a.style.display = 'none';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+        }
+        function _lightProjName() {
+            try {
+                var list = (typeof projectGetList === 'function') ? projectGetList() : [];
+                var cur = projectGetCurrent();
+                var p = list.filter(function (x) { return x.id === cur; })[0];
+                return p ? p.name : '';
+            } catch (e) { return ''; }
+        }
+        function lightExportCsv() {
+            var lines = [];
+            lines.push(['No'].concat(LIGHT_COLS.map(function (c) { return c.label; })).map(_lightCsvCell).join(','));
+            _lightFx.forEach(function (it, i) {
+                lines.push([i + 1].concat(LIGHT_COLS.map(function (c) { return it[c.f]; })).map(_lightCsvCell).join(','));
+            });
+            _lightDownload('照明器具一覧_' + _lightProjName() + '.csv', lines.join('\n'));
+        }
+        function lightExportSumCsv() {
+            var cols = _lightSumCols();
+            var lines = [];
+            lines.push(['No', '階', '室名'].concat(cols.map(function (f) { return f.symbol || '(記号なし)'; })).concat(['計', 'VA計', '備考']).map(_lightCsvCell).join(','));
+            _lightRows.forEach(function (r, i) {
+                var t = _lightRowTotal(r, cols);
+                var row = [i + 1, r.floor, r.room].concat(cols.map(function (f) { return _lightN(r.counts[f.id]) || ''; })).concat([t.n || '', t.va || '', r.remark]);
+                lines.push(row.map(_lightCsvCell).join(','));
+            });
+            var tot = ['', '', '合計'];
+            var gN = 0, gVA = 0;
+            cols.forEach(function (f) {
+                var s = 0;
+                _lightRows.forEach(function (r) { s += _lightN(r.counts[f.id]); });
+                gN += s; gVA += s * _lightN(f.watt);
+                tot.push(s || '');
+            });
+            tot.push(gN, gVA, '');
+            lines.push(tot.map(_lightCsvCell).join(','));
+            lines.push('');
+            lines.push(['照会記号', '器種', '型番', 'メーカー', '分類', '電圧', '電力(VA)', '光束(lm)', '総台数', '合計VA', '合計lm'].map(_lightCsvCell).join(','));
+            _lightAggData().forEach(function (x) {
+                lines.push([x.f.symbol, x.f.kishu, x.f.kataban, x.f.maker, x.f.bunrui, x.f.voltage, _lightN(x.f.watt), _lightN(x.f.lumen), x.n, x.va, x.lm].map(_lightCsvCell).join(','));
+            });
+            _lightDownload('照明器具集計表_' + _lightProjName() + '.csv', lines.join('\n'));
+        }
+
+        /* ---------- 印刷 / PDF ---------- */
+        function lightPrint() {
+            if (!_lightFx.length) { alert('照明器具が登録されていません。'); return; }
+            var cols = _lightSumCols();
+            var d = new Date();
+            var ymd = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+            var pname = _lightProjName();
+
+            var css = 'body{font-family:"Yu Gothic","Meiryo",sans-serif;margin:0;padding:8mm;color:#000;}'
+                + 'h2{font-size:14pt;margin:0 0 2mm;text-align:center;}'
+                + '.hd{display:flex;justify-content:space-between;font-size:9pt;margin-bottom:3mm;}'
+                + 'table{border-collapse:collapse;width:100%;font-size:8pt;margin-bottom:6mm;}'
+                + 'th,td{border:1px solid #333;padding:1.2mm 1mm;}'
+                + 'th{background:#eee;text-align:center;font-weight:bold;}'
+                + 'td.c{text-align:center;} td.r{text-align:right;}'
+                + 'tr.tot td{background:#f4f4f4;font-weight:bold;}'
+                + '.pb{page-break-before:always;}'
+                + '@page{size:297mm 210mm;margin:8mm;}'
+                + '@media print{.noprint{display:none;}}';
+
+            var h = '<html><head><meta charset="utf-8"><title>照明器具集計表</title><style>' + css + '</style></head><body>';
+            h += '<div class="noprint" style="text-align:right;margin-bottom:3mm;"><button onclick="window.print()" style="padding:6px 18px;font-size:11pt;cursor:pointer;">印刷 / PDF保存</button></div>';
+
+            h += '<h2>照明器具 集計表（拾い表）</h2>';
+            h += '<div class="hd"><span>工事名：' + _lightEsc(pname) + '</span><span>作成日：' + ymd + '</span></div>';
+            h += '<table><thead><tr><th style="width:8mm;">No</th><th style="width:18mm;">階</th><th style="width:32mm;">室名</th>';
+            cols.forEach(function (f) { h += '<th>' + _lightEsc(f.symbol || '-') + '</th>'; });
+            h += '<th style="width:12mm;">計</th><th style="width:18mm;">VA計</th><th style="width:28mm;">備考</th></tr></thead><tbody>';
+            _lightRows.forEach(function (r, i) {
+                var t = _lightRowTotal(r, cols);
+                h += '<tr><td class="c">' + (i + 1) + '</td><td class="c">' + _lightEsc(r.floor) + '</td><td>' + _lightEsc(r.room) + '</td>';
+                cols.forEach(function (f) {
+                    var c = _lightN(r.counts[f.id]);
+                    h += '<td class="c">' + (c > 0 ? c : '') + '</td>';
+                });
+                h += '<td class="r">' + (t.n || '') + '</td><td class="r">' + (t.va ? t.va.toLocaleString() : '') + '</td><td>' + _lightEsc(r.remark) + '</td></tr>';
+            });
+            var gN = 0, gVA = 0;
+            var tf = '<tr class="tot"><td colspan="3" class="c">合計</td>';
+            cols.forEach(function (f) {
+                var s = 0;
+                _lightRows.forEach(function (r) { s += _lightN(r.counts[f.id]); });
+                gN += s; gVA += s * _lightN(f.watt);
+                tf += '<td class="c">' + (s || '') + '</td>';
+            });
+            tf += '<td class="r">' + gN + '</td><td class="r">' + gVA.toLocaleString() + '</td><td></td></tr>';
+            h += tf + '</tbody></table>';
+
+            h += '<div class="pb"></div>';
+            h += '<h2>照明器具 一覧 / 器具別集計</h2>';
+            h += '<div class="hd"><span>工事名：' + _lightEsc(pname) + '</span><span>作成日：' + ymd + '</span></div>';
+            h += '<table><thead><tr><th>照会記号</th><th>公共施設番号</th><th>器種</th><th>分類</th><th>形状</th><th>メーカー</th><th>型番</th><th>本体品番</th><th>ライトバー品番</th><th>制御</th><th>電圧</th><th>光束(lm)</th><th>電力(VA)</th><th>Ra</th><th>色温度(K)</th><th>総台数</th><th>合計VA</th></tr></thead><tbody>';
+            var aN = 0, aVA = 0;
+            _lightAggData().forEach(function (x) {
+                aN += x.n; aVA += x.va;
+                h += '<tr><td class="c">' + _lightEsc(x.f.symbol) + '</td><td class="c">' + _lightEsc(x.f.publicNo) + '</td><td>' + _lightEsc(x.f.kishu) + '</td>'
+                   + '<td class="c">' + _lightEsc(x.f.bunrui) + '</td><td>' + _lightEsc(x.f.keijou) + '</td><td>' + _lightEsc(x.f.maker) + '</td>'
+                   + '<td>' + _lightEsc(x.f.kataban) + '</td><td>' + _lightEsc(x.f.bodyNo) + '</td><td>' + _lightEsc(x.f.barNo) + '</td>'
+                   + '<td class="c">' + _lightEsc(x.f.seigyo) + '</td><td class="c">' + _lightEsc(x.f.voltage) + '</td>'
+                   + '<td class="r">' + (_lightN(x.f.lumen) ? _lightN(x.f.lumen).toLocaleString() : '') + '</td>'
+                   + '<td class="r">' + (_lightN(x.f.watt) || '') + '</td><td class="r">' + (_lightN(x.f.ra) || '') + '</td>'
+                   + '<td class="c">' + _lightEsc(x.f.kelvin) + '</td><td class="r">' + (x.n || '') + '</td>'
+                   + '<td class="r">' + (x.va ? x.va.toLocaleString() : '') + '</td></tr>';
+            });
+            h += '<tr class="tot"><td colspan="15" class="c">総合計</td><td class="r">' + aN + '</td><td class="r">' + aVA.toLocaleString() + '</td></tr>';
+            h += '</tbody></table></body></html>';
+
+            try {
+                var blob = new Blob([h], { type: 'text/html;charset=utf-8' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.style.display = 'none';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(function () { URL.revokeObjectURL(url); }, 120000);
+            } catch (e) { console.error('lightPrint error:', e); }
         }
 
     </script>
