@@ -3034,12 +3034,6 @@
                 <div id="lightViewList">
                     <div class="light-sub">
                         <button class="btn-action" style="background:#ef6c00;color:#fff;" onclick="lightAddFixture()">＋ 器具を追加</button>
-                        <select id="lightFilterBunrui" onchange="lightRenderList()" style="font-size:0.8rem;padding:0.25rem;">
-                            <option value="">分類：すべて</option>
-                            <option value="一般">一般</option>
-                            <option value="誘導">誘導</option>
-                            <option value="非常">非常</option>
-                        </select>
                         <input id="lightSearch" type="text" placeholder="検索（記号 / 型番 / メーカー / 器種）" oninput="lightRenderList()" style="font-size:0.8rem;padding:0.25rem;width:230px;">
                         <button class="btn-action" onclick="lightExportCsv()">CSV出力</button>
                         <span id="lightListInfo" style="font-size:0.78rem;color:#666;"></span>
@@ -15048,7 +15042,7 @@ ${contentRows}
         }
         function lightPopulateBunruiFilters() {
             var list = _lightBunruiList();
-            ['lightFilterBunrui', 'lightSumFilterBunrui'].forEach(function (id) {
+            ['lightSumFilterBunrui'].forEach(function (id) {
                 var sel = document.getElementById(id);
                 if (!sel) return;
                 var cur = sel.value;
