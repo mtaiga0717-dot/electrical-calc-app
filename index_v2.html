@@ -1481,15 +1481,21 @@
         .light-table tbody tr.cross-row > td { box-shadow:inset 0 1px 0 #ef6c00, inset 0 -1px 0 #ef6c00; }
         /* 現場集計表：見出し行と左4列を固定 */
         #lightViewSum .light-wrap.light-wrap-sum { max-height:calc(100vh - 300px); min-height:300px; }
-        #lightSumTable thead th { position:sticky; top:0; z-index:4; box-shadow:0 1px 0 #d84315; }
+        #lightSumTable thead th { padding:2px 3px; line-height:16px; }
+        #lightSumTable thead tr:first-child th { position:sticky; top:0; z-index:4; box-shadow:0 1px 0 #d84315; }
+        #lightSumTable thead tr:nth-child(2) th { position:sticky; top:22px; z-index:4; box-shadow:0 1px 0 #d84315; font-size:0.68rem; font-weight:normal; }
+        #lightSumTable thead th.sub-d { background:#8d6e63; }
+        #lightSumTable thead th.sub-a { background:#00695c; }
+        #lightSumTable td.cell-d { border-right:1px dashed #ccc; }
+        #lightSumTable td.cell-a { border-right:1px solid #999; }
         #lightSumTable tfoot td { position:sticky; bottom:0; z-index:4; box-shadow:0 -1px 0 #d84315; }
-        #lightSumTable thead th:nth-child(1), #lightSumTable tbody td:nth-child(1) { position:sticky; left:0;     width:30px;  min-width:30px; max-width:30px; }
-        #lightSumTable thead th:nth-child(2), #lightSumTable tbody td:nth-child(2) { position:sticky; left:30px;  width:36px;  min-width:36px; max-width:36px; }
-        #lightSumTable thead th:nth-child(3), #lightSumTable tbody td:nth-child(3) { position:sticky; left:66px;  width:80px;  min-width:80px; }
-        #lightSumTable thead th:nth-child(4), #lightSumTable tbody td:nth-child(4) { position:sticky; left:146px; width:150px; min-width:150px;
+        #lightSumTable thead tr:first-child th:nth-child(1), #lightSumTable tbody td:nth-child(1) { position:sticky; left:0;     width:30px;  min-width:30px; max-width:30px; }
+        #lightSumTable thead tr:first-child th:nth-child(2), #lightSumTable tbody td:nth-child(2) { position:sticky; left:30px;  width:36px;  min-width:36px; max-width:36px; }
+        #lightSumTable thead tr:first-child th:nth-child(3), #lightSumTable tbody td:nth-child(3) { position:sticky; left:66px;  width:80px;  min-width:80px; }
+        #lightSumTable thead tr:first-child th:nth-child(4), #lightSumTable tbody td:nth-child(4) { position:sticky; left:146px; width:150px; min-width:150px;
             box-shadow:2px 0 0 #d84315; }
         #lightSumTable tbody td:nth-child(-n+4) { background:#fff; z-index:2; }
-        #lightSumTable thead th:nth-child(-n+4) { z-index:6; }
+        #lightSumTable thead tr:first-child th:nth-child(-n+4) { z-index:6; }
         #lightSumTable tfoot td:nth-child(1) { position:sticky; left:0; z-index:6; box-shadow:2px 0 0 #d84315, 0 -1px 0 #d84315; }
         #lightSumTable tbody tr:hover td:nth-child(-n+4) { background:#fff3e0; }
     </style>
@@ -15026,8 +15032,19 @@ ${contentRows}
         }
 
         /* ---------- Supabase ---------- */
+        var _lightHasActual = null;
+        async function _lightProbeActual() {
+            if (_lightHasActual !== null) return _lightHasActual;
+            try {
+                var r = await db.from('lighting_counts').select('counts_actual').limit(1);
+                _lightHasActual = !r.error;
+                if (r.error) console.warn('[LIGHT] counts_actual 列が未作成のため実行数量は保存されません:', r.error.message);
+            } catch (e) { _lightHasActual = false; }
+            return _lightHasActual;
+        }
         async function _lightLoadFromDB() {
             var pid = projectGetCurrent();
+            await _lightProbeActual();
             try {
                 var r1 = await db.from('lighting_fixtures').select('*').eq('project_id', pid).order('no', { ascending: true });
                 if (r1.error) throw r1.error;
@@ -15050,6 +15067,7 @@ ${contentRows}
                 if (r2.error) throw r2.error;
                 _lightRows = (r2.data || []).map(function (row) {
                     return { id: row.row_id, no: row.no || 0, floor: row.floor || '', room: row.room || '', counts: row.counts || {},
+                             countsA: row.counts_actual || {},
                              ordered: !!row.ordered, orderedDate: row.ordered_date || '', remark: row.remark || '' };
                 });
                 var r3 = await db.from('lighting_masters').select('*').eq('project_id', pid);
@@ -15088,13 +15106,15 @@ ${contentRows}
         async function _lightUpsertRow(row) {
             _lightGuardRt();
             try {
-                var res = await db.from('lighting_counts').upsert({
+                var payload = {
                     project_id: projectGetCurrent(), row_id: row.id, no: row.no || 0,
                     floor: row.floor || '', room: row.room || '',
                     counts: row.counts || {}, remark: row.remark || '',
                     ordered: !!row.ordered, ordered_date: row.orderedDate || '',
                     updated_at: new Date().toISOString()
-                }, { onConflict: 'project_id,row_id' });
+                };
+                if (_lightHasActual) payload.counts_actual = row.countsA || {};
+                var res = await db.from('lighting_counts').upsert(payload, { onConflict: 'project_id,row_id' });
                 if (res.error) console.error('[LIGHT] upsert row error:', res.error);
             } catch (e) { console.error('[LIGHT] upsert row ex:', e); }
         }
@@ -15276,7 +15296,11 @@ ${contentRows}
             _lightRows.forEach(function (r) {
                 var ch = false;
                 if (r.counts && r.counts[id] != null) { delete r.counts[id]; ch = true; }
-                _accIds.forEach(function (ak) { if (r.counts && r.counts[ak] != null) { delete r.counts[ak]; ch = true; } });
+                if (r.countsA && r.countsA[id] != null) { delete r.countsA[id]; ch = true; }
+                _accIds.forEach(function (ak) {
+                    if (r.counts && r.counts[ak] != null) { delete r.counts[ak]; ch = true; }
+                    if (r.countsA && r.countsA[ak] != null) { delete r.countsA[ak]; ch = true; }
+                });
                 if (ch) _lightQueueRow(r);
             });
             lightRenderList();
@@ -15425,7 +15449,10 @@ ${contentRows}
             it.accessories = it.accessories.filter(function (a) { return a.aid !== aid; });
             _lightUpsertFx(it);
             _lightRows.forEach(function (r) {
-                if (r.counts && r.counts[aid] != null) { delete r.counts[aid]; _lightQueueRow(r); }
+                var ch2 = false;
+                if (r.counts && r.counts[aid] != null) { delete r.counts[aid]; ch2 = true; }
+                if (r.countsA && r.countsA[aid] != null) { delete r.countsA[aid]; ch2 = true; }
+                if (ch2) _lightQueueRow(r);
             });
             lightRenderList();
             lightRenderSum();
@@ -15458,7 +15485,7 @@ ${contentRows}
             });
             if (chk && chk.checked) {
                 cols = cols.filter(function (c) {
-                    return _lightRows.some(function (r) { return _lightN(r.counts[c.key]) > 0; });
+                    return _lightRows.some(function (r) { return _lightN(r.counts[c.key]) > 0 || _lightN((r.countsA || {})[c.key]) > 0; });
                 });
             }
             return cols;
@@ -15475,7 +15502,7 @@ ${contentRows}
             var maxNo = 0;
             _lightRows.forEach(function (r) { if ((r.no || 0) > maxNo) maxNo = r.no || 0; });
             var last = _lightRows[_lightRows.length - 1];
-            var row = { id: _lightUid('lc'), no: maxNo + 1, floor: last ? last.floor : '', room: '', counts: {}, ordered: false, orderedDate: '', remark: '' };
+            var row = { id: _lightUid('lc'), no: maxNo + 1, floor: last ? last.floor : '', room: '', counts: {}, countsA: {}, ordered: false, orderedDate: '', remark: '' };
             _lightRows.push(row);
             _lightUpsertRow(row);
             lightRenderSum();
@@ -15520,15 +15547,25 @@ ${contentRows}
             _lightQueueRow(r);
             if (field === 'floor' || field === 'ordered') lightRenderSum();
         }
-        function lightCntChange(rowId, fxId, value) {
+        function lightCntChange(rowId, fxId, value, kind) {
             var r = _lightRows.filter(function (x) { return x.id === rowId; })[0];
             if (!r) return;
             if (!r.counts) r.counts = {};
+            if (!r.countsA) r.countsA = {};
+            var store = (kind === 'a') ? r.countsA : r.counts;
             var n = _lightN(value);
-            if (n > 0) r.counts[fxId] = n; else delete r.counts[fxId];
+            if (n > 0) store[fxId] = n; else delete store[fxId];
             _lightQueueRow(r);
+            _lightSyncDiff(r, fxId);
             lightRenderSumTotals();
             lightRenderAgg();
+        }
+        function _lightSyncDiff(r, key) {
+            var el = document.querySelector('#lightSumTbody td[data-diff="' + r.id + '|' + key + '"]');
+            if (!el) return;
+            var d = _lightN((r.counts || {})[key]), a = _lightN((r.countsA || {})[key]);
+            el.style.background = (a === d) ? '' : (a > d ? '#e8f5e9' : '#ffebee');
+            el.style.fontWeight = (a === d) ? '' : 'bold';
         }
         function lightRenderSum() {
             var thead = document.getElementById('lightSumThead');
@@ -15537,13 +15574,18 @@ ${contentRows}
             var cols = _lightSumCols();
             var useMaster = _lightHasFloorMaster();
 
-            var h = '<tr><th style="width:30px;"><input type="checkbox" id="lightSumAll" onchange="lightToggleAllRows(this.checked)" style="width:auto;" title="全選択"></th>'
-                  + '<th style="width:36px;">No</th><th style="min-width:80px;">階</th><th style="min-width:150px;">室名</th>';
+            var h = '<tr><th rowspan="2" style="width:30px;"><input type="checkbox" id="lightSumAll" onchange="lightToggleAllRows(this.checked)" style="width:auto;" title="全選択"></th>'
+                  + '<th rowspan="2" style="width:36px;">No</th><th rowspan="2" style="min-width:80px;">階</th><th rowspan="2" style="min-width:150px;">室名</th>';
             cols.forEach(function (c) {
-                h += '<th style="min-width:54px;' + (c.isAcc ? 'background:#f9a825;' : '') + '" title="' + _lightEsc(c.title) + '">' + _lightEsc(c.label) + '</th>';
+                h += '<th colspan="2" style="min-width:88px;' + (c.isAcc ? 'background:#f9a825;' : '') + '" title="' + _lightEsc(c.title) + '">' + _lightEsc(c.label) + '</th>';
             });
-            h += '<th style="min-width:58px;background:#2e7d32;">注文済</th><th style="min-width:92px;background:#2e7d32;">注文日</th>'
-               + '<th style="min-width:120px;">備考</th><th style="width:36px;">削除</th></tr>';
+            h += '<th rowspan="2" style="min-width:58px;background:#2e7d32;">注文済</th><th rowspan="2" style="min-width:92px;background:#2e7d32;">注文日</th>'
+               + '<th rowspan="2" style="min-width:120px;">備考</th><th rowspan="2" style="width:36px;">削除</th></tr>';
+            h += '<tr>';
+            cols.forEach(function () {
+                h += '<th class="sub-d" style="min-width:44px;">設計</th><th class="sub-a" style="min-width:44px;">実行</th>';
+            });
+            h += '</tr>';
             thead.innerHTML = h;
 
             var b = '';
@@ -15563,8 +15605,11 @@ ${contentRows}
                     b += '<td><input type="text" value="' + _lightEsc(r.room) + '" onchange="lightRowChange(\'' + r.id + '\',\'room\',this.value)"></td>';
                 }
                 cols.forEach(function (c) {
-                    var cnt = _lightN(r.counts[c.key]);
-                    b += '<td class="light-cnt"' + (c.isAcc ? ' style="background:#fffde7;"' : '') + '><input type="number" min="0" step="1" value="' + (cnt > 0 ? cnt : '') + '" onchange="lightCntChange(\'' + r.id + '\',\'' + c.key + '\',this.value)"></td>';
+                    var cd = _lightN(r.counts[c.key]);
+                    var ca = _lightN((r.countsA || {})[c.key]);
+                    var diffBg = (ca === cd) ? '' : (ca > cd ? 'background:#e8f5e9;font-weight:bold;' : 'background:#ffebee;font-weight:bold;');
+                    b += '<td class="light-cnt cell-d"' + (c.isAcc ? ' style="background:#fffde7;"' : '') + '><input type="number" min="0" step="1" value="' + (cd > 0 ? cd : '') + '" onchange="lightCntChange(\'' + r.id + '\',\'' + c.key + '\',this.value,\'d\')"></td>';
+                    b += '<td class="light-cnt cell-a" data-diff="' + r.id + '|' + c.key + '" style="' + diffBg + '"><input type="number" min="0" step="1" value="' + (ca > 0 ? ca : '') + '" onchange="lightCntChange(\'' + r.id + '\',\'' + c.key + '\',this.value,\'a\')"></td>';
                 });
                 b += '<td style="text-align:center;background:' + (r.ordered ? '#e8f5e9' : '') + ';"><input type="checkbox"' + (r.ordered ? ' checked' : '') + ' style="width:auto;" onchange="lightRowChange(\'' + r.id + '\',\'ordered\',this.checked)"></td>';
                 b += '<td style="background:' + (r.ordered ? '#e8f5e9' : '') + ';"><input type="date" value="' + _lightEsc(r.orderedDate) + '" onchange="lightRowChange(\'' + r.id + '\',\'orderedDate\',this.value)"></td>';
@@ -15572,7 +15617,7 @@ ${contentRows}
                 b += '<td style="text-align:center;"><button class="btn-delete" onclick="lightDeleteSumRow(\'' + r.id + '\')">×</button></td>';
                 b += '</tr>';
             });
-            tbody.innerHTML = b || '<tr><td colspan="' + (cols.length + 8) + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 行を追加」から階・室名を登録してください</td></tr>';
+            tbody.innerHTML = b || '<tr><td colspan="' + (cols.length * 2 + 8) + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 行を追加」から階・室名を登録してください</td></tr>';
 
             lightRenderSumTotals();
             lightRenderAgg();
@@ -15582,6 +15627,7 @@ ${contentRows}
                 info.textContent = _lightRows.length + ' 室 / 器具 ' + cols.length + ' 種';
                 if (dupTotal > 0) { info.textContent += '　⚠ 階・室名の重複 ' + dupTotal + ' 行'; info.style.color = '#c62828'; }
                 else { info.style.color = '#666'; }
+                if (_lightHasActual === false) { info.textContent += '　⚠ 実行数量は未保存（DBに counts_actual 列が必要）'; info.style.color = '#c62828'; }
             }
         }
         function lightRenderSumTotals() {
@@ -15590,9 +15636,10 @@ ${contentRows}
             var cols = _lightSumCols();
             var f = '<tr class="light-total"><td colspan="4" style="text-align:center;">合計</td>';
             cols.forEach(function (c) {
-                var s = 0;
-                _lightRows.forEach(function (r) { s += _lightN(r.counts[c.key]); });
-                f += '<td style="text-align:center;">' + (s || '') + '</td>';
+                var sd = 0, sa = 0;
+                _lightRows.forEach(function (r) { sd += _lightN(r.counts[c.key]); sa += _lightN((r.countsA || {})[c.key]); });
+                f += '<td style="text-align:center;">' + (sd || '') + '</td>';
+                f += '<td style="text-align:center;' + (sa === sd ? '' : (sa > sd ? 'color:#2e7d32;' : 'color:#c62828;')) + '">' + (sa || '') + '</td>';
             });
             f += '<td></td><td></td><td></td><td></td></tr>';
             tfoot.innerHTML = f;
@@ -15605,23 +15652,25 @@ ${contentRows}
             var out = [];
             _lightFx.forEach(function (f) {
                 if (fb && f.bunrui !== fb) return;
-                var n = 0, ordN = 0;
+                var n = 0, ordN = 0, dq = 0;
                 _lightRows.forEach(function (r) {
-                    var c = _lightN(r.counts[f.id]);
+                    dq += _lightN(r.counts[f.id]);
+                    var c = _lightN((r.countsA || {})[f.id]);
                     n += c;
                     if (r.ordered) ordN += c;
                 });
-                var lp = _lightN(f.listPrice), np = _lightN(f.netPrice), dq = _lightN(f.designQty);
+                var lp = _lightN(f.listPrice), np = _lightN(f.netPrice);
                 out.push({ f: f, n: n, va: n * _lightN(f.watt), lm: n * _lightN(f.lumen),
                            dq: dq, diff: n - dq, ordN: ordN, rest: n - ordN, lpAmt: lp * n, npAmt: np * n });
                 (f.accessories || []).forEach(function (a) {
-                    var q = 0, oq = 0;
+                    var q = 0, oq = 0, adq = 0;
                     _lightRows.forEach(function (r) {
-                        var c = _lightN(r.counts[a.aid]);
+                        adq += _lightN(r.counts[a.aid]);
+                        var c = _lightN((r.countsA || {})[a.aid]);
                         q += c;
                         if (r.ordered) oq += c;
                     });
-                    out.push({ acc: true, f: f, a: a, n: q, va: 0, lm: 0, dq: 0, diff: 0,
+                    out.push({ acc: true, f: f, a: a, n: q, va: 0, lm: 0, dq: adq, diff: q - adq,
                                ordN: oq, rest: q - oq,
                                lpAmt: _lightN(a.listPrice) * q, npAmt: _lightN(a.netPrice) * q });
                 });
@@ -15646,9 +15695,9 @@ ${contentRows}
                  + '<td>' + _lightEsc(a.kataban) + '</td>'
                  + '<td>' + _lightEsc(f.maker) + '</td>'
                  + '<td></td><td></td><td></td>'
-                 + '<td></td>'
+                 + '<td style="text-align:right;background:#efebe9;">' + (x.dq || '') + '</td>'
                  + '<td style="text-align:right;font-weight:bold;">' + (x.n || '') + '</td>'
-                 + '<td></td>'
+                 + '<td style="text-align:right;' + (x.diff ? 'color:#c62828;font-weight:bold;' : 'color:#999;') + '">' + (x.diff ? (x.diff > 0 ? '+' + x.diff : x.diff) : '±0') + '</td>'
                  + '<td style="text-align:right;color:#2e7d32;">' + (x.ordN || '') + '</td>'
                  + '<td style="text-align:right;' + (x.rest > 0 ? 'color:#e65100;font-weight:bold;' : 'color:#999;') + '">' + (x.rest > 0 ? x.rest : (x.n ? '0' : '')) + '</td>'
                  + '<td class="light-num" style="background:#e8f5e9;"><input type="number" min="0" step="1" value="' + (_lightN(a.listPrice) || '') + '" onchange="' + cb('listPrice') + '"></td>'
@@ -15697,7 +15746,7 @@ ${contentRows}
                        + '<td style="text-align:center;">' + _lightEsc(x.f.bunrui) + '</td>'
                        + '<td style="text-align:center;">' + _lightEsc(x.f.voltage) + '</td>'
                        + '<td style="text-align:right;">' + (_lightN(x.f.watt) || '') + '</td>'
-                       + '<td class="light-num" style="background:#efebe9;"><input type="number" min="0" step="1" value="' + (x.dq || '') + '" onchange="lightAggChange(\'' + x.f.id + '\',\'designQty\',this.value)"></td>'
+                       + '<td style="text-align:right;background:#efebe9;">' + (x.dq || '') + '</td>'
                        + '<td style="text-align:right;font-weight:bold;background:#efebe9;">' + (x.n || '') + '</td>'
                        + '<td style="text-align:right;background:#efebe9;' + (x.diff ? 'color:#c62828;font-weight:bold;' : 'color:#999;') + '">' + (x.diff ? (x.diff > 0 ? '+' + x.diff : x.diff) : '±0') + '</td>'
                        + '<td style="text-align:right;background:#e8f5e9;font-weight:bold;color:#2e7d32;">' + (x.ordN || '') + '</td>'
@@ -15770,21 +15819,21 @@ ${contentRows}
         function lightExportSumCsv() {
             var cols = _lightSumCols();
             var lines = [];
-            lines.push(['No', '階', '室名'].concat(cols.map(function (c) { return c.label; })).concat(['注文済', '注文日', '備考']).map(_lightCsvCell).join(','));
+            lines.push(['No', '階', '室名'].concat([].concat.apply([], cols.map(function (c) { return [c.label + '(設計)', c.label + '(実行)']; }))).concat(['注文済', '注文日', '備考']).map(_lightCsvCell).join(','));
             _lightRows.forEach(function (r, i) {
-                var row = [i + 1, r.floor, r.room].concat(cols.map(function (c) { return _lightN(r.counts[c.key]) || ''; })).concat([r.ordered ? '○' : '', r.orderedDate, r.remark]);
+                var row = [i + 1, r.floor, r.room].concat([].concat.apply([], cols.map(function (c) { return [_lightN(r.counts[c.key]) || '', _lightN((r.countsA || {})[c.key]) || '']; }))).concat([r.ordered ? '○' : '', r.orderedDate, r.remark]);
                 lines.push(row.map(_lightCsvCell).join(','));
             });
             var tot = ['', '', '合計'];
             cols.forEach(function (c) {
-                var s = 0;
-                _lightRows.forEach(function (r) { s += _lightN(r.counts[c.key]); });
-                tot.push(s || '');
+                var sd = 0, sa = 0;
+                _lightRows.forEach(function (r) { sd += _lightN(r.counts[c.key]); sa += _lightN((r.countsA || {})[c.key]); });
+                tot.push(sd || ''); tot.push(sa || '');
             });
             tot.push('', '', '');
             lines.push(tot.map(_lightCsvCell).join(','));
             lines.push('');
-            lines.push(['照会記号', '器種', '型番', 'メーカー', '分類', '電圧', '電力(VA)', '設計数量', '実行数量', '差', '注文済数量', '残', '定価', '定価金額', 'NET単価', 'NET金額', '合計VA', '合計lm'].map(_lightCsvCell).join(','));
+            lines.push(['照会記号', '器種', '型番', 'メーカー', '分類', '電圧', '電力(VA)', '設計数量', '実行数量', '増減', '注文済数量', '残', '定価', '定価金額', 'NET単価', 'NET金額', '合計VA', '合計lm'].map(_lightCsvCell).join(','));
             _lightAggData().forEach(function (x) {
                 lines.push([x.f.symbol, x.f.kishu, x.f.kataban, x.f.maker, x.f.bunrui, x.f.voltage, _lightN(x.f.watt),
                             x.dq || '', x.n, x.diff, x.ordN, x.rest, _lightN(x.f.listPrice) || '', x.lpAmt || '', _lightN(x.f.netPrice) || '', x.npAmt || '',
@@ -15823,14 +15872,14 @@ ${contentRows}
             _lightFx.forEach(function (f) {
                 var n = 0, places = [];
                 rows.forEach(function (r) {
-                    var c = _lightN(r.counts[f.id]);
+                    var c = _lightN((r.countsA || {})[f.id]);
                     if (c > 0) { n += c; places.push(((r.floor || '') + ' ' + (r.room || '')).trim()); }
                 });
                 if (n > 0) out.push({ f: f, n: n, unit: '台', places: places });
                 (f.accessories || []).forEach(function (a) {
                     var q = 0, ap = [];
                     rows.forEach(function (r) {
-                        var c = _lightN(r.counts[a.aid]);
+                        var c = _lightN((r.countsA || {})[a.aid]);
                         if (c > 0) { q += c; ap.push(((r.floor || '') + ' ' + (r.room || '')).trim()); }
                     });
                     if (q <= 0) return;
@@ -16068,6 +16117,7 @@ ${contentRows}
             h += '<div class="noprint" style="text-align:right;margin-bottom:3mm;"><button onclick="window.print()" style="padding:6px 18px;font-size:11pt;cursor:pointer;">印刷 / PDF保存</button></div>';
 
             h += '<h2>照明器具 集計表（拾い表）</h2>';
+            h += '<div style="font-size:8pt;text-align:right;margin-bottom:1mm;">数量は実行数量。括弧内は設計数量（相違がある場合のみ表示）</div>';
             h += '<div class="hd"><span>工事名：' + _lightEsc(pname) + '</span><span>作成日：' + ymd + '</span></div>';
             h += '<table><thead><tr><th style="width:8mm;">No</th><th style="width:18mm;">階</th><th style="width:32mm;">室名</th>';
             cols.forEach(function (c) { h += '<th>' + _lightEsc(c.label) + '</th>'; });
@@ -16075,16 +16125,18 @@ ${contentRows}
             _lightRows.forEach(function (r, i) {
                 h += '<tr><td class="c">' + (i + 1) + '</td><td class="c">' + _lightEsc(r.floor) + '</td><td>' + _lightEsc(r.room) + '</td>';
                 cols.forEach(function (col) {
-                    var c = _lightN(r.counts[col.key]);
-                    h += '<td class="c">' + (c > 0 ? c : '') + '</td>';
+                    var cd = _lightN(r.counts[col.key]), ca = _lightN((r.countsA || {})[col.key]);
+                    var txt = '';
+                    if (ca || cd) txt = (ca === cd) ? String(ca) : (ca + '<span style="font-size:6.5pt;color:#666;">(' + cd + ')</span>');
+                    h += '<td class="c">' + txt + '</td>';
                 });
                 h += '<td>' + _lightEsc(r.remark) + '</td></tr>';
             });
             var tf = '<tr class="tot"><td colspan="3" class="c">合計</td>';
             cols.forEach(function (c) {
-                var s = 0;
-                _lightRows.forEach(function (r) { s += _lightN(r.counts[c.key]); });
-                tf += '<td class="c">' + (s || '') + '</td>';
+                var sd = 0, sa = 0;
+                _lightRows.forEach(function (r) { sd += _lightN(r.counts[c.key]); sa += _lightN((r.countsA || {})[c.key]); });
+                tf += '<td class="c">' + (sa || sd ? ((sa === sd) ? sa : (sa + '<span style="font-size:6.5pt;color:#666;">(' + sd + ')</span>')) : '') + '</td>';
             });
             tf += '<td></td></tr>';
             h += tf + '</tbody></table>';
