@@ -1480,6 +1480,10 @@
         .light-table tbody td.cross-col { background:#fff3e0 !important; }
         .light-table tbody tr.cross-row > td.cross-col { background:#ffcc80 !important; }
         .light-table thead th.cross-head { background:#bf360c !important; }
+        .light-table tbody tr.lock-row > td { background:#e3f2fd !important; box-shadow:inset 0 2px 0 #1565c0, inset 0 -2px 0 #1565c0; }
+        .light-table tbody td.lock-col { background:#e3f2fd !important; box-shadow:inset 2px 0 0 #1565c0, inset -2px 0 0 #1565c0; }
+        .light-table tbody tr.lock-row > td.lock-col { background:#90caf9 !important; box-shadow:inset 0 0 0 2px #1565c0; }
+        .light-table thead th.lock-head { background:#0d47a1 !important; }
         .light-table tbody tr.cross-row > td { box-shadow:inset 0 1px 0 #ef6c00, inset 0 -1px 0 #ef6c00; }
         /* 現場集計表：見出し行と左4列を固定 */
         #lightViewSum .light-wrap.light-wrap-sum { max-height:calc(100vh - 300px); min-height:300px; }
@@ -15408,6 +15412,35 @@ ${contentRows}
                 if (hr && hr.cells[idx]) hr.cells[idx].classList.add('cross-head');
             });
             tbl.addEventListener('mouseleave', function () { _lightClearCross(tbl); });
+            tbl.addEventListener('click', function (e) {
+                var td = e.target && e.target.closest ? e.target.closest('td') : null;
+                if (!td) return;
+                var body = tbl.tBodies[0];
+                if (!body || !body.contains(td)) return;
+                if (e.target.closest && e.target.closest('button')) return;
+                var ri = Array.prototype.indexOf.call(body.rows, td.parentElement);
+                var ci = td.cellIndex;
+                if (tbl._lock && tbl._lock.r === ri && tbl._lock.c === ci) tbl._lock = null;
+                else tbl._lock = { r: ri, c: ci };
+                _lightApplyLock(tbl);
+            });
+            _lightApplyLock(tbl);
+        }
+        function _lightApplyLock(tbl) {
+            if (!tbl) return;
+            Array.prototype.forEach.call(tbl.querySelectorAll('.lock-row, .lock-col, .lock-head'), function (e) {
+                e.classList.remove('lock-row'); e.classList.remove('lock-col'); e.classList.remove('lock-head');
+            });
+            var lk = tbl._lock;
+            if (!lk) return;
+            var body = tbl.tBodies[0];
+            if (!body) return;
+            var tr = body.rows[lk.r];
+            if (!tr) { tbl._lock = null; return; }
+            tr.classList.add('lock-row');
+            Array.prototype.forEach.call(body.rows, function (r) { if (r.cells[lk.c]) r.cells[lk.c].classList.add('lock-col'); });
+            var hr = tbl.tHead && tbl.tHead.rows[0];
+            if (hr && hr.cells[lk.c]) hr.cells[lk.c].classList.add('lock-head');
         }
         function lightRenderList() {
             var thead = document.getElementById('lightThead');
@@ -15470,6 +15503,7 @@ ${contentRows}
             });
             tbody.innerHTML = b || '<tr><td colspan="' + (LIGHT_COLS.length + 2) + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 器具を追加」から登録してください</td></tr>';
             _lightBindCross('lightTable');
+            _lightApplyLock(document.getElementById('lightTable'));
             var info = document.getElementById('lightListInfo');
             if (info) info.textContent = '表示 ' + list.length + ' 件 / 全 ' + _lightFx.length + ' 件';
         }
@@ -15693,6 +15727,7 @@ ${contentRows}
             lightRenderSumTotals();
             lightRenderAgg();
             _lightBindCross('lightSumTable');
+            _lightApplyLock(document.getElementById('lightSumTable'));
             var info = document.getElementById('lightSumInfo');
             if (info) {
                 info.textContent = _lightRows.length + ' 室 / 器具 ' + cols.length + ' 種';
