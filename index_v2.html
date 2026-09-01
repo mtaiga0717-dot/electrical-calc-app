@@ -1471,6 +1471,19 @@
         .light-cnt input { text-align:center; }
         .light-mcol { min-width:170px; }
         .light-mcol textarea { width:100%; font-size:0.78rem; }
+        /* 現場集計表：見出し行と左4列を固定 */
+        #lightViewSum .light-wrap.light-wrap-sum { max-height:calc(100vh - 300px); min-height:300px; }
+        #lightSumTable thead th { position:sticky; top:0; z-index:4; box-shadow:0 1px 0 #d84315; }
+        #lightSumTable tfoot td { position:sticky; bottom:0; z-index:4; box-shadow:0 -1px 0 #d84315; }
+        #lightSumTable th:nth-child(1), #lightSumTable td:nth-child(1) { position:sticky; left:0;     width:30px;  min-width:30px; }
+        #lightSumTable th:nth-child(2), #lightSumTable td:nth-child(2) { position:sticky; left:30px;  width:36px;  min-width:36px; }
+        #lightSumTable th:nth-child(3), #lightSumTable td:nth-child(3) { position:sticky; left:66px;  width:80px;  min-width:80px; }
+        #lightSumTable th:nth-child(4), #lightSumTable td:nth-child(4) { position:sticky; left:146px; width:150px; min-width:150px;
+            box-shadow:2px 0 0 #d84315; }
+        #lightSumTable tbody td:nth-child(-n+4) { background:#fff; z-index:2; }
+        #lightSumTable thead th:nth-child(-n+4) { z-index:6; }
+        #lightSumTable tfoot td:nth-child(1) { position:sticky; left:0; z-index:6; box-shadow:2px 0 0 #d84315, 0 -1px 0 #d84315; }
+        #lightSumTable tbody tr:hover td:nth-child(-n+4) { background:#fff3e0; }
     </style>
 </head>
 <body>
@@ -3008,7 +3021,7 @@
                         <span id="lightSumInfo" style="font-size:0.78rem;color:#666;"></span>
                     </div>
                     <div style="font-size:0.74rem;color:#888;margin-bottom:0.3rem;">※ 階・室名は「質疑応答書」タブで登録したフロア／部屋リストを共有しています。未登録の場合は自由入力になります。</div>
-                    <div class="light-wrap">
+                    <div class="light-wrap light-wrap-sum">
                         <table class="light-table" id="lightSumTable">
                             <thead id="lightSumThead"></thead>
                             <tbody id="lightSumTbody"></tbody>
@@ -3016,7 +3029,7 @@
                         </table>
                     </div>
                     <h4 style="margin:0.9rem 0 0.3rem;color:#ef6c00;">器具別集計</h4>
-                    <div class="light-wrap" style="max-height:42vh;">
+                    <div class="light-wrap" style="max-height:38vh;">
                         <table class="light-table" id="lightAggTable">
                             <thead id="lightAggThead"></thead>
                             <tbody id="lightAggTbody"></tbody>
