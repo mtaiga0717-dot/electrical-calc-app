@@ -14971,6 +14971,20 @@ ${contentRows}
             { f: 'remark',   label: '備考',           w: 130, t: 'text' }
         ];
 
+        var LIGHT_SEIGYO_DESC = {
+            'LJ': '初期照度補正形',
+            'LN': '一般形',
+            'LZ': '連続調光形',
+            'LX': '連続調光形',
+            'LC': '個別通信制御連続調光形'
+        };
+        function _lightSeigyoLabel(v) {
+            var s = String(v == null ? '' : v).trim();
+            if (!s) return '';
+            var sym = s.split('(')[0].split('（')[0].trim().toUpperCase();
+            var desc = LIGHT_SEIGYO_DESC[sym];
+            return desc ? (sym + '(' + desc + ')') : s;
+        }
         function _lightEsc(s) {
             return String(s == null ? '' : s)
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -14997,7 +15011,7 @@ ${contentRows}
                         kishu: row.kishu || '', bunrui: row.bunrui || '', keijou: row.keijou || '',
                         maker: row.maker || '', kataban: row.kataban || '',
                         bodyNo: row.body_no || '', barNo: row.lightbar_no || '',
-                        seigyo: row.seigyo || '', voltage: row.voltage || '',
+                        seigyo: _lightSeigyoLabel(row.seigyo || ''), voltage: row.voltage || '',
                         lumen: row.lumen || 0, watt: row.watt || 0, ra: row.ra || 0,
                         kelvin: row.kelvin || '', ordered: !!row.ordered, orderedDate: row.ordered_date || '',
                         designQty: row.design_qty || 0, listPrice: row.list_price || 0, netPrice: row.net_price || 0,
@@ -15240,6 +15254,7 @@ ${contentRows}
             if (!it) return;
             if (field === 'lumen' || field === 'watt' || field === 'ra' || field === 'designQty' || field === 'listPrice' || field === 'netPrice') it[field] = _lightN(value);
             else if (field === 'ordered') it[field] = (value === true || value === 'true');
+            else if (field === 'seigyo') it[field] = _lightSeigyoLabel(value);
             else it[field] = value;
             _lightQueueFx(it);
             if (field === 'symbol' || field === 'bunrui' || field === 'watt' || field === 'lumen' || field === 'kishu' || field === 'kataban') lightRenderSum();
@@ -15274,7 +15289,10 @@ ${contentRows}
                     var v = it[c.f];
                     var cb = 'lightFxChange(\'' + it.id + '\',\'' + c.f + '\',this.value)';
                     if (c.t === 'master') {
-                        b += '<td><select onchange="' + cb + '">' + _lightOpts(_lightMasters[c.m], v) + '</select></td>';
+                        var mlist = _lightMasters[c.m] || [];
+                        var mval = v;
+                        if (c.m === 'seigyo') { mlist = mlist.map(_lightSeigyoLabel); mval = _lightSeigyoLabel(v); }
+                        b += '<td><select onchange="' + cb + '">' + _lightOpts(mlist, mval) + '</select></td>';
                     } else if (c.t === 'fixed') {
                         b += '<td><select onchange="' + cb + '">' + _lightOpts(c.opts, v) + '</select></td>';
                     } else if (c.t === 'check') {
