@@ -2989,10 +2989,7 @@
                             <tbody id="lightTbody"></tbody>
                         </table>
                     </div>
-                    <details style="margin-top:0.6rem;background:#fff3e0;border:1px solid #ffcc80;border-radius:4px;padding:0.5rem;">
-                        <summary style="cursor:pointer;font-weight:bold;font-size:0.85rem;color:#ef6c00;">&#9881; マスタ登録（器種・形状・メーカー・制御）</summary>
-                        <div id="lightMasterEdit" style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-top:0.6rem;"></div>
-                    </details>
+                    <div style="margin-top:0.6rem;background:#f3e5f5;border:1px solid #ce93d8;border-radius:4px;padding:0.45rem 0.6rem;font-size:0.82rem;">&#9881; 器種・分類・形状・メーカー・制御のマスタ登録は「現場マスタ」タブにまとめました　<button class="btn-action" style="background:#6a1b9a;color:#fff;margin-left:0.4rem;" onclick="switchTab('siteMaster')">現場マスタを開く</button></div>
                 </div>
 
                 <div id="lightViewSum" style="display:none;">
@@ -3106,6 +3103,11 @@
                             <button class="btn-action" style="background:#1565c0;color:#fff;" onclick="qaSaveSettings()">設定を保存</button>
                         </div>
                     </div>
+                </div>
+                <div style="border:1px solid #ddd;border-left:4px solid #ef6c00;border-radius:4px;padding:0.7rem 0.9rem;margin-bottom:0.9rem;background:#fff;">
+                    <div style="font-weight:bold;font-size:0.92rem;color:#ef6c00;margin-bottom:0.6rem;">⑤ 照明器具：器種・分類・形状・メーカー・制御</div>
+                    <div style="font-size:0.78rem;color:#888;margin-bottom:0.5rem;">改行区切りで入力して各列の「保存」を押してください。照明器具一覧の各セルのプルダウンに反映されます（表内の★ボタンからも1件ずつ追加できます）。</div>
+                    <div id="lightMasterEdit" style="display:flex;gap:1.2rem;flex-wrap:wrap;"></div>
                 </div>
             </div>
 
@@ -14838,6 +14840,7 @@ ${contentRows}
         async function smInit() {
             try { if (typeof wcInit === 'function') await wcInit(); } catch (e) { console.warn('[SM] wcInit', e); }
             try { if (typeof qaInit === 'function') await qaInit(); } catch (e) { console.warn('[SM] qaInit', e); }
+            try { if (typeof lightInit === 'function') await lightInit(); } catch (e) { console.warn('[SM] lightInit', e); }
             smLoadKoji();
             smRenderFloorSummary();
         }
