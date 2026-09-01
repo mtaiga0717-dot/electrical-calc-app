@@ -15021,6 +15021,7 @@ ${contentRows}
                         lumen: row.lumen || 0, watt: row.watt || 0, ra: row.ra || 0,
                         kelvin: row.kelvin || '', ordered: !!row.ordered, orderedDate: row.ordered_date || '',
                         designQty: row.design_qty || 0, listPrice: row.list_price || 0, netPrice: row.net_price || 0,
+                        accessories: Array.isArray(row.accessories) ? row.accessories : [],
                         remark: row.remark || ''
                     };
                 });
@@ -15055,6 +15056,7 @@ ${contentRows}
                     lumen: _lightN(item.lumen), watt: _lightN(item.watt), ra: _lightN(item.ra),
                     kelvin: item.kelvin || '', ordered: !!item.ordered, ordered_date: item.orderedDate || '',
                     design_qty: _lightN(item.designQty), list_price: _lightN(item.listPrice), net_price: _lightN(item.netPrice),
+                    accessories: Array.isArray(item.accessories) ? item.accessories : [],
                     remark: item.remark || '',
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'project_id,item_id' });
@@ -15236,7 +15238,7 @@ ${contentRows}
                 symbol: '', publicNo: '', kishu: '', bunrui: (_lightBunruiList()[0] || ''), keijou: '', maker: '',
                 kataban: '', bodyNo: '', barNo: '', ledPower: '', embedSize: '', seigyo: '', voltage: '100V',
                 lumen: 0, watt: 0, ra: 0, kelvin: '', ordered: false, orderedDate: '',
-                designQty: 0, listPrice: 0, netPrice: 0, remark: ''
+                designQty: 0, listPrice: 0, netPrice: 0, accessories: [], remark: ''
             };
             _lightFx.push(it);
             _lightUpsertFx(it);
@@ -15265,6 +15267,21 @@ ${contentRows}
             _lightQueueFx(it);
             if (field === 'kishu') lightRenderList();
             if (field === 'symbol' || field === 'bunrui' || field === 'watt' || field === 'lumen' || field === 'kishu' || field === 'kataban') lightRenderSum();
+        }
+        function _lightAccRow(it, a) {
+            var total = LIGHT_COLS.length + 2;
+            var cb = function (f) { return 'lightAccChange(\'' + it.id + '\',\'' + a.aid + '\',\'' + f + '\',this.value)'; };
+            var rest = total - 11;
+            var h = '<tr style="background:#fffde7;">';
+            h += '<td class="light-fix" style="text-align:center;color:#f9a825;font-weight:bold;">└</td>';
+            h += '<td colspan="4" style="white-space:nowrap;"><span style="color:#f57f17;font-weight:bold;font-size:0.7rem;margin-right:4px;">付属品</span>'
+               + '<input type="text" style="width:auto;min-width:130px;" value="' + _lightEsc(a.name) + '" onchange="' + cb('name') + '" placeholder="名称（パネル等）"></td>';
+            h += '<td colspan="3"><input type="text" value="' + _lightEsc(a.kataban) + '" onchange="' + cb('kataban') + '" placeholder="型番"></td>';
+            h += '<td colspan="2" style="white-space:nowrap;text-align:right;"><span style="font-size:0.7rem;color:#888;">1台あたり</span> '
+               + '<input type="number" min="0" step="1" style="width:52px;text-align:right;" value="' + (_lightN(a.per) || '') + '" onchange="' + cb('per') + '"></td>';
+            h += '<td colspan="' + rest + '"><input type="text" value="' + _lightEsc(a.remark) + '" onchange="' + cb('remark') + '" placeholder="備考"></td>';
+            h += '<td style="text-align:center;"><button class="btn-delete" onclick="lightDelAcc(\'' + it.id + '\',\'' + a.aid + '\')">×</button></td>';
+            return h + '</tr>';
         }
         function lightRenderList() {
             var thead = document.getElementById('lightThead');
@@ -15318,8 +15335,11 @@ ${contentRows}
                         b += '<td><input type="text" value="' + _lightEsc(v) + '" onchange="' + cb + '"></td>';
                     }
                 });
-                b += '<td style="text-align:center;"><button class="btn-delete" onclick="lightDeleteFixture(\'' + it.id + '\')">×</button></td>';
+                b += '<td style="text-align:center;white-space:nowrap;">'
+                   + '<button class="light-star" title="付属品（パネル等）の行を追加" onclick="lightAddAcc(\'' + it.id + '\')">＋付属</button> '
+                   + '<button class="btn-delete" onclick="lightDeleteFixture(\'' + it.id + '\')">×</button></td>';
                 b += '</tr>';
+                (it.accessories || []).forEach(function (a) { b += _lightAccRow(it, a); });
             });
             tbody.innerHTML = b || '<tr><td colspan="' + (LIGHT_COLS.length + 2) + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 器具を追加」から登録してください</td></tr>';
             var info = document.getElementById('lightListInfo');
@@ -15339,6 +15359,34 @@ ${contentRows}
         function _lightRoomList(floor) {
             var fr = _lightFloorRooms();
             return (floor && fr[floor]) ? fr[floor] : [];
+        }
+
+        /* ---------- 付属品（パネル等）の子行 ---------- */
+        function lightAddAcc(id) {
+            var it = _lightFx.filter(function (f) { return f.id === id; })[0];
+            if (!it) return;
+            if (!Array.isArray(it.accessories)) it.accessories = [];
+            it.accessories.push({ aid: _lightUid('ac'), name: 'パネル', kataban: '', per: 1, listPrice: 0, netPrice: 0, remark: '' });
+            _lightUpsertFx(it);
+            lightRenderList();
+            lightRenderAgg();
+        }
+        function lightDelAcc(id, aid) {
+            var it = _lightFx.filter(function (f) { return f.id === id; })[0];
+            if (!it || !Array.isArray(it.accessories)) return;
+            it.accessories = it.accessories.filter(function (a) { return a.aid !== aid; });
+            _lightUpsertFx(it);
+            lightRenderList();
+            lightRenderAgg();
+        }
+        function lightAccChange(id, aid, field, value) {
+            var it = _lightFx.filter(function (f) { return f.id === id; })[0];
+            if (!it || !Array.isArray(it.accessories)) return;
+            var a = it.accessories.filter(function (x) { return x.aid === aid; })[0];
+            if (!a) return;
+            a[field] = (field === 'per' || field === 'listPrice' || field === 'netPrice') ? _lightN(value) : value;
+            _lightQueueFx(it);
+            if (field !== 'remark') lightRenderAgg();
         }
 
         /* ---------- 現場集計表（階×室名の拾い表） ---------- */
@@ -15472,6 +15520,12 @@ ${contentRows}
                 var lp = _lightN(f.listPrice), np = _lightN(f.netPrice), dq = _lightN(f.designQty);
                 out.push({ f: f, n: n, va: n * _lightN(f.watt), lm: n * _lightN(f.lumen),
                            dq: dq, diff: n - dq, ordN: ordN, rest: n - ordN, lpAmt: lp * n, npAmt: np * n });
+                (f.accessories || []).forEach(function (a) {
+                    var per = _lightN(a.per), q = n * per, oq = ordN * per;
+                    out.push({ acc: true, f: f, a: a, n: q, va: 0, lm: 0, dq: 0, diff: 0,
+                               ordN: oq, rest: q - oq,
+                               lpAmt: _lightN(a.listPrice) * q, npAmt: _lightN(a.netPrice) * q });
+                });
             });
             return out;
         }
@@ -15484,6 +15538,26 @@ ${contentRows}
             lightRenderList();
         }
         function _lightY(v) { return v ? Math.round(v).toLocaleString() : ''; }
+        function _lightAggAccRow(x) {
+            var a = x.a, f = x.f;
+            var cb = function (fl) { return 'lightAccChange(\'' + f.id + '\',\'' + a.aid + '\',\'' + fl + '\',this.value)'; };
+            return '<tr style="background:#fffde7;">'
+                 + '<td style="text-align:center;color:#f9a825;font-weight:bold;">└</td>'
+                 + '<td><span style="color:#f57f17;font-size:0.72rem;">付属</span> ' + _lightEsc(a.name) + '</td>'
+                 + '<td>' + _lightEsc(a.kataban) + '</td>'
+                 + '<td>' + _lightEsc(f.maker) + '</td>'
+                 + '<td></td><td></td><td></td>'
+                 + '<td></td>'
+                 + '<td style="text-align:right;font-weight:bold;">' + (x.n || '') + '</td>'
+                 + '<td style="text-align:center;color:#999;font-size:0.7rem;">×' + (_lightN(a.per) || 0) + '</td>'
+                 + '<td style="text-align:right;color:#2e7d32;">' + (x.ordN || '') + '</td>'
+                 + '<td style="text-align:right;' + (x.rest > 0 ? 'color:#e65100;font-weight:bold;' : 'color:#999;') + '">' + (x.rest > 0 ? x.rest : (x.n ? '0' : '')) + '</td>'
+                 + '<td class="light-num" style="background:#e8f5e9;"><input type="number" min="0" step="1" value="' + (_lightN(a.listPrice) || '') + '" onchange="' + cb('listPrice') + '"></td>'
+                 + '<td style="text-align:right;background:#e8f5e9;">' + _lightY(x.lpAmt) + '</td>'
+                 + '<td class="light-num" style="background:#e8f5e9;"><input type="number" min="0" step="1" value="' + (_lightN(a.netPrice) || '') + '" onchange="' + cb('netPrice') + '"></td>'
+                 + '<td style="text-align:right;background:#e8f5e9;font-weight:bold;">' + _lightY(x.npAmt) + '</td>'
+                 + '<td></td><td></td></tr>';
+        }
         function lightRenderAgg() {
             var thead = document.getElementById('lightAggThead');
             var tbody = document.getElementById('lightAggTbody');
@@ -15513,7 +15587,9 @@ ${contentRows}
                 if (!grp.length) return;
                 var sN = 0, sVA = 0, sLM = 0, sDQ = 0, sLP = 0, sNP = 0, sOR = 0, sRE = 0;
                 grp.forEach(function (x) {
-                    sN += x.n; sVA += x.va; sLM += x.lm; sDQ += x.dq; sLP += x.lpAmt; sNP += x.npAmt; sOR += x.ordN; sRE += x.rest;
+                    sLP += x.lpAmt; sNP += x.npAmt;
+                    if (x.acc) { b += _lightAggAccRow(x); return; }
+                    sN += x.n; sVA += x.va; sLM += x.lm; sDQ += x.dq; sOR += x.ordN; sRE += x.rest;
                     b += '<tr>'
                        + '<td style="text-align:center;font-weight:bold;">' + _lightEsc(x.f.symbol) + '</td>'
                        + '<td>' + _lightEsc(x.f.kishu) + '</td>'
@@ -15651,7 +15727,20 @@ ${contentRows}
                     var c = _lightN(r.counts[f.id]);
                     if (c > 0) { n += c; places.push(((r.floor || '') + ' ' + (r.room || '')).trim()); }
                 });
-                if (n > 0) out.push({ f: f, n: n, places: places });
+                if (n > 0) {
+                    out.push({ f: f, n: n, unit: '台', places: places });
+                    (f.accessories || []).forEach(function (a) {
+                        var q = n * _lightN(a.per);
+                        if (q <= 0) return;
+                        out.push({
+                            acc: true,
+                            f: { symbol: f.symbol, publicNo: '', kishu: '（付属）' + (a.name || ''), bunrui: f.bunrui,
+                                 maker: f.maker, kataban: a.kataban || '', bodyNo: '', barNo: '', ledPower: '', embedSize: '',
+                                 seigyo: '', voltage: '', lumen: 0, watt: 0, ra: 0, kelvin: '' },
+                            n: q, unit: '枚', places: places
+                        });
+                    });
+                }
             });
             return out;
         }
@@ -15680,7 +15769,7 @@ ${contentRows}
                  + '<th style="width:34px;"><input type="checkbox" id="lightOrdAll" checked style="width:auto;"></th>'
                  + '<th style="min-width:66px;">照会記号</th><th style="min-width:110px;">器種</th><th style="min-width:90px;">メーカー</th>'
                  + '<th style="min-width:130px;">型番</th><th style="min-width:110px;">本体品番</th><th style="min-width:110px;">ライトバー品番</th>'
-                 + '<th style="min-width:90px;">制御</th><th style="min-width:58px;">数量</th><th style="min-width:150px;">摘要（設置場所）</th></tr></thead><tbody>';
+                 + '<th style="min-width:90px;">制御</th><th style="min-width:58px;">数量</th><th style="min-width:46px;">単位</th><th style="min-width:150px;">摘要（設置場所）</th></tr></thead><tbody>';
             lines.forEach(function (x, i) {
                 var place = x.places.join('、');
                 body += '<tr>'
@@ -15690,6 +15779,7 @@ ${contentRows}
                      + '<td>' + _lightEsc(x.f.kataban) + '</td><td>' + _lightEsc(x.f.bodyNo) + '</td><td>' + _lightEsc(x.f.barNo) + '</td>'
                      + '<td>' + _lightEsc(x.f.seigyo) + '</td>'
                      + '<td><input type="number" min="0" class="light-ordqty" data-i="' + i + '" value="' + x.n + '" style="text-align:right;"></td>'
+                     + '<td style="text-align:center;">' + _lightEsc(x.unit || '台') + '</td>'
                      + '<td><input type="text" class="light-ordnote" data-i="' + i + '" value="' + _lightEsc(place) + '"></td>'
                      + '</tr>';
             });
@@ -15727,7 +15817,7 @@ ${contentRows}
                 if (!x) return;
                 var q = document.querySelector('#lightOrderMask input.light-ordqty[data-i="' + i + '"]');
                 var nt = document.querySelector('#lightOrderMask input.light-ordnote[data-i="' + i + '"]');
-                picked.push({ f: x.f, n: _lightN(q ? q.value : x.n), note: nt ? nt.value : '' });
+                picked.push({ f: x.f, n: _lightN(q ? q.value : x.n), unit: x.unit || '台', acc: !!x.acc, note: nt ? nt.value : '' });
             });
             if (!picked.length) { alert('出力する品目を選択してください。'); return; }
 
@@ -15791,13 +15881,13 @@ ${contentRows}
                 rows += '<tr>'
                      + '<td class="c">' + (i + 1) + '</td>'
                      + '<td class="c sym">' + _lightEsc(p.f.symbol) + '</td>'
-                     + '<td>' + mk + '<span class="nm">' + _lightEsc(p.f.kishu) + '</span></td>'
+                     + '<td' + (p.acc ? ' style="padding-left:4mm;"' : '') + '>' + mk + '<span class="nm">' + _lightEsc(p.f.kishu) + '</span></td>'
                      + '<td>' + _lightEsc(p.f.kataban) + '</td>'
                      + '<td>' + _lightEsc(p.f.bodyNo) + '</td>'
                      + '<td>' + _lightEsc(p.f.barNo) + '</td>'
                      + '<td>' + _lightEsc(p.f.seigyo) + '</td>'
                      + '<td class="r">' + p.n + '</td>'
-                     + '<td class="c">台</td>'
+                     + '<td class="c">' + _lightEsc(p.unit || '台') + '</td>'
                      + '<td>' + _lightEsc(p.note) + '</td></tr>';
             });
             var blank = Math.max(0, 16 - picked.length);
