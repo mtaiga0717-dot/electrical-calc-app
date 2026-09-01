@@ -1471,6 +1471,8 @@
         .light-cnt input { text-align:center; }
         .light-mcol { min-width:170px; }
         .light-mcol textarea { width:100%; font-size:0.78rem; }
+        #lightSumTable tbody tr.light-dup > td { background:#ffebee !important; }
+        #lightSumTable tbody tr.light-dup > td:nth-child(-n+4) { background:#ffcdd2 !important; box-shadow:inset 3px 0 0 #c62828; }
         /* 十字ハイライト（カーソル位置の行と列） */
         .light-table tbody tr.cross-row > td { background:#fff8e1 !important; }
         .light-table tbody td.cross-col { background:#fff3e0 !important; }
@@ -15486,9 +15488,33 @@ ${contentRows}
             _lightDeleteRowDB(id);
             lightRenderSum();
         }
+        function _lightDupKey(fl, rm) { return String(fl || '').trim() + '\u0001' + String(rm || '').trim(); }
+        function _lightDupCount() {
+            var m = {};
+            _lightRows.forEach(function (r) {
+                if (!String(r.floor || '').trim() || !String(r.room || '').trim()) return;
+                var k = _lightDupKey(r.floor, r.room);
+                m[k] = (m[k] || 0) + 1;
+            });
+            return m;
+        }
         function lightRowChange(id, field, value) {
             var r = _lightRows.filter(function (x) { return x.id === id; })[0];
             if (!r) return;
+            if (field === 'floor' || field === 'room') {
+                var nf = (field === 'floor') ? value : r.floor;
+                var nr = (field === 'room') ? value : r.room;
+                if (String(nf || '').trim() && String(nr || '').trim()) {
+                    var dup = _lightRows.filter(function (x) {
+                        return x.id !== r.id && _lightDupKey(x.floor, x.room) === _lightDupKey(nf, nr);
+                    })[0];
+                    if (dup) {
+                        alert('同じ階・室名の行がすでに登録されています。\n\n　' + String(nf).trim() + '　' + String(nr).trim() + '\n\n重複する行は作成できません。既存の行に入力してください。');
+                        lightRenderSum();
+                        return;
+                    }
+                }
+            }
             r[field] = (field === 'ordered') ? (value === true || value === 'true') : value;
             if (field === 'floor' && _lightRoomList(value).indexOf(r.room) < 0) r.room = '';
             _lightQueueRow(r);
@@ -15521,8 +15547,12 @@ ${contentRows}
             thead.innerHTML = h;
 
             var b = '';
+            var dupMap = _lightDupCount();
+            var dupTotal = 0;
             _lightRows.forEach(function (r, i) {
-                b += '<tr>';
+                var isDup = dupMap[_lightDupKey(r.floor, r.room)] > 1;
+                if (isDup) dupTotal++;
+                b += isDup ? '<tr class="light-dup" title="階・室名が重複しています">' : '<tr>';
                 b += '<td style="text-align:center;"><input type="checkbox" class="light-rowsel" data-rid="' + r.id + '" style="width:auto;"></td>';
                 b += '<td class="light-fix" style="text-align:center;">' + (i + 1) + '</td>';
                 if (useMaster) {
@@ -15548,7 +15578,11 @@ ${contentRows}
             lightRenderAgg();
             _lightBindCross('lightSumTable');
             var info = document.getElementById('lightSumInfo');
-            if (info) info.textContent = _lightRows.length + ' 室 / 器具 ' + cols.length + ' 種';
+            if (info) {
+                info.textContent = _lightRows.length + ' 室 / 器具 ' + cols.length + ' 種';
+                if (dupTotal > 0) { info.textContent += '　⚠ 階・室名の重複 ' + dupTotal + ' 行'; info.style.color = '#c62828'; }
+                else { info.style.color = '#666'; }
+            }
         }
         function lightRenderSumTotals() {
             var tfoot = document.getElementById('lightSumTfoot');
