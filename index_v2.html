@@ -15251,8 +15251,12 @@ ${contentRows}
             if (!confirm('照会記号「' + (it.symbol || '(未設定)') + '」を削除しますか？\n集計表の台数も一緒に削除されます。')) return;
             _lightFx = _lightFx.filter(function (f) { return f.id !== id; });
             _lightDeleteFxDB(id);
+            var _accIds = (it.accessories || []).map(function (a) { return a.aid; });
             _lightRows.forEach(function (r) {
-                if (r.counts && r.counts[id] != null) { delete r.counts[id]; _lightQueueRow(r); }
+                var ch = false;
+                if (r.counts && r.counts[id] != null) { delete r.counts[id]; ch = true; }
+                _accIds.forEach(function (ak) { if (r.counts && r.counts[ak] != null) { delete r.counts[ak]; ch = true; } });
+                if (ch) _lightQueueRow(r);
             });
             lightRenderList();
             lightRenderSum();
@@ -15271,14 +15275,12 @@ ${contentRows}
         function _lightAccRow(it, a) {
             var total = LIGHT_COLS.length + 2;
             var cb = function (f) { return 'lightAccChange(\'' + it.id + '\',\'' + a.aid + '\',\'' + f + '\',this.value)'; };
-            var rest = total - 11;
+            var rest = total - 9;
             var h = '<tr style="background:#fffde7;">';
             h += '<td class="light-fix" style="text-align:center;color:#f9a825;font-weight:bold;">└</td>';
             h += '<td colspan="4" style="white-space:nowrap;"><span style="color:#f57f17;font-weight:bold;font-size:0.7rem;margin-right:4px;">付属品</span>'
                + '<input type="text" style="width:auto;min-width:130px;" value="' + _lightEsc(a.name) + '" onchange="' + cb('name') + '" placeholder="名称（パネル等）"></td>';
             h += '<td colspan="3"><input type="text" value="' + _lightEsc(a.kataban) + '" onchange="' + cb('kataban') + '" placeholder="型番"></td>';
-            h += '<td colspan="2" style="white-space:nowrap;text-align:right;"><span style="font-size:0.7rem;color:#888;">1台あたり</span> '
-               + '<input type="number" min="0" step="1" style="width:52px;text-align:right;" value="' + (_lightN(a.per) || '') + '" onchange="' + cb('per') + '"></td>';
             h += '<td colspan="' + rest + '"><input type="text" value="' + _lightEsc(a.remark) + '" onchange="' + cb('remark') + '" placeholder="備考"></td>';
             h += '<td style="text-align:center;"><button class="btn-delete" onclick="lightDelAcc(\'' + it.id + '\',\'' + a.aid + '\')">×</button></td>';
             return h + '</tr>';
@@ -15366,27 +15368,31 @@ ${contentRows}
             var it = _lightFx.filter(function (f) { return f.id === id; })[0];
             if (!it) return;
             if (!Array.isArray(it.accessories)) it.accessories = [];
-            it.accessories.push({ aid: _lightUid('ac'), name: 'パネル', kataban: '', per: 1, listPrice: 0, netPrice: 0, remark: '' });
+            it.accessories.push({ aid: _lightUid('ac'), name: 'パネル', kataban: '', listPrice: 0, netPrice: 0, remark: '' });
             _lightUpsertFx(it);
             lightRenderList();
-            lightRenderAgg();
+            lightRenderSum();
         }
         function lightDelAcc(id, aid) {
             var it = _lightFx.filter(function (f) { return f.id === id; })[0];
             if (!it || !Array.isArray(it.accessories)) return;
             it.accessories = it.accessories.filter(function (a) { return a.aid !== aid; });
             _lightUpsertFx(it);
+            _lightRows.forEach(function (r) {
+                if (r.counts && r.counts[aid] != null) { delete r.counts[aid]; _lightQueueRow(r); }
+            });
             lightRenderList();
-            lightRenderAgg();
+            lightRenderSum();
         }
         function lightAccChange(id, aid, field, value) {
             var it = _lightFx.filter(function (f) { return f.id === id; })[0];
             if (!it || !Array.isArray(it.accessories)) return;
             var a = it.accessories.filter(function (x) { return x.aid === aid; })[0];
             if (!a) return;
-            a[field] = (field === 'per' || field === 'listPrice' || field === 'netPrice') ? _lightN(value) : value;
+            a[field] = (field === 'listPrice' || field === 'netPrice') ? _lightN(value) : value;
             _lightQueueFx(it);
-            if (field !== 'remark') lightRenderAgg();
+            if (field === 'name') lightRenderSum();
+            else if (field !== 'remark') lightRenderAgg();
         }
 
         /* ---------- 現場集計表（階×室名の拾い表） ---------- */
@@ -15394,10 +15400,19 @@ ${contentRows}
             var chk = document.getElementById('lightOnlyUsed');
             var sel = document.getElementById('lightSumFilterBunrui');
             var fb = sel ? sel.value : '';
-            var cols = _lightFx.filter(function (f) { return !fb || f.bunrui === fb; });
+            var cols = [];
+            _lightFx.forEach(function (f) {
+                if (fb && f.bunrui !== fb) return;
+                cols.push({ key: f.id, label: f.symbol || '(記号なし)',
+                            title: (f.kishu || '') + ' / ' + (f.kataban || ''), isAcc: false, f: f });
+                (f.accessories || []).forEach(function (a) {
+                    cols.push({ key: a.aid, label: (f.symbol || '') + ':' + (a.name || '付属'),
+                                title: '付属品 ' + (a.name || '') + ' / ' + (a.kataban || ''), isAcc: true, f: f, a: a });
+                });
+            });
             if (chk && chk.checked) {
-                cols = cols.filter(function (f) {
-                    return _lightRows.some(function (r) { return _lightN(r.counts[f.id]) > 0; });
+                cols = cols.filter(function (c) {
+                    return _lightRows.some(function (r) { return _lightN(r.counts[c.key]) > 0; });
                 });
             }
             return cols;
@@ -15454,8 +15469,8 @@ ${contentRows}
 
             var h = '<tr><th style="width:30px;"><input type="checkbox" id="lightSumAll" onchange="lightToggleAllRows(this.checked)" style="width:auto;" title="全選択"></th>'
                   + '<th style="width:36px;">No</th><th style="min-width:80px;">階</th><th style="min-width:150px;">室名</th>';
-            cols.forEach(function (f) {
-                h += '<th style="min-width:54px;" title="' + _lightEsc(f.kishu + ' / ' + f.kataban) + '">' + _lightEsc(f.symbol || '(記号なし)') + '</th>';
+            cols.forEach(function (c) {
+                h += '<th style="min-width:54px;' + (c.isAcc ? 'background:#f9a825;' : '') + '" title="' + _lightEsc(c.title) + '">' + _lightEsc(c.label) + '</th>';
             });
             h += '<th style="min-width:58px;background:#2e7d32;">注文済</th><th style="min-width:92px;background:#2e7d32;">注文日</th>'
                + '<th style="min-width:120px;">備考</th><th style="width:36px;">削除</th></tr>';
@@ -15473,9 +15488,9 @@ ${contentRows}
                     b += '<td><input type="text" value="' + _lightEsc(r.floor) + '" onchange="lightRowChange(\'' + r.id + '\',\'floor\',this.value)"></td>';
                     b += '<td><input type="text" value="' + _lightEsc(r.room) + '" onchange="lightRowChange(\'' + r.id + '\',\'room\',this.value)"></td>';
                 }
-                cols.forEach(function (f) {
-                    var c = _lightN(r.counts[f.id]);
-                    b += '<td class="light-cnt"><input type="number" min="0" step="1" value="' + (c > 0 ? c : '') + '" onchange="lightCntChange(\'' + r.id + '\',\'' + f.id + '\',this.value)"></td>';
+                cols.forEach(function (c) {
+                    var cnt = _lightN(r.counts[c.key]);
+                    b += '<td class="light-cnt"' + (c.isAcc ? ' style="background:#fffde7;"' : '') + '><input type="number" min="0" step="1" value="' + (cnt > 0 ? cnt : '') + '" onchange="lightCntChange(\'' + r.id + '\',\'' + c.key + '\',this.value)"></td>';
                 });
                 b += '<td style="text-align:center;background:' + (r.ordered ? '#e8f5e9' : '') + ';"><input type="checkbox"' + (r.ordered ? ' checked' : '') + ' style="width:auto;" onchange="lightRowChange(\'' + r.id + '\',\'ordered\',this.checked)"></td>';
                 b += '<td style="background:' + (r.ordered ? '#e8f5e9' : '') + ';"><input type="date" value="' + _lightEsc(r.orderedDate) + '" onchange="lightRowChange(\'' + r.id + '\',\'orderedDate\',this.value)"></td>';
@@ -15495,9 +15510,9 @@ ${contentRows}
             if (!tfoot) return;
             var cols = _lightSumCols();
             var f = '<tr class="light-total"><td colspan="4" style="text-align:center;">合計</td>';
-            cols.forEach(function (fx) {
+            cols.forEach(function (c) {
                 var s = 0;
-                _lightRows.forEach(function (r) { s += _lightN(r.counts[fx.id]); });
+                _lightRows.forEach(function (r) { s += _lightN(r.counts[c.key]); });
                 f += '<td style="text-align:center;">' + (s || '') + '</td>';
             });
             f += '<td></td><td></td><td></td><td></td></tr>';
@@ -15521,7 +15536,12 @@ ${contentRows}
                 out.push({ f: f, n: n, va: n * _lightN(f.watt), lm: n * _lightN(f.lumen),
                            dq: dq, diff: n - dq, ordN: ordN, rest: n - ordN, lpAmt: lp * n, npAmt: np * n });
                 (f.accessories || []).forEach(function (a) {
-                    var per = _lightN(a.per), q = n * per, oq = ordN * per;
+                    var q = 0, oq = 0;
+                    _lightRows.forEach(function (r) {
+                        var c = _lightN(r.counts[a.aid]);
+                        q += c;
+                        if (r.ordered) oq += c;
+                    });
                     out.push({ acc: true, f: f, a: a, n: q, va: 0, lm: 0, dq: 0, diff: 0,
                                ordN: oq, rest: q - oq,
                                lpAmt: _lightN(a.listPrice) * q, npAmt: _lightN(a.netPrice) * q });
@@ -15549,7 +15569,7 @@ ${contentRows}
                  + '<td></td><td></td><td></td>'
                  + '<td></td>'
                  + '<td style="text-align:right;font-weight:bold;">' + (x.n || '') + '</td>'
-                 + '<td style="text-align:center;color:#999;font-size:0.7rem;">×' + (_lightN(a.per) || 0) + '</td>'
+                 + '<td></td>'
                  + '<td style="text-align:right;color:#2e7d32;">' + (x.ordN || '') + '</td>'
                  + '<td style="text-align:right;' + (x.rest > 0 ? 'color:#e65100;font-weight:bold;' : 'color:#999;') + '">' + (x.rest > 0 ? x.rest : (x.n ? '0' : '')) + '</td>'
                  + '<td class="light-num" style="background:#e8f5e9;"><input type="number" min="0" step="1" value="' + (_lightN(a.listPrice) || '') + '" onchange="' + cb('listPrice') + '"></td>'
@@ -15671,15 +15691,15 @@ ${contentRows}
         function lightExportSumCsv() {
             var cols = _lightSumCols();
             var lines = [];
-            lines.push(['No', '階', '室名'].concat(cols.map(function (f) { return f.symbol || '(記号なし)'; })).concat(['注文済', '注文日', '備考']).map(_lightCsvCell).join(','));
+            lines.push(['No', '階', '室名'].concat(cols.map(function (c) { return c.label; })).concat(['注文済', '注文日', '備考']).map(_lightCsvCell).join(','));
             _lightRows.forEach(function (r, i) {
-                var row = [i + 1, r.floor, r.room].concat(cols.map(function (f) { return _lightN(r.counts[f.id]) || ''; })).concat([r.ordered ? '○' : '', r.orderedDate, r.remark]);
+                var row = [i + 1, r.floor, r.room].concat(cols.map(function (c) { return _lightN(r.counts[c.key]) || ''; })).concat([r.ordered ? '○' : '', r.orderedDate, r.remark]);
                 lines.push(row.map(_lightCsvCell).join(','));
             });
             var tot = ['', '', '合計'];
-            cols.forEach(function (f) {
+            cols.forEach(function (c) {
                 var s = 0;
-                _lightRows.forEach(function (r) { s += _lightN(r.counts[f.id]); });
+                _lightRows.forEach(function (r) { s += _lightN(r.counts[c.key]); });
                 tot.push(s || '');
             });
             tot.push('', '', '');
@@ -15727,20 +15747,22 @@ ${contentRows}
                     var c = _lightN(r.counts[f.id]);
                     if (c > 0) { n += c; places.push(((r.floor || '') + ' ' + (r.room || '')).trim()); }
                 });
-                if (n > 0) {
-                    out.push({ f: f, n: n, unit: '台', places: places });
-                    (f.accessories || []).forEach(function (a) {
-                        var q = n * _lightN(a.per);
-                        if (q <= 0) return;
-                        out.push({
-                            acc: true,
-                            f: { symbol: f.symbol, publicNo: '', kishu: '（付属）' + (a.name || ''), bunrui: f.bunrui,
-                                 maker: f.maker, kataban: a.kataban || '', bodyNo: '', barNo: '', ledPower: '', embedSize: '',
-                                 seigyo: '', voltage: '', lumen: 0, watt: 0, ra: 0, kelvin: '' },
-                            n: q, unit: '枚', places: places
-                        });
+                if (n > 0) out.push({ f: f, n: n, unit: '台', places: places });
+                (f.accessories || []).forEach(function (a) {
+                    var q = 0, ap = [];
+                    rows.forEach(function (r) {
+                        var c = _lightN(r.counts[a.aid]);
+                        if (c > 0) { q += c; ap.push(((r.floor || '') + ' ' + (r.room || '')).trim()); }
                     });
-                }
+                    if (q <= 0) return;
+                    out.push({
+                        acc: true,
+                        f: { symbol: f.symbol, publicNo: '', kishu: '（付属）' + (a.name || ''), bunrui: f.bunrui,
+                             maker: f.maker, kataban: a.kataban || '', bodyNo: '', barNo: '', ledPower: '', embedSize: '',
+                             seigyo: '', voltage: '', lumen: 0, watt: 0, ra: 0, kelvin: '' },
+                        n: q, unit: '枚', places: ap
+                    });
+                });
             });
             return out;
         }
@@ -15969,20 +15991,20 @@ ${contentRows}
             h += '<h2>照明器具 集計表（拾い表）</h2>';
             h += '<div class="hd"><span>工事名：' + _lightEsc(pname) + '</span><span>作成日：' + ymd + '</span></div>';
             h += '<table><thead><tr><th style="width:8mm;">No</th><th style="width:18mm;">階</th><th style="width:32mm;">室名</th>';
-            cols.forEach(function (f) { h += '<th>' + _lightEsc(f.symbol || '-') + '</th>'; });
+            cols.forEach(function (c) { h += '<th>' + _lightEsc(c.label) + '</th>'; });
             h += '<th style="width:28mm;">備考</th></tr></thead><tbody>';
             _lightRows.forEach(function (r, i) {
                 h += '<tr><td class="c">' + (i + 1) + '</td><td class="c">' + _lightEsc(r.floor) + '</td><td>' + _lightEsc(r.room) + '</td>';
-                cols.forEach(function (f) {
-                    var c = _lightN(r.counts[f.id]);
+                cols.forEach(function (col) {
+                    var c = _lightN(r.counts[col.key]);
                     h += '<td class="c">' + (c > 0 ? c : '') + '</td>';
                 });
                 h += '<td>' + _lightEsc(r.remark) + '</td></tr>';
             });
             var tf = '<tr class="tot"><td colspan="3" class="c">合計</td>';
-            cols.forEach(function (f) {
+            cols.forEach(function (c) {
                 var s = 0;
-                _lightRows.forEach(function (r) { s += _lightN(r.counts[f.id]); });
+                _lightRows.forEach(function (r) { s += _lightN(r.counts[c.key]); });
                 tf += '<td class="c">' + (s || '') + '</td>';
             });
             tf += '<td></td></tr>';
