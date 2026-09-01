@@ -13804,6 +13804,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                     seko_list: Array.isArray(s.sekoList) ? s.sekoList : [],
                     summary_list: Array.isArray(s.summaryList) ? s.summaryList : [],
                     meeting_places: Array.isArray(s.meetingPlaces) ? s.meetingPlaces : [],
+                    drawing_no_limits: s.drawingNoLimits || { E: 99, A: 99, M: 99 },
                     updated_at: new Date().toISOString()
                 };
                 const { error } = await db.from('qa_settings').upsert(row, { onConflict: 'project_id' });
@@ -13854,7 +13855,8 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                         kantokuList: row.kantoku_list || '',
                         sekoList: row.seko_list || [],
                         summaryList: row.summary_list || [],
-                        meetingPlaces: row.meeting_places || []
+                        meetingPlaces: row.meeting_places || [],
+                        drawingNoLimits: row.drawing_no_limits || { E: 99, A: 99, M: 99 }
                     };
                     localStorage.setItem(QA_SETTINGS_KEY, JSON.stringify(_qaSettingsCache));
                 }
