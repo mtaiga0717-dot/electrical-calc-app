@@ -15274,10 +15274,7 @@ ${contentRows}
                     var v = it[c.f];
                     var cb = 'lightFxChange(\'' + it.id + '\',\'' + c.f + '\',this.value)';
                     if (c.t === 'master') {
-                        b += '<td><div style="display:flex;gap:2px;align-items:center;">'
-                           + '<select onchange="' + cb + '">' + _lightOpts(_lightMasters[c.m], v) + '</select>'
-                           + '<button class="light-star" title="マスタに追加" onclick="lightAddMaster(\'' + c.m + '\')">★</button>'
-                           + '</div></td>';
+                        b += '<td><select onchange="' + cb + '">' + _lightOpts(_lightMasters[c.m], v) + '</select></td>';
                     } else if (c.t === 'fixed') {
                         b += '<td><select onchange="' + cb + '">' + _lightOpts(c.opts, v) + '</select></td>';
                     } else if (c.t === 'check') {
