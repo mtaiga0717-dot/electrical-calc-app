@@ -14963,6 +14963,7 @@ ${contentRows}
             { f: 'bodyNo',   label: '本体品番',       w: 130, t: 'text' },
             { f: 'barNo',    label: 'ライトバー品番', w: 130, t: 'text' },
             { f: 'ledPower', label: 'LED電源部',      w: 130, t: 'cond' },
+            { f: 'embedSize', label: '埋込寸法',       w: 110, t: 'text' },
             { f: 'seigyo',   label: '制御',           w: 110, t: 'master', m: 'seigyo' },
             { f: 'voltage',  label: '電圧(V)',        w: 86,  t: 'fixed',  opts: LIGHT_VOLT },
             { f: 'lumen',    label: '光束(lm)',       w: 74,  t: 'num' },
@@ -15015,7 +15016,7 @@ ${contentRows}
                         symbol: row.symbol || '', publicNo: row.public_no || '',
                         kishu: row.kishu || '', bunrui: row.bunrui || '', keijou: row.keijou || '',
                         maker: row.maker || '', kataban: row.kataban || '',
-                        bodyNo: row.body_no || '', barNo: row.lightbar_no || '', ledPower: row.led_power || '',
+                        bodyNo: row.body_no || '', barNo: row.lightbar_no || '', ledPower: row.led_power || '', embedSize: row.embed_size || '',
                         seigyo: _lightSeigyoLabel(row.seigyo || ''), voltage: row.voltage || '',
                         lumen: row.lumen || 0, watt: row.watt || 0, ra: row.ra || 0,
                         kelvin: row.kelvin || '', ordered: !!row.ordered, orderedDate: row.ordered_date || '',
@@ -15049,7 +15050,7 @@ ${contentRows}
                     symbol: item.symbol || '', public_no: item.publicNo || '',
                     kishu: item.kishu || '', bunrui: item.bunrui || '', keijou: item.keijou || '',
                     maker: item.maker || '', kataban: item.kataban || '',
-                    body_no: item.bodyNo || '', lightbar_no: item.barNo || '', led_power: item.ledPower || '',
+                    body_no: item.bodyNo || '', lightbar_no: item.barNo || '', led_power: item.ledPower || '', embed_size: item.embedSize || '',
                     seigyo: item.seigyo || '', voltage: item.voltage || '',
                     lumen: _lightN(item.lumen), watt: _lightN(item.watt), ra: _lightN(item.ra),
                     kelvin: item.kelvin || '', ordered: !!item.ordered, ordered_date: item.orderedDate || '',
@@ -15233,7 +15234,7 @@ ${contentRows}
             var it = {
                 id: _lightUid('lf'), no: maxNo + 1,
                 symbol: '', publicNo: '', kishu: '', bunrui: (_lightBunruiList()[0] || ''), keijou: '', maker: '',
-                kataban: '', bodyNo: '', barNo: '', ledPower: '', seigyo: '', voltage: '100V',
+                kataban: '', bodyNo: '', barNo: '', ledPower: '', embedSize: '', seigyo: '', voltage: '100V',
                 lumen: 0, watt: 0, ra: 0, kelvin: '', ordered: false, orderedDate: '',
                 designQty: 0, listPrice: 0, netPrice: 0, remark: ''
             };
@@ -15900,20 +15901,20 @@ ${contentRows}
             h += '<div class="pb"></div>';
             h += '<h2>照明器具 一覧 / 器具別集計</h2>';
             h += '<div class="hd"><span>工事名：' + _lightEsc(pname) + '</span><span>作成日：' + ymd + '</span></div>';
-            h += '<table><thead><tr><th>照会記号</th><th>公共施設番号</th><th>器種</th><th>分類</th><th>メーカー</th><th>型番</th><th>本体品番</th><th>ライトバー品番</th><th>LED電源部</th><th>制御</th><th>電圧</th><th>光束(lm)</th><th>電力(VA)</th><th>Ra</th><th>色温度(K)</th><th>総台数</th><th>合計VA</th></tr></thead><tbody>';
+            h += '<table><thead><tr><th>照会記号</th><th>公共施設番号</th><th>器種</th><th>分類</th><th>メーカー</th><th>型番</th><th>本体品番</th><th>ライトバー品番</th><th>LED電源部</th><th>埋込寸法</th><th>制御</th><th>電圧</th><th>光束(lm)</th><th>電力(VA)</th><th>Ra</th><th>色温度(K)</th><th>総台数</th><th>合計VA</th></tr></thead><tbody>';
             var aN = 0, aVA = 0;
             _lightAggData().forEach(function (x) {
                 aN += x.n; aVA += x.va;
                 h += '<tr><td class="c">' + _lightEsc(x.f.symbol) + '</td><td class="c">' + _lightEsc(x.f.publicNo) + '</td><td>' + _lightEsc(x.f.kishu) + '</td>'
                    + '<td class="c">' + _lightEsc(x.f.bunrui) + '</td><td>' + _lightEsc(x.f.maker) + '</td>'
-                   + '<td>' + _lightEsc(x.f.kataban) + '</td><td>' + _lightEsc(x.f.bodyNo) + '</td><td>' + _lightEsc(x.f.barNo) + '</td><td>' + _lightEsc(x.f.ledPower) + '</td>'
+                   + '<td>' + _lightEsc(x.f.kataban) + '</td><td>' + _lightEsc(x.f.bodyNo) + '</td><td>' + _lightEsc(x.f.barNo) + '</td><td>' + _lightEsc(x.f.ledPower) + '</td><td class="c">' + _lightEsc(x.f.embedSize) + '</td>'
                    + '<td class="c">' + _lightEsc(x.f.seigyo) + '</td><td class="c">' + _lightEsc(x.f.voltage) + '</td>'
                    + '<td class="r">' + (_lightN(x.f.lumen) ? _lightN(x.f.lumen).toLocaleString() : '') + '</td>'
                    + '<td class="r">' + (_lightN(x.f.watt) || '') + '</td><td class="r">' + (_lightN(x.f.ra) || '') + '</td>'
                    + '<td class="c">' + _lightEsc(x.f.kelvin) + '</td><td class="r">' + (x.n || '') + '</td>'
                    + '<td class="r">' + (x.va ? x.va.toLocaleString() : '') + '</td></tr>';
             });
-            h += '<tr class="tot"><td colspan="15" class="c">総合計</td><td class="r">' + aN + '</td><td class="r">' + aVA.toLocaleString() + '</td></tr>';
+            h += '<tr class="tot"><td colspan="16" class="c">総合計</td><td class="r">' + aN + '</td><td class="r">' + aVA.toLocaleString() + '</td></tr>';
             h += '</tbody></table></body></html>';
 
             try {
