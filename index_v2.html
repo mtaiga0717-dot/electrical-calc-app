@@ -1463,6 +1463,8 @@
         .light-sub { display:flex; gap:0.4rem; margin:0.5rem 0; flex-wrap:wrap; align-items:center; }
         .light-viewbtn { padding:0.35rem 1rem; border:1px solid #ef6c00; background:#fff; color:#ef6c00; cursor:pointer; border-radius:3px; font-size:0.82rem; font-weight:bold; }
         .light-viewbtn.active { background:#ef6c00; color:#fff; }
+        .light-ins { background:#1565c0; color:#fff; border:none; border-radius:2px; cursor:pointer; font-size:0.6rem; padding:0 3px; margin-left:3px; line-height:1.5; vertical-align:middle; }
+        .light-ins:hover { background:#0d47a1; }
         .light-star { background:#ef6c00; color:#fff; border:none; border-radius:2px; cursor:pointer; font-size:0.68rem; padding:2px 4px; line-height:1; flex:0 0 auto; }
         .light-star:hover { background:#d84315; }
         .light-num input { text-align:right; }
@@ -1490,9 +1492,9 @@
         #lightSumTable td.cell-a { border-right:1px solid #999; }
         #lightSumTable tfoot td { position:sticky; bottom:0; z-index:4; box-shadow:0 -1px 0 #d84315; }
         #lightSumTable thead tr:first-child th:nth-child(1), #lightSumTable tbody td:nth-child(1) { position:sticky; left:0;     width:30px;  min-width:30px; max-width:30px; }
-        #lightSumTable thead tr:first-child th:nth-child(2), #lightSumTable tbody td:nth-child(2) { position:sticky; left:30px;  width:36px;  min-width:36px; max-width:36px; }
-        #lightSumTable thead tr:first-child th:nth-child(3), #lightSumTable tbody td:nth-child(3) { position:sticky; left:66px;  width:80px;  min-width:80px; }
-        #lightSumTable thead tr:first-child th:nth-child(4), #lightSumTable tbody td:nth-child(4) { position:sticky; left:146px; width:150px; min-width:150px;
+        #lightSumTable thead tr:first-child th:nth-child(2), #lightSumTable tbody td:nth-child(2) { position:sticky; left:30px;  width:52px;  min-width:52px; max-width:52px; }
+        #lightSumTable thead tr:first-child th:nth-child(3), #lightSumTable tbody td:nth-child(3) { position:sticky; left:82px;  width:80px;  min-width:80px; }
+        #lightSumTable thead tr:first-child th:nth-child(4), #lightSumTable tbody td:nth-child(4) { position:sticky; left:162px; width:150px; min-width:150px;
             box-shadow:2px 0 0 #d84315; }
         #lightSumTable tbody td:nth-child(-n+4) { background:#fff; z-index:2; }
         #lightSumTable thead tr:first-child th:nth-child(-n+4) { z-index:6; }
@@ -15129,6 +15131,30 @@ ${contentRows}
             } catch (e) { console.error('[LIGHT] upsert row ex:', e); }
         }
 
+        async function _lightUpsertRowsBulk(rows) {
+            if (!rows || !rows.length) return;
+            _lightGuardRt();
+            var pid = projectGetCurrent();
+            var payload = rows.map(function (row) {
+                var o = {
+                    project_id: pid, row_id: row.id, no: row.no || 0,
+                    floor: row.floor || '', room: row.room || '',
+                    counts: row.counts || {}, remark: row.remark || '',
+                    ordered: !!row.ordered, ordered_date: row.orderedDate || '',
+                    updated_at: new Date().toISOString()
+                };
+                if (_lightHasActual) o.counts_actual = row.countsA || {};
+                return o;
+            });
+            try {
+                var res = await db.from('lighting_counts').upsert(payload, { onConflict: 'project_id,row_id' });
+                if (res.error) console.error('[LIGHT] bulk upsert rows error:', res.error);
+            } catch (e) { console.error('[LIGHT] bulk upsert rows ex:', e); }
+        }
+        async function _lightUpsertFxBulk(items) {
+            if (!items || !items.length) return;
+            for (var i = 0; i < items.length; i++) { await _lightUpsertFx(items[i]); }
+        }
         async function _lightSaveMaster(kind) {
             _lightGuardRt();
             try {
@@ -15296,6 +15322,25 @@ ${contentRows}
             lightRenderList();
             lightRenderSum();
         }
+        function lightInsertFixtureAfter(id) {
+            var idx = -1;
+            for (var i = 0; i < _lightFx.length; i++) { if (_lightFx[i].id === id) { idx = i; break; } }
+            if (idx < 0) return;
+            var it = {
+                id: _lightUid('lf'), no: 0,
+                symbol: '', publicNo: '', kishu: '', bunrui: (_lightBunruiList()[0] || ''), maker: '',
+                kataban: '', bodyNo: '', barNo: '', ledPower: '', embedSize: '', seigyo: '', voltage: '100V',
+                lumen: 0, watt: 0, ra: 0, kelvin: '', ordered: false, orderedDate: '',
+                designQty: 0, listPrice: 0, netPrice: 0, accessories: [], remark: ''
+            };
+            _lightFx.splice(idx + 1, 0, it);
+            var changed = [];
+            _lightFx.forEach(function (f, k) { if (f.no !== k + 1) { f.no = k + 1; changed.push(f); } });
+            if (changed.indexOf(it) < 0) changed.push(it);
+            _lightUpsertFxBulk(changed);
+            lightRenderList();
+            lightRenderSum();
+        }
         function lightDeleteFixture(id) {
             var it = _lightFx.filter(function (f) { return f.id === id; })[0];
             if (!it) return;
@@ -15368,7 +15413,7 @@ ${contentRows}
             var thead = document.getElementById('lightThead');
             var tbody = document.getElementById('lightTbody');
             if (!thead || !tbody) return;
-            var h = '<tr><th style="width:36px;">No</th>';
+            var h = '<tr><th style="width:52px;">No</th>';
             LIGHT_COLS.forEach(function (c) { h += '<th style="min-width:' + c.w + 'px;">' + c.label + '</th>'; });
             h += '<th style="width:36px;">削除</th></tr>';
             thead.innerHTML = h;
@@ -15389,7 +15434,8 @@ ${contentRows}
             var b = '';
             list.forEach(function (it, i) {
                 b += '<tr>';
-                b += '<td class="light-fix" style="text-align:center;">' + (i + 1) + '</td>';
+                b += '<td class="light-fix" style="text-align:center;white-space:nowrap;">' + (i + 1)
+                   + '<button class="light-ins" title="この行の下に器具行を挿入" onclick="lightInsertFixtureAfter(\'' + it.id + '\')">＋</button></td>';
                 LIGHT_COLS.forEach(function (c) {
                     var v = it[c.f];
                     var cb = 'lightFxChange(\'' + it.id + '\',\'' + c.f + '\',this.value)';
@@ -15517,6 +15563,20 @@ ${contentRows}
             _lightUpsertRow(row);
             lightRenderSum();
         }
+        function lightInsertRowAfter(id) {
+            var idx = -1;
+            for (var i = 0; i < _lightRows.length; i++) { if (_lightRows[i].id === id) { idx = i; break; } }
+            if (idx < 0) return;
+            var base = _lightRows[idx];
+            var row = { id: _lightUid('lc'), no: 0, floor: base.floor || '', room: '', counts: {}, countsA: {},
+                        ordered: false, orderedDate: '', remark: '' };
+            _lightRows.splice(idx + 1, 0, row);
+            var changed = [];
+            _lightRows.forEach(function (r, k) { if (r.no !== k + 1) { r.no = k + 1; changed.push(r); } });
+            if (changed.indexOf(row) < 0) changed.push(row);
+            _lightUpsertRowsBulk(changed);
+            lightRenderSum();
+        }
         function lightDeleteSumRow(id) {
             var r = _lightRows.filter(function (x) { return x.id === id; })[0];
             if (!r) return;
@@ -15585,7 +15645,7 @@ ${contentRows}
             var useMaster = _lightHasFloorMaster();
 
             var h = '<tr><th rowspan="2" style="width:30px;"><input type="checkbox" id="lightSumAll" onchange="lightToggleAllRows(this.checked)" style="width:auto;" title="全選択"></th>'
-                  + '<th rowspan="2" style="width:36px;">No</th><th rowspan="2" style="min-width:80px;">階</th><th rowspan="2" style="min-width:150px;">室名</th>';
+                  + '<th rowspan="2" style="width:52px;">No</th><th rowspan="2" style="min-width:80px;">階</th><th rowspan="2" style="min-width:150px;">室名</th>';
             cols.forEach(function (c) {
                 h += '<th colspan="2" style="min-width:88px;' + (c.isAcc ? 'background:#f9a825;' : '') + '" title="' + _lightEsc(c.title) + '">' + _lightEsc(c.label) + '</th>';
             });
@@ -15606,7 +15666,8 @@ ${contentRows}
                 if (isDup) dupTotal++;
                 b += isDup ? '<tr class="light-dup" title="階・室名が重複しています">' : '<tr>';
                 b += '<td style="text-align:center;"><input type="checkbox" class="light-rowsel" data-rid="' + r.id + '" style="width:auto;"></td>';
-                b += '<td class="light-fix" style="text-align:center;">' + (i + 1) + '</td>';
+                b += '<td class="light-fix" style="text-align:center;white-space:nowrap;">' + (i + 1)
+                   + '<button class="light-ins" title="この行の下に行を挿入" onclick="lightInsertRowAfter(\'' + r.id + '\')">＋</button></td>';
                 if (useMaster) {
                     b += '<td><select onchange="lightRowChange(\'' + r.id + '\',\'floor\',this.value)">' + _lightOpts(_lightFloorList(), r.floor) + '</select></td>';
                     b += '<td><select onchange="lightRowChange(\'' + r.id + '\',\'room\',this.value)">' + _lightOpts(_lightRoomList(r.floor), r.room) + '</select></td>';
