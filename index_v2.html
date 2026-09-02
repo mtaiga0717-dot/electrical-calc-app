@@ -1504,6 +1504,12 @@
         #lightSumTable thead tr:first-child th:nth-child(-n+4) { z-index:6; }
         #lightSumTable tfoot td:nth-child(1) { position:sticky; left:0; z-index:6; box-shadow:2px 0 0 #d84315, 0 -1px 0 #d84315; }
         #lightSumTable tbody tr:hover td:nth-child(-n+4) { background:#fff3e0; }
+        /* 照明器具一覧：No と 照会記号 列を固定 */
+        #lightTable thead th:nth-child(1) { position:sticky; left:0; z-index:6; width:52px; min-width:52px; max-width:52px; }
+        #lightTable thead th:nth-child(2) { position:sticky; left:52px; z-index:6; box-shadow:2px 0 0 #d84315; }
+        #lightTable tbody td.light-fix { position:sticky; left:0; z-index:3; background:#fafafa; width:52px; min-width:52px; max-width:52px; }
+        #lightTable tbody td.light-sym { position:sticky; left:52px; z-index:3; background:#fff; box-shadow:2px 0 0 #d84315; }
+        #lightTable tbody tr:hover td.light-fix, #lightTable tbody tr:hover td.light-sym { background:#fff3e0; }
     </style>
 </head>
 <body>
@@ -15506,7 +15512,7 @@ ${contentRows}
                     } else if (c.t === 'num') {
                         b += '<td class="light-num"><input type="number" step="any" value="' + _lightEsc(v) + '" onchange="' + cb + '"></td>';
                     } else {
-                        b += '<td><input type="text" value="' + _lightEsc(v) + '" onchange="' + cb + '"></td>';
+                        b += '<td' + (c.f === 'symbol' ? ' class="light-sym"' : '') + '><input type="text" value="' + _lightEsc(v) + '" onchange="' + cb + '"></td>';
                     }
                 });
                 b += '<td style="text-align:center;white-space:nowrap;">'
