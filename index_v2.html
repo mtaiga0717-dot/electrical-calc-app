@@ -15379,7 +15379,8 @@ ${contentRows}
         function lightFxChange(id, field, value) {
             var it = _lightFx.filter(function (f) { return f.id === id; })[0];
             if (!it) return;
-            if (field === 'lumen' || field === 'watt' || field === 'ra' || field === 'designQty' || field === 'listPrice' || field === 'netPrice') it[field] = _lightN(value);
+            if (field === 'listPrice' || field === 'netPrice') it[field] = _lightNC(value);
+            else if (field === 'lumen' || field === 'watt' || field === 'ra' || field === 'designQty') it[field] = _lightN(value);
             else if (field === 'ordered') it[field] = (value === true || value === 'true');
             else if (field === 'seigyo') it[field] = _lightSeigyoLabel(value);
             else it[field] = value;
@@ -15398,9 +15399,9 @@ ${contentRows}
             h += '<td colspan="3"><input type="text" value="' + _lightEsc(a.kataban) + '" onchange="' + cb('kataban') + '" placeholder="型番"></td>';
             h += '<td colspan="' + rest + '"></td>';
             var aq = _lightQtyOf(a.aid);
-            h += '<td class="light-num" style="background:#e8f5e9;"><input type="number" min="0" step="1" value="' + (_lightN(a.listPrice) || '') + '" onchange="' + cb('listPrice') + '"></td>';
+            h += '<td class="light-num" style="background:#e8f5e9;"><input type="text" inputmode="numeric" value="' + _lightFmt(a.listPrice) + '" onchange="' + cb('listPrice') + '"></td>';
             h += '<td style="text-align:right;background:#e8f5e9;">' + _lightY(_lightN(a.listPrice) * aq) + '</td>';
-            h += '<td class="light-num" style="background:#e8f5e9;"><input type="number" min="0" step="1" value="' + (_lightN(a.netPrice) || '') + '" onchange="' + cb('netPrice') + '"></td>';
+            h += '<td class="light-num" style="background:#e8f5e9;"><input type="text" inputmode="numeric" value="' + _lightFmt(a.netPrice) + '" onchange="' + cb('netPrice') + '"></td>';
             h += '<td style="text-align:right;background:#e8f5e9;font-weight:bold;">' + _lightY(_lightN(a.netPrice) * aq) + '</td>';
             h += '<td style="text-align:right;background:#e0f2f1;color:#00695c;font-weight:bold;">' + _lightRateTxt(a.listPrice, a.netPrice) + '</td>';
             h += '<td><input type="text" value="' + _lightEsc(a.remark) + '" onchange="' + cb('remark') + '" placeholder="備考"></td>';
@@ -15432,6 +15433,81 @@ ${contentRows}
                 if (cx && out.indexOf(cx) < 0) out.push(cx);
             }
             return out;
+        }
+        function _lightBodyGrid(body) {
+            var grid = [];
+            for (var r = 0; r < body.rows.length; r++) {
+                if (!grid[r]) grid[r] = [];
+                var row = body.rows[r], ci = 0;
+                for (var c = 0; c < row.cells.length; c++) {
+                    while (grid[r][ci]) ci++;
+                    var cell = row.cells[c], cs = cell.colSpan || 1, rs = cell.rowSpan || 1;
+                    for (var i2 = 0; i2 < cs; i2++) {
+                        for (var j2 = 0; j2 < rs; j2++) {
+                            if (!grid[r + j2]) grid[r + j2] = [];
+                            grid[r + j2][ci + i2] = cell;
+                        }
+                    }
+                    ci += cs;
+                }
+            }
+            return grid;
+        }
+        function _lightFocusable(cell) {
+            if (!cell) return null;
+            var f = cell.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled])');
+            return f || null;
+        }
+        function _lightArrowNav(tbl, e) {
+            var k = e.key;
+            if (k !== 'ArrowUp' && k !== 'ArrowDown' && k !== 'ArrowLeft' && k !== 'ArrowRight') return;
+            if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+            var el = e.target;
+            if (!el || !el.tagName) return;
+            var tag = el.tagName.toLowerCase();
+            if (tag !== 'input' && tag !== 'select') return;
+            if (tag === 'select' && (k === 'ArrowUp' || k === 'ArrowDown')) return;
+            var td = el.closest ? el.closest('td') : null;
+            var body = tbl.tBodies[0];
+            if (!td || !body || !body.contains(td)) return;
+            if (k === 'ArrowLeft' || k === 'ArrowRight') {
+                if (tag === 'input' && (el.type === 'text' || el.type === 'search' || el.type === 'tel')) {
+                    var ss = null, se = null;
+                    try { ss = el.selectionStart; se = el.selectionEnd; } catch (er) { ss = null; }
+                    if (ss !== null) {
+                        if (ss !== se) return;
+                        if (k === 'ArrowLeft' && ss > 0) return;
+                        if (k === 'ArrowRight' && ss < String(el.value).length) return;
+                    }
+                }
+            }
+            var grid = _lightBodyGrid(body);
+            var ri = Array.prototype.indexOf.call(body.rows, td.parentElement);
+            if (ri < 0 || !grid[ri]) return;
+            var ci = -1;
+            for (var i = 0; i < grid[ri].length; i++) { if (grid[ri][i] === td) { ci = i; break; } }
+            if (ci < 0) return;
+            var dr = (k === 'ArrowUp') ? -1 : (k === 'ArrowDown') ? 1 : 0;
+            var dc = (k === 'ArrowLeft') ? -1 : (k === 'ArrowRight') ? 1 : 0;
+            var nr = ri, nc = ci, guard = 0;
+            while (guard++ < 500) {
+                nr += dr; nc += dc;
+                if (nr < 0 || nr >= body.rows.length) return;
+                if (nc < 0) return;
+                var g = grid[nr];
+                if (!g) return;
+                if (nc >= g.length) return;
+                var cell = g[nc];
+                if (!cell || cell === td) continue;
+                var f = _lightFocusable(cell);
+                if (f) {
+                    e.preventDefault();
+                    f.focus();
+                    if (f.select) { try { f.select(); } catch (e3) {} }
+                    if (f.scrollIntoView) { try { f.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e4) {} }
+                    return;
+                }
+            }
         }
         function _lightClearCross(tbl) {
             Array.prototype.forEach.call(tbl.querySelectorAll('.cross-row, .cross-col, .cross-head'), function (e) {
@@ -15467,6 +15543,7 @@ ${contentRows}
                 else tbl._lock = { r: ri, c: ci };
                 _lightApplyLock(tbl);
             });
+            tbl.addEventListener('keydown', function (e) { _lightArrowNav(tbl, e); });
             _lightApplyLock(tbl);
         }
         function _lightApplyLock(tbl) {
@@ -15532,7 +15609,7 @@ ${contentRows}
                             b += '<td style="background:#f5f5f5;text-align:center;color:#bbb;" title="器種がダウンライトのときに入力できます">—</td>';
                         }
                     } else if (c.t === 'price') {
-                        b += '<td class="light-num" style="background:#e8f5e9;"><input type="number" min="0" step="1" value="' + (_lightN(v) || '') + '" onchange="' + cb + '"></td>';
+                        b += '<td class="light-num" style="background:#e8f5e9;"><input type="text" inputmode="numeric" value="' + _lightFmt(v) + '" onchange="' + cb + '"></td>';
                     } else if (c.t === 'calc') {
                         var cv0 = _lightCalcVal(it, c.f);
                         b += '<td style="text-align:right;background:' + (c.f === 'netRate' ? '#e0f2f1;color:#00695c;font-weight:bold;' : '#e8f5e9;' + (c.f === 'netAmt' ? 'font-weight:bold;' : '')) + '">' + ((c.f === 'netRate') ? cv0 : _lightY(cv0)) + '</td>';
@@ -15599,7 +15676,7 @@ ${contentRows}
             if (!it || !Array.isArray(it.accessories)) return;
             var a = it.accessories.filter(function (x) { return x.aid === aid; })[0];
             if (!a) return;
-            a[field] = (field === 'listPrice' || field === 'netPrice') ? _lightN(value) : value;
+            a[field] = (field === 'listPrice' || field === 'netPrice') ? _lightNC(value) : value;
             _lightQueueFx(it);
             if (field === 'name') lightRenderSum();
             else if (field !== 'remark') lightRenderAgg();
@@ -15844,6 +15921,16 @@ ${contentRows}
             var n = 0;
             _lightRows.forEach(function (r) { n += _lightN((r.countsA || {})[key]); });
             return n;
+        }
+        function _lightNC(v) {
+            var s = String(v == null ? '' : v).replace(/[,，\s]/g, '');
+            try { s = toHankaku(s); } catch (e) {}
+            var n = parseFloat(s);
+            return isFinite(n) ? n : 0;
+        }
+        function _lightFmt(v) {
+            var n = _lightN(v);
+            return n ? n.toLocaleString() : '';
         }
         function _lightRateTxt(lp, np) {
             lp = _lightN(lp); np = _lightN(np);
