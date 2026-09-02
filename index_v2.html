@@ -15020,7 +15020,6 @@ ${contentRows}
             { f: 'ra',       label: 'Ra',             w: 48,  t: 'num' },
             { f: 'kelvin',   label: '色温度(K)',      w: 76,  t: 'text' },
             { f: 'listPrice', label: '定価',          w: 92,  t: 'price' },
-            { f: 'listAmt',  label: '定価金額',       w: 104, t: 'calc' },
             { f: 'netPrice', label: 'NET単価',        w: 92,  t: 'price' },
             { f: 'netAmt',   label: 'NET金額',        w: 104, t: 'calc' },
             { f: 'netRate',  label: '率',             w: 64,  t: 'calc' },
@@ -15391,7 +15390,7 @@ ${contentRows}
         function _lightAccRow(it, a) {
             var total = LIGHT_COLS.length + 2;
             var cb = function (f) { return 'lightAccChange(\'' + it.id + '\',\'' + a.aid + '\',\'' + f + '\',this.value)'; };
-            var rest = total - 15;
+            var rest = total - 14;
             var h = '<tr style="background:#fffde7;">';
             h += '<td class="light-fix" style="text-align:center;color:#f9a825;font-weight:bold;">└</td>';
             h += '<td colspan="4" style="white-space:nowrap;"><span style="color:#f57f17;font-weight:bold;font-size:0.7rem;margin-right:4px;">付属品</span>'
@@ -15400,7 +15399,6 @@ ${contentRows}
             h += '<td colspan="' + rest + '"></td>';
             var aq = _lightQtyOf(a.aid);
             h += '<td class="light-num" style="background:#e8f5e9;"><input type="text" inputmode="numeric" value="' + _lightFmt(a.listPrice) + '" onchange="' + cb('listPrice') + '"></td>';
-            h += '<td style="text-align:right;background:#e8f5e9;">' + _lightY(_lightN(a.listPrice) * aq) + '</td>';
             h += '<td class="light-num" style="background:#e8f5e9;"><input type="text" inputmode="numeric" value="' + _lightFmt(a.netPrice) + '" onchange="' + cb('netPrice') + '"></td>';
             h += '<td style="text-align:right;background:#e8f5e9;font-weight:bold;">' + _lightY(_lightN(a.netPrice) * aq) + '</td>';
             h += '<td style="text-align:right;background:#e0f2f1;color:#00695c;font-weight:bold;">' + _lightRateTxt(a.listPrice, a.netPrice) + '</td>';
@@ -15458,6 +15456,21 @@ ${contentRows}
             var f = cell.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled])');
             return f || null;
         }
+        function _lightFocusCell(tbl, ri, ci) {
+            if (!tbl) return false;
+            var body = tbl.tBodies[0];
+            if (!body || ri < 0 || ri >= body.rows.length) return false;
+            var grid = _lightBodyGrid(body);
+            if (!grid[ri]) return false;
+            var cell = grid[ri][ci];
+            if (!cell) return false;
+            var f = _lightFocusable(cell);
+            if (!f) return false;
+            f.focus();
+            if (f.select) { try { f.select(); } catch (e5) {} }
+            if (f.scrollIntoView) { try { f.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e6) {} }
+            return true;
+        }
         function _lightArrowNav(tbl, e) {
             var k = e.key;
             if (k !== 'ArrowUp' && k !== 'ArrowDown' && k !== 'ArrowLeft' && k !== 'ArrowRight') return;
@@ -15466,7 +15479,6 @@ ${contentRows}
             if (!el || !el.tagName) return;
             var tag = el.tagName.toLowerCase();
             if (tag !== 'input' && tag !== 'select') return;
-            if (tag === 'select' && (k === 'ArrowUp' || k === 'ArrowDown')) return;
             var td = el.closest ? el.closest('td') : null;
             var body = tbl.tBodies[0];
             if (!td || !body || !body.contains(td)) return;
@@ -15502,9 +15514,15 @@ ${contentRows}
                 var f = _lightFocusable(cell);
                 if (f) {
                     e.preventDefault();
-                    f.focus();
-                    if (f.select) { try { f.select(); } catch (e3) {} }
-                    if (f.scrollIntoView) { try { f.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e4) {} }
+                    var tid = tbl.id, tr2 = nr, tc2 = nc;
+                    _lightFocusCell(tbl, tr2, tc2);
+                    setTimeout(function () {
+                        var t2 = tid ? document.getElementById(tid) : null;
+                        if (!t2) return;
+                        var ae = document.activeElement;
+                        if (ae && ae !== document.body && t2.contains(ae)) return;
+                        _lightFocusCell(t2, tr2, tc2);
+                    }, 0);
                     return;
                 }
             }
