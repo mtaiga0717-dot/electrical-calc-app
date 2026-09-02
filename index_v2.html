@@ -15405,6 +15405,32 @@ ${contentRows}
             h += '<td style="text-align:center;"><button class="btn-delete" onclick="lightDelAcc(\'' + it.id + '\',\'' + a.aid + '\')">×</button></td>';
             return h + '</tr>';
         }
+        function _lightHeadCells(tbl, idx) {
+            var head = tbl.tHead;
+            if (!head) return [];
+            var grid = [], out = [];
+            for (var r2 = 0; r2 < head.rows.length; r2++) {
+                if (!grid[r2]) grid[r2] = [];
+                var row = head.rows[r2], ci = 0;
+                for (var c = 0; c < row.cells.length; c++) {
+                    while (grid[r2][ci]) ci++;
+                    var cell = row.cells[c];
+                    var cs = cell.colSpan || 1, rs = cell.rowSpan || 1;
+                    for (var i2 = 0; i2 < cs; i2++) {
+                        for (var j2 = 0; j2 < rs; j2++) {
+                            if (!grid[r2 + j2]) grid[r2 + j2] = [];
+                            grid[r2 + j2][ci + i2] = cell;
+                        }
+                    }
+                    ci += cs;
+                }
+            }
+            for (var r3 = 0; r3 < grid.length; r3++) {
+                var cx = grid[r3] ? grid[r3][idx] : null;
+                if (cx && out.indexOf(cx) < 0) out.push(cx);
+            }
+            return out;
+        }
         function _lightClearCross(tbl) {
             Array.prototype.forEach.call(tbl.querySelectorAll('.cross-row, .cross-col, .cross-head'), function (e) {
                 e.classList.remove('cross-row'); e.classList.remove('cross-col'); e.classList.remove('cross-head');
@@ -15424,8 +15450,7 @@ ${contentRows}
                 _lightClearCross(tbl);
                 tr.classList.add('cross-row');
                 Array.prototype.forEach.call(body.rows, function (r) { if (r.cells[idx]) r.cells[idx].classList.add('cross-col'); });
-                var hr = tbl.tHead && tbl.tHead.rows[0];
-                if (hr && hr.cells[idx]) hr.cells[idx].classList.add('cross-head');
+                _lightHeadCells(tbl, idx).forEach(function (th) { th.classList.add('cross-head'); });
             });
             tbl.addEventListener('mouseleave', function () { _lightClearCross(tbl); });
             tbl.addEventListener('click', function (e) {
@@ -15455,8 +15480,7 @@ ${contentRows}
             if (!tr) { tbl._lock = null; return; }
             tr.classList.add('lock-row');
             Array.prototype.forEach.call(body.rows, function (r) { if (r.cells[lk.c]) r.cells[lk.c].classList.add('lock-col'); });
-            var hr = tbl.tHead && tbl.tHead.rows[0];
-            if (hr && hr.cells[lk.c]) hr.cells[lk.c].classList.add('lock-head');
+            _lightHeadCells(tbl, lk.c).forEach(function (th) { th.classList.add('lock-head'); });
         }
         function lightRenderList() {
             var thead = document.getElementById('lightThead');
@@ -15837,7 +15861,7 @@ ${contentRows}
                  + '<td style="text-align:right;' + (x.diff ? 'color:#c62828;font-weight:bold;' : 'color:#999;') + '">' + (x.diff ? (x.diff > 0 ? '+' + x.diff : x.diff) : '±0') + '</td>'
                  + '<td style="text-align:right;color:#2e7d32;">' + (x.ordN || '') + '</td>'
                  + '<td style="text-align:right;' + (x.rest > 0 ? 'color:#e65100;font-weight:bold;' : 'color:#999;') + '">' + (x.rest > 0 ? x.rest : (x.n ? '0' : '')) + '</td>'
-                 + '<td></td><td></td></tr>';
+                 + '</tr>';
         }
         function lightRenderAgg() {
             var thead = document.getElementById('lightAggThead');
@@ -15852,8 +15876,7 @@ ${contentRows}
                 + '<th style="min-width:74px;background:#5d4037;">実行数量</th>'
                 + '<th style="min-width:56px;background:#5d4037;">増減</th>'
                 + '<th style="min-width:74px;background:#2e7d32;">注文済<br>数量</th>'
-                + '<th style="min-width:62px;background:#2e7d32;">残</th>'
-                + '<th style="min-width:90px;">合計VA</th><th style="min-width:100px;">合計lm</th></tr>';
+                + '<th style="min-width:62px;background:#2e7d32;">残</th></tr>';
 
             var rows = _lightAggData();
             var b = '';
@@ -15880,8 +15903,6 @@ ${contentRows}
                        + '<td style="text-align:right;background:#efebe9;' + (x.diff ? 'color:#c62828;font-weight:bold;' : 'color:#999;') + '">' + (x.diff ? (x.diff > 0 ? '+' + x.diff : x.diff) : '±0') + '</td>'
                        + '<td style="text-align:right;background:#e8f5e9;font-weight:bold;color:#2e7d32;">' + (x.ordN || '') + '</td>'
                        + '<td style="text-align:right;background:' + (x.rest > 0 ? '#fff3e0;color:#e65100;font-weight:bold;' : '#e8f5e9;color:#999;') + '">' + (x.rest > 0 ? x.rest : (x.n ? '0' : '')) + '</td>'
-                       + '<td style="text-align:right;">' + (x.va ? x.va.toLocaleString() : '') + '</td>'
-                       + '<td style="text-align:right;">' + (x.lm ? x.lm.toLocaleString() : '') + '</td>'
                        + '</tr>';
                 });
                 gN += sN; gVA += sVA; gLM += sLM; gDQ += sDQ; gLP += sLP; gNP += sNP; gOR += sOR; gRE += sRE;
@@ -15890,8 +15911,7 @@ ${contentRows}
                    + '<td style="text-align:right;">' + sN + '</td><td></td>'
                    + '<td style="text-align:right;color:#2e7d32;">' + (sOR || '') + '</td>'
                    + '<td style="text-align:right;' + (sRE > 0 ? 'color:#e65100;' : 'color:#999;') + '">' + (sRE > 0 ? sRE : '0') + '</td>'
-                   + '<td style="text-align:right;">' + sVA.toLocaleString() + '</td>'
-                   + '<td style="text-align:right;">' + sLM.toLocaleString() + '</td></tr>';
+                   + '</tr>';
             });
             if (b) {
                 b += '<tr class="light-total" style="border-top:2px solid #ef6c00;"><td colspan="7" style="text-align:center;">総合計</td>'
@@ -15900,10 +15920,9 @@ ${contentRows}
                    + '<td style="text-align:right;' + ((gN - gDQ) ? 'color:#c62828;' : 'color:#999;') + '">' + ((gN - gDQ) ? ((gN - gDQ) > 0 ? '+' + (gN - gDQ) : (gN - gDQ)) : '±0') + '</td>'
                    + '<td style="text-align:right;color:#2e7d32;">' + (gOR || '') + '</td>'
                    + '<td style="text-align:right;' + (gRE > 0 ? 'color:#e65100;' : 'color:#999;') + '">' + (gRE > 0 ? gRE : '0') + '</td>'
-                   + '<td style="text-align:right;">' + gVA.toLocaleString() + '</td>'
-                   + '<td style="text-align:right;">' + gLM.toLocaleString() + '</td></tr>';
+                   + '</tr>';
             }
-            tbody.innerHTML = b || '<tr><td colspan="14" style="text-align:center;padding:1rem;color:#999;">器具を登録すると集計されます</td></tr>';
+            tbody.innerHTML = b || '<tr><td colspan="12" style="text-align:center;padding:1rem;color:#999;">器具を登録すると集計されます</td></tr>';
         }
 
         /* ---------- CSV ---------- */
@@ -15952,11 +15971,10 @@ ${contentRows}
             tot.push('', '', '');
             lines.push(tot.map(_lightCsvCell).join(','));
             lines.push('');
-            lines.push(['照会記号', '器種', '型番', 'メーカー', '分類', '電圧', '電力(VA)', '設計数量', '実行数量', '増減', '注文済数量', '残', '合計VA', '合計lm'].map(_lightCsvCell).join(','));
+            lines.push(['照会記号', '器種', '型番', 'メーカー', '分類', '電圧', '電力(VA)', '設計数量', '実行数量', '増減', '注文済数量', '残'].map(_lightCsvCell).join(','));
             _lightAggData().forEach(function (x) {
                 lines.push([x.f.symbol, x.f.kishu, x.f.kataban, x.f.maker, x.f.bunrui, x.f.voltage, _lightN(x.f.watt),
-                            x.dq || '', x.n, x.diff, x.ordN, x.rest,
-                            x.va, x.lm].map(_lightCsvCell).join(','));
+                            x.dq || '', x.n, x.diff, x.ordN, x.rest].map(_lightCsvCell).join(','));
             });
             _lightDownload('照明器具集計表_' + _lightProjName() + '.csv', lines.join('\n'));
         }
