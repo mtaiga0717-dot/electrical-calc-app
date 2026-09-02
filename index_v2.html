@@ -15907,7 +15907,7 @@ ${contentRows}
                 });
                 var lp = _lightN(f.listPrice), np = _lightN(f.netPrice);
                 out.push({ f: f, n: n, va: n * _lightN(f.watt), lm: n * _lightN(f.lumen),
-                           dq: dq, diff: n - dq, ordN: ordN, rest: n - ordN, lpAmt: lp * n, npAmt: np * n });
+                           dq: dq, diff: n - dq, ordN: ordN, rest: n - ordN, lpAmt: lp * n, npAmt: np * n, npAmtD: np * dq });
                 (f.accessories || []).forEach(function (a) {
                     var q = 0, oq = 0, adq = 0;
                     _lightRows.forEach(function (r) {
@@ -15918,7 +15918,7 @@ ${contentRows}
                     });
                     out.push({ acc: true, f: f, a: a, n: q, va: 0, lm: 0, dq: adq, diff: q - adq,
                                ordN: oq, rest: q - oq,
-                               lpAmt: _lightN(a.listPrice) * q, npAmt: _lightN(a.netPrice) * q });
+                               lpAmt: _lightN(a.listPrice) * q, npAmt: _lightN(a.netPrice) * q, npAmtD: _lightN(a.netPrice) * adq });
                 });
             });
             return out;
@@ -15974,6 +15974,7 @@ ${contentRows}
                  + '<td style="text-align:right;background:#e0f2f1;">' + _lightY(_lightN(a.listPrice)) + '</td>'
                  + '<td style="text-align:right;background:#e0f2f1;">' + _lightY(x.lpAmt) + '</td>'
                  + '<td style="text-align:right;background:#e0f2f1;">' + _lightY(_lightN(a.netPrice)) + '</td>'
+                 + '<td style="text-align:right;background:#eceff1;color:#455a64;">' + _lightY(x.npAmtD) + '</td>'
                  + '<td style="text-align:right;background:#e0f2f1;font-weight:bold;color:#00695c;">' + _lightY(x.npAmt) + '</td>'
                  + '</tr>';
         }
@@ -15992,18 +15993,19 @@ ${contentRows}
                 + '<th style="min-width:84px;background:#00695c;">定価</th>'
                 + '<th style="min-width:104px;background:#00695c;">定価金額</th>'
                 + '<th style="min-width:84px;background:#00695c;">NET単価</th>'
+                + '<th style="min-width:110px;background:#455a64;">設計NET金額</th>'
                 + '<th style="min-width:104px;background:#00695c;">NET金額</th></tr>';
 
             var rows = _lightAggData();
             var b = '';
             var order = _lightBunruiList().concat(['']);
-            var gN = 0, gVA = 0, gLM = 0, gDQ = 0, gLP = 0, gNP = 0, gOR = 0, gRE = 0;
+            var gN = 0, gVA = 0, gLM = 0, gDQ = 0, gLP = 0, gNP = 0, gOR = 0, gRE = 0, gND = 0;
             order.forEach(function (bn) {
                 var grp = rows.filter(function (x) { return (x.f.bunrui || '') === bn; });
                 if (!grp.length) return;
-                var sN = 0, sVA = 0, sLM = 0, sDQ = 0, sLP = 0, sNP = 0, sOR = 0, sRE = 0;
+                var sN = 0, sVA = 0, sLM = 0, sDQ = 0, sLP = 0, sNP = 0, sOR = 0, sRE = 0, sND = 0;
                 grp.forEach(function (x) {
-                    sLP += x.lpAmt; sNP += x.npAmt;
+                    sLP += x.lpAmt; sNP += x.npAmt; sND += (x.npAmtD || 0);
                     if (x.acc) { b += _lightAggAccRow(x); return; }
                     sN += x.n; sVA += x.va; sLM += x.lm; sDQ += x.dq; sOR += x.ordN; sRE += x.rest;
                     b += '<tr>'
@@ -16019,10 +16021,11 @@ ${contentRows}
                        + '<td style="text-align:right;background:#e0f2f1;">' + _lightY(_lightN(x.f.listPrice)) + '</td>'
                        + '<td style="text-align:right;background:#e0f2f1;">' + _lightY(x.lpAmt) + '</td>'
                        + '<td style="text-align:right;background:#e0f2f1;">' + _lightY(_lightN(x.f.netPrice)) + '</td>'
+                       + '<td style="text-align:right;background:#eceff1;color:#455a64;">' + _lightY(x.npAmtD) + '</td>'
                        + '<td style="text-align:right;background:#e0f2f1;font-weight:bold;color:#00695c;">' + _lightY(x.npAmt) + '</td>'
                        + '</tr>';
                 });
-                gN += sN; gVA += sVA; gLM += sLM; gDQ += sDQ; gLP += sLP; gNP += sNP; gOR += sOR; gRE += sRE;
+                gN += sN; gVA += sVA; gLM += sLM; gDQ += sDQ; gLP += sLP; gNP += sNP; gOR += sOR; gRE += sRE; gND += sND;
                 b += '<tr class="light-total"><td colspan="4" style="text-align:center;">' + (bn || '未分類') + ' 小計</td>'
                    + '<td style="text-align:right;">' + (sDQ || '') + '</td>'
                    + '<td style="text-align:right;">' + sN + '</td><td></td>'
@@ -16031,6 +16034,7 @@ ${contentRows}
                    + '<td></td>'
                    + '<td style="text-align:right;">' + _lightY(sLP) + '</td>'
                    + '<td></td>'
+                   + '<td style="text-align:right;color:#455a64;">' + _lightY(sND) + '</td>'
                    + '<td style="text-align:right;">' + _lightY(sNP) + '</td>'
                    + '</tr>';
             });
@@ -16044,10 +16048,11 @@ ${contentRows}
                    + '<td></td>'
                    + '<td style="text-align:right;">' + _lightY(gLP) + '</td>'
                    + '<td></td>'
+                   + '<td style="text-align:right;color:#455a64;">' + _lightY(gND) + '</td>'
                    + '<td style="text-align:right;color:#00695c;">' + _lightY(gNP) + '</td>'
                    + '</tr>';
             }
-            tbody.innerHTML = b || '<tr><td colspan="13" style="text-align:center;padding:1rem;color:#999;">器具を登録すると集計されます</td></tr>';
+            tbody.innerHTML = b || '<tr><td colspan="14" style="text-align:center;padding:1rem;color:#999;">器具を登録すると集計されます</td></tr>';
         }
 
         /* ---------- CSV ---------- */
@@ -16096,11 +16101,11 @@ ${contentRows}
             tot.push('', '', '');
             lines.push(tot.map(_lightCsvCell).join(','));
             lines.push('');
-            lines.push(['照会記号', '器種', '型番', 'メーカー', '設計数量', '実行数量', '増減', '注文済数量', '残', '定価', '定価金額', 'NET単価', 'NET金額'].map(_lightCsvCell).join(','));
+            lines.push(['照会記号', '器種', '型番', 'メーカー', '設計数量', '実行数量', '増減', '注文済数量', '残', '定価', '定価金額', 'NET単価', '設計NET金額', 'NET金額'].map(_lightCsvCell).join(','));
             _lightAggData().forEach(function (x) {
                 lines.push([x.f.symbol, x.f.kishu, x.f.kataban, x.f.maker,
                             x.dq || '', x.n, x.diff, x.ordN, x.rest,
-                            _lightN(x.f.listPrice) || '', x.lpAmt || '', _lightN(x.f.netPrice) || '', x.npAmt || ''].map(_lightCsvCell).join(','));
+                            _lightN(x.f.listPrice) || '', x.lpAmt || '', _lightN(x.f.netPrice) || '', x.npAmtD || '', x.npAmt || ''].map(_lightCsvCell).join(','));
             });
             _lightDownload('照明器具集計表_' + _lightProjName() + '.csv', lines.join('\n'));
         }
