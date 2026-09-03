@@ -1524,15 +1524,6 @@
         .pk-list tbody td.light-fix { position:sticky; left:0; z-index:3; background:#fafafa; width:52px; min-width:52px; max-width:52px; }
         .pk-list tbody td.pk-sym { position:sticky; left:52px; z-index:3; background:#fff; box-shadow:2px 0 0 #d84315; }
         .pk-list tbody tr:hover td.light-fix, .pk-list tbody tr:hover td.pk-sym { background:#fff3e0; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(1), #pkSumTable_outlet tbody td:nth-child(1) { position:sticky; left:0;     width:28px;  min-width:28px;  max-width:28px; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(2), #pkSumTable_outlet tbody td:nth-child(2) { position:sticky; left:28px;  width:40px;  min-width:40px;  max-width:40px; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(3), #pkSumTable_outlet tbody td:nth-child(3) { position:sticky; left:68px;  width:110px; min-width:110px; max-width:110px; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(4), #pkSumTable_outlet tbody td:nth-child(4) { position:sticky; left:178px; width:80px;  min-width:80px;  max-width:80px; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(5), #pkSumTable_outlet tbody td:nth-child(5) { position:sticky; left:258px; width:80px;  min-width:80px;  max-width:80px; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(6), #pkSumTable_outlet tbody td:nth-child(6) { position:sticky; left:338px; width:150px; min-width:150px; box-shadow:2px 0 0 #d84315; }
-        #pkSumTable_outlet tbody td:nth-child(-n+6) { background:#fff; z-index:2; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(-n+6) { z-index:6; }
-        #pkSumTable_outlet tbody tr:hover td:nth-child(-n+6) { background:#fff3e0; }
         #pkSumTable_wiring thead tr:first-child th:nth-child(1), #pkSumTable_wiring tbody td:nth-child(1) { position:sticky; left:0;     width:28px;  min-width:28px;  max-width:28px; }
         #pkSumTable_wiring thead tr:first-child th:nth-child(2), #pkSumTable_wiring tbody td:nth-child(2) { position:sticky; left:28px;  width:40px;  min-width:40px;  max-width:40px; }
         #pkSumTable_wiring thead tr:first-child th:nth-child(3), #pkSumTable_wiring tbody td:nth-child(3) { position:sticky; left:68px;  width:80px;  min-width:80px;  max-width:80px; }
@@ -1580,7 +1571,6 @@
                 <button class="nav-tab" data-tab="weakCurrent" style="background:#00695c;color:#fff;">弱電幹線</button>
                 <button class="nav-tab" data-tab="qaTab" style="background:#1565c0;color:#fff;">質疑応答書</button>
                 <button class="nav-tab" data-tab="lighting" style="background:#ef6c00;color:#fff;">照明器具</button>
-                <button class="nav-tab" data-tab="outlet" style="background:#00838f;color:#fff;">コンセント</button>
                 <button class="nav-tab" data-tab="wiring" style="background:#4527a0;color:#fff;">配線器具</button>
                 <button class="nav-tab" data-tab="siteMaster" style="background:#6a1b9a;color:#fff;">現場マスタ</button>
             </div>
@@ -3038,45 +3028,6 @@
 
             <!-- Master Tab -->
 
-
-            <!-- コンセント拾い表 Tab -->
-            <div id="outlet" class="tab-content">
-                <h3 style="margin:0.5rem 0;">コンセント拾い表</h3>
-                <div class="light-sub">
-                    <button class="light-viewbtn active" id="pkBtnL_outlet" onclick="pkSwitchView('outlet','list')">部材登録</button>
-                    <button class="light-viewbtn" id="pkBtnS_outlet" onclick="pkSwitchView('outlet','sum')">拾い表</button>
-                    <span style="flex:1;"></span>
-                    <button class="btn-action" onclick="pkReload('outlet')">&#8635; 再読込</button>
-                </div>
-                <div id="pkViewList_outlet">
-                    <div class="light-sub">
-                        <button class="btn-action" style="background:#00838f;color:#fff;" onclick="pkAddItem('outlet')">＋ 部材を追加</button>
-                        <input id="pkSearch_outlet" type="text" placeholder="検索（記号 / 品名 / 型番 / メーカー）" oninput="pkRenderList('outlet')" style="font-size:0.8rem;padding:0.25rem;width:250px;">
-                        <span style="flex:1;"></span>
-                        <button class="btn-action" onclick="pkExportItemsCsv('outlet')">CSV出力</button>
-                    </div>
-                    <div class="light-wrap">
-                        <table class="light-table pk-list" id="pkTable_outlet"><thead id="pkThead_outlet"></thead><tbody id="pkTbody_outlet"></tbody></table>
-                    </div>
-                </div>
-                <div id="pkViewSum_outlet" style="display:none;">
-                    <div class="light-sub">
-                        <button class="btn-action" style="background:#00838f;color:#fff;" onclick="pkAddRow('outlet')">＋ 行を追加</button>
-                        <button class="btn-action" style="background:#c62828;color:#fff;" onclick="pkOpenOrderDialog('outlet')">注文書PDF</button>
-                        <span id="pkInfo_outlet" style="font-size:0.78rem;color:#666;"></span>
-                        <span style="flex:1;"></span>
-                        <button class="btn-action" onclick="pkExportSumCsv('outlet')">CSV出力</button>
-                    </div>
-                    <div style="font-size:0.72rem;color:#888;margin-bottom:3px;">※ 階・室名は「質疑応答書」タブで登録したフロア／部屋リストを共有しています。</div>
-                    <div class="light-wrap pk-wrap-sum">
-                        <table class="light-table pk-sum" id="pkSumTable_outlet"><thead id="pkSumThead_outlet"></thead><tbody id="pkSumTbody_outlet"></tbody></table>
-                    </div>
-                    <h4 style="margin:0.8rem 0 0.3rem;">部材別集計</h4>
-                    <div class="light-wrap">
-                        <table class="light-table" id="pkAggTable_outlet"><thead id="pkAggThead_outlet"></thead><tbody id="pkAggTbody_outlet"></tbody></table>
-                    </div>
-                </div>
-            </div>
 
             <!-- 配線器具拾い表 Tab -->
             <div id="wiring" class="tab-content">
@@ -6727,8 +6678,6 @@
                 wcInit();
             } else if (tabName === 'qaTab') {
                 qaInit();
-            } else if (tabName === 'outlet') {
-                pkInit('outlet');
             } else if (tabName === 'wiring') {
                 pkInit('wiring');
             } else if (tabName === 'lighting') {
