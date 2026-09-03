@@ -3047,12 +3047,7 @@
                         <span style="flex:1;"></span>
                         <button class="btn-action" onclick="pkExportItemsCsv('wiring')">CSV出力</button>
                     </div>
-                    <div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:4px;padding:5px 8px;margin-bottom:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                        <span style="font-size:0.76rem;font-weight:bold;color:#4527a0;white-space:nowrap;">工種マスタ</span>
-                        <span id="pkKsList_wiring"></span>
-                        <input id="pkKsNew_wiring" type="text" placeholder="工種を追加（例：コンセント）" style="font-size:0.78rem;padding:2px 4px;width:190px;" onkeydown="if(event.key==='Enter'){event.preventDefault();pkAddKousyu('wiring');}">
-                        <button class="btn-action" style="background:#4527a0;color:#fff;padding:2px 10px;font-size:0.76rem;" onclick="pkAddKousyu('wiring')">追加</button>
-                    </div>
+                    <div style="font-size:0.74rem;color:#888;margin-bottom:4px;">※ 工種の登録・編集は「現場マスタ」タブの <b>⑥ 配線器具：工種マスタ</b> で行います。</div>
                     <div class="light-wrap">
                         <table class="light-table pk-list" id="pkTable_wiring"><thead id="pkThead_wiring"></thead><tbody id="pkTbody_wiring"></tbody></table>
                     </div>
@@ -3239,6 +3234,12 @@
                         <div style="font-size:0.72rem;color:#78909c;margin-top:0.4rem;">※ 調光下限値はいずれも「定格消費電力で点灯する光束を100%とした場合」の値。</div>
                         </div>
                     </details>
+                </div>
+
+                <div style="border:1px solid #ddd;border-left:4px solid #4527a0;border-radius:4px;padding:0.7rem 0.9rem;margin-bottom:0.9rem;background:#fff;">
+                    <div style="font-weight:bold;font-size:0.92rem;color:#4527a0;margin-bottom:0.6rem;">⑥ 配線器具：工種マスタ</div>
+                    <div style="font-size:0.78rem;color:#888;margin-bottom:0.6rem;">コンセント・照明などの工種を登録します。配線器具ページの部材登録／拾い表／集計／注文書がこの工種で切り替わります。名称を書き換えると、その工種を使っている部材と拾い数量もまとめて追従します。</div>
+                    <div id="pkKsEdit_wiring"></div>
                 </div>
             </div>
 
@@ -6344,7 +6345,59 @@
             pkCloseKsPicker();
             pkRenderAll(k);
         }
+        function pkKsMasterRender() {
+            var box = document.getElementById('pkKsEdit_wiring');
+            if (!box) return;
+            var list = _pk.wiring.kousyuList || [];
+            var h = '<div style="display:flex;flex-direction:column;gap:4px;max-width:440px;">';
+            if (!list.length) h += '<div style="color:#999;font-size:0.8rem;">まだ登録がありません。</div>';
+            list.forEach(function (v, i) {
+                h += '<div style="display:flex;gap:6px;align-items:center;">'
+                   + '<span style="width:22px;text-align:right;color:#888;font-size:0.78rem;">' + (i + 1) + '</span>'
+                   + '<input type="text" value="' + pkEsc(v) + '" style="flex:1;font-size:0.84rem;padding:3px 6px;" onchange="pkRenameKousyu(\'wiring\',' + i + ',this.value)">'
+                   + '<button class="btn-delete" title="削除" onclick="pkDelKousyuAt(\'wiring\',' + i + ')">×</button>'
+                   + '</div>';
+            });
+            h += '<div style="display:flex;gap:6px;align-items:center;margin-top:6px;">'
+               + '<span style="width:22px;"></span>'
+               + '<input id="pkKsNew_wiring" type="text" placeholder="工種を追加（例：コンセント）" style="flex:1;font-size:0.84rem;padding:3px 6px;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();pkAddKousyu(\'wiring\');}">'
+               + '<button class="btn-action" style="background:#4527a0;color:#fff;padding:3px 14px;font-size:0.8rem;" onclick="pkAddKousyu(\'wiring\')">追加</button>'
+               + '</div></div>';
+            box.innerHTML = h;
+        }
+        async function pkRenameKousyu(k, i, nv) {
+            var list = _pk[k].kousyuList || [];
+            var ov = list[i];
+            nv = String(nv == null ? '' : nv).trim();
+            if (ov == null) return;
+            if (!nv || nv === ov) { pkRenderAll(k); return; }
+            if (list.indexOf(nv) >= 0) { alert('同じ工種名がすでに登録されています。'); pkRenderAll(k); return; }
+            list[i] = nv;
+            var changed = {};
+            _pk[k].items.forEach(function (it) {
+                var ks = pkKsOf(it), idx = ks.indexOf(ov);
+                if (idx < 0) return;
+                var oldKey = (idx === 0) ? it.id : (it.id + '@' + ov);
+                ks[idx] = nv;
+                it.kousyu = ks;
+                var newKey = (idx === 0) ? it.id : (it.id + '@' + nv);
+                if (oldKey !== newKey) {
+                    _pk[k].rows.forEach(function (r) {
+                        var hit = false;
+                        if (r.counts && r.counts[oldKey] != null) { r.counts[newKey] = r.counts[oldKey]; delete r.counts[oldKey]; hit = true; }
+                        if (r.countsA && r.countsA[oldKey] != null) { r.countsA[newKey] = r.countsA[oldKey]; delete r.countsA[oldKey]; hit = true; }
+                        if (hit) changed[r.id] = r;
+                    });
+                }
+                pkUpsertItem(k, it);
+            });
+            Object.keys(changed).forEach(function (id) { pkUpsertRow(k, changed[id]); });
+            if (_pk[k].kousyu === ov) _pk[k].kousyu = nv;
+            await pkSaveKousyu(k);
+            pkRenderAll(k);
+        }
         function pkRenderKousyuUI(k) {
+            if (k === 'wiring') pkKsMasterRender();
             var sel = document.getElementById('pkKousyu_' + k);
             if (sel) {
                 var cur = _pk[k].kousyu || '';
@@ -6352,14 +6405,6 @@
                 (_pk[k].kousyuList || []).forEach(function (v) { s += '<option value="' + pkEsc(v) + '"' + (v === cur ? ' selected' : '') + '>' + pkEsc(v) + '</option>'; });
                 sel.innerHTML = s;
                 sel.value = cur;
-            }
-            var box = document.getElementById('pkKsList_' + k);
-            if (box) {
-                var lst = _pk[k].kousyuList || [];
-                box.innerHTML = lst.length ? lst.map(function (v, i) {
-                    return '<span style="display:inline-flex;align-items:center;gap:3px;background:#ede7f6;border:1px solid #b39ddb;border-radius:10px;padding:1px 4px 1px 8px;margin:0 4px 3px 0;font-size:0.74rem;">' + pkEsc(v)
-                         + '<button class="btn-delete" style="padding:0 4px;font-size:0.68rem;line-height:1.2;" title="削除" onclick="pkDelKousyuAt(\'' + k + '\',' + i + ')">×</button></span>';
-                }).join('') : '<span style="color:#999;font-size:0.74rem;">未登録</span>';
             }
         }
         function pkAddItem(k) {
@@ -15682,6 +15727,8 @@ ${contentRows}
             try { if (typeof wcInit === 'function') await wcInit(); } catch (e) { console.warn('[SM] wcInit', e); }
             try { if (typeof qaInit === 'function') await qaInit(); } catch (e) { console.warn('[SM] qaInit', e); }
             try { if (typeof lightInit === 'function') await lightInit(); } catch (e) { console.warn('[SM] lightInit', e); }
+            try { if (typeof pkInit === 'function') await pkInit('wiring'); } catch (e) { console.warn('[SM] pkInit', e); }
+            try { pkKsMasterRender(); } catch (e) {}
             smLoadKoji();
             smRenderFloorSummary();
         }
