@@ -6565,6 +6565,7 @@
                 + '</div>'
                 + '<table class="light-table" style="width:100%;"><thead><tr><th style="width:40px;">選択</th><th style="width:70px;">記号</th><th>品名</th><th>型番</th><th>メーカー</th><th style="width:90px;">数量</th><th style="width:180px;">備考</th></tr></thead><tbody>' + body + '</tbody></table>'
                 + '<div style="margin-top:0.9rem;display:flex;gap:0.5rem;align-items:center;">'
+                + '<label style="font-size:0.78rem;display:flex;align-items:center;gap:4px;">出力単位<select id="pkOrdMode" style="font-size:0.78rem;padding:2px 4px;"><option value="all">まとめて1枚</option><option value="room">部屋ごとに分ける</option><option value="item">部材ごとに分ける</option></select></label>'
                 + '<label style="font-size:0.78rem;display:flex;align-items:center;gap:4px;margin-right:auto;"><input type="checkbox" id="pkOrdMark" checked style="width:auto;">出力した行に注文済／注文日を記録する</label>'
                 + '<button class="btn-action" onclick="pkCloseOrderDialog()">キャンセル</button>'
                 + '<button class="btn-action" style="background:#c62828;color:#fff;" onclick="pkDoExportOrder()">注文書を出力</button>'
@@ -6598,9 +6599,42 @@
             var iso = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
             var totalQty = 0;
             picked.forEach(function (p) { totalQty += pkN(p.n); });
+            var mode = (document.getElementById('pkOrdMode') || {}).value || 'all';
+            var noteOf = {};
+            picked.forEach(function (p) { noteOf[p.it.id] = p.note; });
+            var roomKey = function (r) { return ((r.floor || '') + ' ' + (r.room || '')).trim(); };
+            var secs = [];
+            if (mode === 'room') {
+                var seen = [];
+                rows.forEach(function (r) { var kk = roomKey(r); if (seen.indexOf(kk) < 0) seen.push(kk); });
+                seen.forEach(function (kk) {
+                    var rs = rows.filter(function (r) { return roomKey(r) === kk; });
+                    var ls = [];
+                    picked.forEach(function (p) {
+                        var n = 0;
+                        rs.forEach(function (r) { n += pkN((r.countsA || {})[p.it.id]); });
+                        if (n > 0) ls.push({ it: p.it, n: n, unit: p.unit, note: noteOf[p.it.id] || '' });
+                    });
+                    if (ls.length) secs.push({ sub: kk || '(部屋未設定)', rooms: [kk], lines: ls });
+                });
+            } else if (mode === 'item') {
+                picked.forEach(function (p) {
+                    var rms = [];
+                    rows.forEach(function (r) {
+                        if (pkN((r.countsA || {})[p.it.id]) > 0) { var kk = roomKey(r); if (kk && rms.indexOf(kk) < 0) rms.push(kk); }
+                    });
+                    secs.push({ sub: ((p.it.symbol ? p.it.symbol + ' ' : '') + (p.it.name || '')).trim(), rooms: rms, lines: [p] });
+                });
+            } else {
+                secs.push({ sub: '', rooms: rooms, lines: picked });
+            }
+            if (!secs.length) { alert('出力対象がありません。'); return; }
             var css = '*{box-sizing:border-box;}'
                 + '@page{size:210mm 297mm;margin:14mm 11mm;}'
-                + 'body{font-family:"Yu Gothic","Meiryo","Hiragino Kaku Gothic ProN",sans-serif;font-size:9pt;color:#111;margin:0;padding:0;width:188mm;}'
+                + 'body{font-family:"Yu Gothic","Meiryo","Hiragino Kaku Gothic ProN",sans-serif;font-size:9pt;color:#111;margin:0;padding:0;}'
+                + 'section.pg{width:188mm;}'
+                + 'section.pg + section.pg{margin-top:12mm;}'
+                + 'section.brk{page-break-after:always;}'
                 + '.ttl{text-align:center;font-size:19pt;font-weight:700;letter-spacing:10px;margin:0 0 1mm 0;}'
                 + '.ttl-rule{width:52mm;height:1px;background:#111;margin:0 auto 6mm auto;}'
                 + '.top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5mm;}'
@@ -6615,33 +6649,39 @@
                 + 'table.items td.c{text-align:center;}table.items td.r{text-align:right;}'
                 + 'tfoot td{background:#f5f5f5;font-weight:700;}'
                 + '.note{margin-top:5mm;font-size:8pt;color:#333;line-height:1.6;}';
-            var b = '';
-            picked.forEach(function (p, i) {
-                b += '<tr><td class="c">' + (i + 1) + '</td>'
-                   + '<td class="c">' + pkEsc(p.it.symbol) + '</td>'
-                   + '<td>' + pkEsc(p.it.name) + '</td>'
-                   + '<td>' + pkEsc(p.it.kataban) + '</td>'
-                   + '<td>' + pkEsc(p.it.maker) + '</td>'
-                   + '<td class="r">' + p.n + '</td>'
-                   + '<td class="c">' + pkEsc(p.unit) + '</td>'
-                   + '<td>' + pkEsc(p.note) + '</td></tr>';
+            var pages = '';
+            secs.forEach(function (sec, si) {
+                var tq = 0;
+                sec.lines.forEach(function (p) { tq += pkN(p.n); });
+                var b = '';
+                sec.lines.forEach(function (p, i) {
+                    b += '<tr><td class="c">' + (i + 1) + '</td>'
+                       + '<td class="c">' + pkEsc(p.it.symbol) + '</td>'
+                       + '<td>' + pkEsc(p.it.name) + '</td>'
+                       + '<td>' + pkEsc(p.it.kataban) + '</td>'
+                       + '<td>' + pkEsc(p.it.maker) + '</td>'
+                       + '<td class="r">' + p.n + '</td>'
+                       + '<td class="c">' + pkEsc(p.unit) + '</td>'
+                       + '<td>' + pkEsc(p.note) + '</td></tr>';
+                });
+                pages += '<section class="pg' + ((si < secs.length - 1) ? ' brk' : '') + '">'
+                    + '<div class="ttl">注 文 書</div><div class="ttl-rule"></div>'
+                    + '<div class="top"><div><div class="to">' + pkEsc(atesaki) + ' 御中</div></div>'
+                    + '<div class="from">' + pkEsc(dateStr) + '<br>エル・エル・イー電気株式会社<br>担当：' + pkEsc(tantou) + '</div></div>'
+                    + '<table class="meta">'
+                    + '<tr><th>工事名</th><td>' + pkEsc(koujiName) + '</td><th>工事番号</th><td>' + pkEsc(koujiNo) + '</td></tr>'
+                    + '<tr><th>区分</th><td>' + pkEsc(PK_DEFS[o.k].label) + (sec.sub ? '　（' + pkEsc(sec.sub) + '）' : '') + '</td><th>合計数量</th><td>' + tq + '</td></tr>'
+                    + '<tr><th>対象部屋</th><td colspan="3">' + pkEsc((sec.rooms || []).join(' ／ ')) + '</td></tr>'
+                    + '</table>'
+                    + '<table class="items"><thead><tr>'
+                    + '<th style="width:10mm;">No</th><th style="width:16mm;">記号</th><th>品名</th><th style="width:38mm;">型番</th><th style="width:26mm;">メーカー</th>'
+                    + '<th style="width:16mm;">数量</th><th style="width:12mm;">単位</th><th style="width:34mm;">備考</th></tr></thead>'
+                    + '<tbody>' + b + '</tbody>'
+                    + '<tfoot><tr><td colspan="5" class="c">合　計</td><td class="r">' + tq + '</td><td colspan="2"></td></tr></tfoot></table>'
+                    + '<div class="note">※ 下記の通りご注文いたします。数量・型番のご確認をお願いいたします。</div>'
+                    + '</section>';
             });
-            var html = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>注文書 ' + pkEsc(koujiName) + '</title><style>' + css + '</style></head><body>'
-                + '<div class="ttl">注 文 書</div><div class="ttl-rule"></div>'
-                + '<div class="top"><div><div class="to">' + pkEsc(atesaki) + ' 御中</div></div>'
-                + '<div class="from">' + pkEsc(dateStr) + '<br>エル・エル・イー電気株式会社<br>担当：' + pkEsc(tantou) + '</div></div>'
-                + '<table class="meta">'
-                + '<tr><th>工事名</th><td>' + pkEsc(koujiName) + '</td><th>工事番号</th><td>' + pkEsc(koujiNo) + '</td></tr>'
-                + '<tr><th>区分</th><td>' + pkEsc(PK_DEFS[o.k].label) + '</td><th>合計数量</th><td>' + totalQty + '</td></tr>'
-                + '<tr><th>対象部屋</th><td colspan="3">' + pkEsc(rooms.join(' ／ ')) + '</td></tr>'
-                + '</table>'
-                + '<table class="items"><thead><tr>'
-                + '<th style="width:10mm;">No</th><th style="width:16mm;">記号</th><th>品名</th><th style="width:38mm;">型番</th><th style="width:26mm;">メーカー</th>'
-                + '<th style="width:16mm;">数量</th><th style="width:12mm;">単位</th><th style="width:34mm;">備考</th></tr></thead>'
-                + '<tbody>' + b + '</tbody>'
-                + '<tfoot><tr><td colspan="5" class="c">合　計</td><td class="r">' + totalQty + '</td><td colspan="2"></td></tr></tfoot></table>'
-                + '<div class="note">※ 下記の通りご注文いたします。数量・型番のご確認をお願いいたします。</div>'
-                + '</body></html>';
+            var html = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>注文書 ' + pkEsc(koujiName) + '</title><style>' + css + '</style></head><body>' + pages + '</body></html>';
             var w = window.open('', '_blank');
             if (!w) { alert('ポップアップがブロックされました。ブラウザの設定を確認してください。'); return; }
             w.document.open(); w.document.write(html); w.document.close();
