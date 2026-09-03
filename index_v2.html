@@ -6187,14 +6187,34 @@
             if (val && !found) s += '<option value="' + pkEsc(val) + '" selected>' + pkEsc(val) + '</option>';
             return s;
         }
+        var _pkPanelCache = [], _pkCircuitCache = [];
+        async function pkLoadPanels() {
+            var pid = projectGetCurrent();
+            try {
+                if (typeof allPanels !== 'undefined' && allPanels && allPanels.length) _pkPanelCache = allPanels;
+                else { var r = await db.from('panels').select('*').eq('project_id', pid); _pkPanelCache = r.data || []; }
+            } catch (e) { console.error('[PK] panels', e); }
+            try {
+                if (typeof allCircuits !== 'undefined' && allCircuits && allCircuits.length) _pkCircuitCache = allCircuits;
+                else { var c = await db.from('circuits').select('*').eq('project_id', pid); _pkCircuitCache = c.data || []; }
+            } catch (e) { console.error('[PK] circuits', e); }
+        }
+        function _pkPanels() {
+            try { if (typeof allPanels !== 'undefined' && allPanels && allPanels.length) return allPanels; } catch (e) {}
+            return _pkPanelCache || [];
+        }
+        function _pkCircuits() {
+            try { if (typeof allCircuits !== 'undefined' && allCircuits && allCircuits.length) return allCircuits; } catch (e) {}
+            return _pkCircuitCache || [];
+        }
         function pkPanelList() {
-            try { return (allPanels || []).map(function (p) { return p.name; }).filter(function (x) { return !!x; }); }
+            try { return _pkPanels().map(function (p) { return p.name; }).filter(function (x) { return !!x; }); }
             catch (e) { return []; }
         }
         function pkCircuitList(panel) {
             try {
                 if (!panel) return [];
-                return (allCircuits || []).filter(function (c) { return c.panel_name === panel && c.type !== 'RC'; })
+                return _pkCircuits().filter(function (c) { return c.panel_name === panel && c.type !== 'RC'; })
                     .map(function (c) { return String((c.symbol || '') + (c.circuit_no == null ? '' : c.circuit_no)).trim(); })
                     .filter(function (x, i, a) { return x && a.indexOf(x) === i; });
             } catch (e) { return []; }
@@ -6252,6 +6272,7 @@
             var pid = projectGetCurrent();
             if (_pk[k].pid === pid) { pkRenderAll(k); return; }
             _pk[k].pid = pid;
+            await pkLoadPanels();
             await pkLoad(k);
             pkRenderAll(k);
         }
