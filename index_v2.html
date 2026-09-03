@@ -6192,7 +6192,7 @@
                 _pk[k].items = (r1.data || []).map(function (row) {
                     return { id: row.item_id, no: row.no || 0, symbol: row.symbol || '', name: row.name || '',
                              maker: row.maker || '', kataban: row.kataban || '',
-                             kousyu: row.kousyu || '',
+                             kousyu: pkKsParse(row.kousyu),
                              listPrice: row.list_price || 0, netPrice: row.net_price || 0, remark: row.remark || '' };
                 });
                 var r2 = await db.from(d.cntT).select('*').eq('project_id', pid).order('no', { ascending: true });
@@ -6216,7 +6216,7 @@
             try {
                 var r = await db.from(d.itemT).upsert({
                     project_id: projectGetCurrent(), item_id: it.id, no: it.no || 0,
-                    symbol: it.symbol || '', name: it.name || '', maker: it.maker || '', kataban: it.kataban || '', kousyu: it.kousyu || '',
+                    symbol: it.symbol || '', name: it.name || '', maker: it.maker || '', kataban: it.kataban || '', kousyu: pkKsStr(it.kousyu),
                     list_price: pkN(it.listPrice), net_price: pkN(it.netPrice), remark: it.remark || '',
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'project_id,item_id' });
@@ -6256,7 +6256,7 @@
             pkRenderAll(k);
         }
 
-        function pkNewItem(k) { return { id: pkUid('pi'), no: 0, symbol: '', kousyu: (k && _pk[k] ? (_pk[k].kousyu || '') : ''), name: '', maker: '', kataban: '', listPrice: 0, netPrice: 0, remark: '' }; }
+        function pkNewItem(k) { return { id: pkUid('pi'), no: 0, symbol: '', kousyu: (k && _pk[k] && _pk[k].kousyu) ? [_pk[k].kousyu] : [], name: '', maker: '', kataban: '', listPrice: 0, netPrice: 0, remark: '' }; }
         async function pkSaveKousyu(k) {
             try {
                 var r = await db.from('lighting_masters').upsert({ project_id: projectGetCurrent(), kind: 'pkKousyu_' + k, values: _pk[k].kousyuList || [], updated_at: new Date().toISOString() }, { onConflict: 'project_id,kind' });
@@ -6275,17 +6275,74 @@
         function pkDelKousyuAt(k, i) {
             var v = (_pk[k].kousyuList || [])[i];
             if (v == null) return;
-            var used = _pk[k].items.filter(function (it) { return (it.kousyu || '') === v; }).length;
+            var used = _pk[k].items.filter(function (it) { return pkKsOf(it).indexOf(v) >= 0; }).length;
             if (used && !confirm('工種「' + v + '」は ' + used + ' 件の部材で使われています。マスタから削除しますか？')) return;
             _pk[k].kousyuList.splice(i, 1);
             if (_pk[k].kousyu === v) _pk[k].kousyu = '';
             pkSaveKousyu(k); pkRenderAll(k);
         }
         function pkSetKousyu(k, v) { _pk[k].kousyu = v || ''; pkRenderAll(k); }
+        function pkKsParse(v) {
+            if (Array.isArray(v)) return v.filter(function (x) { return !!x; });
+            var s = String(v == null ? '' : v).trim();
+            if (!s) return [];
+            if (s.charAt(0) === '[') { try { var a = JSON.parse(s); return Array.isArray(a) ? a.filter(function (x) { return !!x; }) : []; } catch (e) {} }
+            return [s];
+        }
+        function pkKsStr(a) { a = pkKsParse(a); return a.length ? JSON.stringify(a) : ''; }
+        function pkKsOf(it) { return pkKsParse(it ? it.kousyu : ''); }
+        function pkKsLabel(it) { return pkKsOf(it).join(' ／ '); }
         function pkItemsOf(k) {
             var f = _pk[k].kousyu || '';
             if (!f) return _pk[k].items;
-            return _pk[k].items.filter(function (it) { return (it.kousyu || '') === f; });
+            return _pk[k].items.filter(function (it) { return pkKsOf(it).indexOf(f) >= 0; });
+        }
+        function pkCols(k) {
+            var f = _pk[k].kousyu || '', cols = [];
+            _pk[k].items.forEach(function (it) {
+                var ks = pkKsOf(it);
+                if (!ks.length) { if (!f) cols.push({ key: it.id, it: it, ks: '', multi: false }); return; }
+                ks.forEach(function (kk, idx) {
+                    if (f && kk !== f) return;
+                    cols.push({ key: (idx === 0) ? it.id : (it.id + '@' + kk), it: it, ks: kk, multi: ks.length > 1 });
+                });
+            });
+            return cols;
+        }
+        function pkOpenKsPicker(k, id) {
+            var it = _pk[k].items.filter(function (x) { return x.id === id; })[0];
+            if (!it) return;
+            var list = _pk[k].kousyuList || [];
+            if (!list.length) { alert('先に工種マスタを登録してください。'); return; }
+            var cur = pkKsOf(it);
+            var body = list.map(function (v, i) {
+                return '<label style="display:flex;align-items:center;gap:6px;padding:3px 2px;font-size:0.85rem;">'
+                     + '<input type="checkbox" class="pk-kspick" data-v="' + pkEsc(v) + '" style="width:auto;"' + (cur.indexOf(v) >= 0 ? ' checked' : '') + '>' + pkEsc(v) + '</label>';
+            }).join('');
+            var mask = document.createElement('div');
+            mask.id = 'pkKsMask';
+            mask.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;';
+            mask.innerHTML = '<div style="background:#fff;border-radius:6px;width:min(360px,92vw);max-height:80vh;overflow:auto;padding:0.9rem 1rem;">'
+                + '<h4 style="margin:0 0 0.2rem;">工種の選択</h4>'
+                + '<div style="font-size:0.76rem;color:#666;margin-bottom:0.5rem;">' + pkEsc((it.symbol || '') + ' ' + (it.name || '')) + '</div>'
+                + body
+                + '<div style="font-size:0.72rem;color:#888;margin-top:0.5rem;">複数選ぶと、工種ごとに別々の列・別々の集計になります。</div>'
+                + '<div style="margin-top:0.8rem;display:flex;gap:0.5rem;justify-content:flex-end;">'
+                + '<button class="btn-action" onclick="pkCloseKsPicker()">キャンセル</button>'
+                + '<button class="btn-action" style="background:#4527a0;color:#fff;" onclick="pkApplyKsPicker(\'' + k + '\',\'' + id + '\')">決定</button>'
+                + '</div></div>';
+            document.body.appendChild(mask);
+        }
+        function pkCloseKsPicker() { var m = document.getElementById('pkKsMask'); if (m) m.parentNode.removeChild(m); }
+        function pkApplyKsPicker(k, id) {
+            var it = _pk[k].items.filter(function (x) { return x.id === id; })[0];
+            if (!it) { pkCloseKsPicker(); return; }
+            var picked = [];
+            Array.prototype.forEach.call(document.querySelectorAll('#pkKsMask input.pk-kspick:checked'), function (cb) { picked.push(cb.getAttribute('data-v')); });
+            it.kousyu = picked;
+            pkUpsertItem(k, it);
+            pkCloseKsPicker();
+            pkRenderAll(k);
         }
         function pkRenderKousyuUI(k) {
             var sel = document.getElementById('pkKousyu_' + k);
@@ -6356,7 +6413,8 @@
                     var v = it[c.f];
                     var cb = 'pkItemChange(\'' + k + '\',\'' + it.id + '\',\'' + c.f + '\',this.value)';
                     if (c.t === 'kousyu') {
-                        b += '<td style="background:#f3e5f5;"><select onchange="' + cb + '">' + pkOpts(_pk[k].kousyuList || [], v) + '</select></td>';
+                        var kl = pkKsLabel(it);
+                        b += '<td style="background:#f3e5f5;white-space:nowrap;"><button class="btn-action" style="width:100%;text-align:left;padding:2px 6px;font-size:0.74rem;background:#fff;border:1px solid #b39ddb;color:' + (kl ? '#4527a0' : '#aaa') + ';" onclick="pkOpenKsPicker(\'' + k + '\',\'' + it.id + '\')">' + (kl ? pkEsc(kl) : '（未設定）') + '</button></td>';
                     } else if (c.t === 'price') {
                         b += '<td class="light-num" style="background:#e8f5e9;"><input type="text" inputmode="numeric" value="' + _lightFmt(v) + '" onchange="' + cb + '"></td>';
                     } else if (c.t === 'calc') {
@@ -6420,22 +6478,24 @@
         function pkRenderSum(k) {
             var thead = document.getElementById('pkSumThead_' + k), tbody = document.getElementById('pkSumTbody_' + k);
             if (!thead || !tbody) return;
-            var d = PK_DEFS[k], items = pkItemsOf(k);
+            var d = PK_DEFS[k], cols = pkCols(k);
             var fixed = d.circuit ? ['No', '盤名称', '回路No', '階', '室名'] : ['No', '階', '室名'];
             var fw = { 'No': 40, '盤名称': 110, '回路No': 80, '階': 80, '室名': 150 };
             var h = '<tr><th rowspan="2" style="width:28px;"><input type="checkbox" style="width:auto;" title="全選択" onclick="pkToggleAll(\'' + k + '\',this.checked)"></th>';
             fixed.forEach(function (lb) { h += '<th rowspan="2" style="min-width:' + fw[lb] + 'px;">' + lb + '</th>'; });
-            items.forEach(function (it) {
-                h += '<th colspan="2" title="' + pkEsc((it.name || '') + ' / ' + (it.kataban || '')) + '" style="min-width:96px;">' + pkEsc(it.symbol || it.name || '(記号なし)') + '</th>';
+            cols.forEach(function (c) {
+                var lab = c.it.symbol || c.it.name || '(記号なし)';
+                if (c.ks && c.multi) lab += '<br><span style="font-size:0.62rem;font-weight:normal;opacity:0.85;">' + pkEsc(c.ks) + '</span>';
+                h += '<th colspan="2" title="' + pkEsc((c.ks ? '[' + c.ks + '] ' : '') + (c.it.name || '') + ' / ' + (c.it.kataban || '')) + '" style="min-width:96px;">' + lab + '</th>';
             });
             h += '<th rowspan="2" style="min-width:60px;background:#2e7d32;">注文済</th>'
                + '<th rowspan="2" style="min-width:112px;background:#2e7d32;">注文日</th>'
                + '<th rowspan="2" style="min-width:130px;">備考</th>'
                + '<th rowspan="2" style="width:36px;">削除</th></tr><tr>';
-            items.forEach(function () { h += '<th class="sub-d" style="min-width:46px;">設計</th><th class="sub-a" style="min-width:46px;">実行</th>'; });
+            cols.forEach(function () { h += '<th class="sub-d" style="min-width:46px;">設計</th><th class="sub-a" style="min-width:46px;">実行</th>'; });
             h += '</tr>';
             thead.innerHTML = h;
-            var total = 1 + fixed.length + items.length * 2 + 4;
+            var total = 1 + fixed.length + cols.length * 2 + 4;
             var b = '';
             _pk[k].rows.forEach(function (r, i) {
                 var rc = function (f) { return 'pkRowChange(\'' + k + '\',\'' + r.id + '\',\'' + f + '\',this.value)'; };
@@ -6449,10 +6509,10 @@
                 }
                 b += '<td><select onchange="' + rc('floor') + '">' + pkOpts(_lightFloorList(), r.floor) + '</select></td>';
                 b += '<td><select onchange="' + rc('room') + '">' + pkOpts(_lightRoomList(r.floor), r.room) + '</select></td>';
-                items.forEach(function (it) {
-                    var dv = (r.counts || {})[it.id], av = (r.countsA || {})[it.id];
-                    b += '<td class="light-cnt cell-d"><input type="number" min="0" step="1" value="' + (dv || '') + '" onchange="pkCntChange(\'' + k + '\',\'' + r.id + '\',\'' + it.id + '\',this.value,\'d\')"></td>';
-                    b += '<td class="light-cnt cell-a"><input type="number" min="0" step="1" value="' + (av || '') + '" onchange="pkCntChange(\'' + k + '\',\'' + r.id + '\',\'' + it.id + '\',this.value,\'a\')"></td>';
+                cols.forEach(function (c) {
+                    var dv = (r.counts || {})[c.key], av = (r.countsA || {})[c.key];
+                    b += '<td class="light-cnt cell-d"><input type="number" min="0" step="1" value="' + (dv || '') + '" onchange="pkCntChange(\'' + k + '\',\'' + r.id + '\',\'' + c.key + '\',this.value,\'d\')"></td>';
+                    b += '<td class="light-cnt cell-a"><input type="number" min="0" step="1" value="' + (av || '') + '" onchange="pkCntChange(\'' + k + '\',\'' + r.id + '\',\'' + c.key + '\',this.value,\'a\')"></td>';
                 });
                 b += '<td style="text-align:center;background:' + (r.ordered ? '#e8f5e9' : '') + ';"><input type="checkbox" style="width:auto;"' + (r.ordered ? ' checked' : '') + ' onchange="pkRowChange(\'' + k + '\',\'' + r.id + '\',\'ordered\',this.checked)"></td>';
                 b += '<td style="background:' + (r.orderedDate ? '#e8f5e9' : '') + ';"><input type="date" value="' + pkEsc(r.orderedDate) + '" onchange="' + rc('orderedDate') + '"></td>';
@@ -6462,23 +6522,22 @@
             });
             tbody.innerHTML = b || '<tr><td colspan="' + total + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 行を追加」から入力してください</td></tr>';
             var inf = document.getElementById('pkInfo_' + k);
-            if (inf) inf.textContent = _pk[k].rows.length + ' 行 / 部材 ' + items.length + ' 種';
+            if (inf) inf.textContent = _pk[k].rows.length + ' 行 / 部材 ' + cols.length + ' 列';
             _lightBindCross('pkSumTable_' + k);
             _lightApplyLock(document.getElementById('pkSumTable_' + k));
         }
-
         function pkAggData(k) {
             var out = [];
-            pkItemsOf(k).forEach(function (it) {
-                var dq = 0, n = 0, ordN = 0;
+            pkCols(k).forEach(function (c) {
+                var it = c.it, dq = 0, n = 0, ordN = 0;
                 _pk[k].rows.forEach(function (r) {
-                    dq += pkN((r.counts || {})[it.id]);
-                    var c = pkN((r.countsA || {})[it.id]);
-                    n += c;
-                    if (r.ordered) ordN += c;
+                    dq += pkN((r.counts || {})[c.key]);
+                    var q = pkN((r.countsA || {})[c.key]);
+                    n += q;
+                    if (r.ordered) ordN += q;
                 });
                 var lp = pkN(it.listPrice), np = pkN(it.netPrice);
-                out.push({ it: it, dq: dq, n: n, diff: n - dq, ordN: ordN, rest: n - ordN,
+                out.push({ it: it, ks: c.ks, key: c.key, dq: dq, n: n, diff: n - dq, ordN: ordN, rest: n - ordN,
                            lpAmt: lp * n, npAmt: np * n, npAmtD: np * dq });
             });
             return out;
@@ -6505,7 +6564,7 @@
                 gDQ += x.dq; gN += x.n; gOR += x.ordN; gRE += x.rest; gLP += x.lpAmt; gNP += x.npAmt; gND += x.npAmtD;
                 b += '<tr>'
                    + '<td style="text-align:center;font-weight:bold;">' + pkEsc(x.it.symbol) + '</td>'
-                   + '<td style="background:#f3e5f5;">' + pkEsc(x.it.kousyu) + '</td>'
+                   + '<td style="background:#f3e5f5;">' + pkEsc(x.ks) + '</td>'
                    + '<td>' + pkEsc(x.it.name) + '</td>'
                    + '<td>' + pkEsc(x.it.kataban) + '</td>'
                    + '<td>' + pkEsc(x.it.maker) + '</td>'
@@ -6541,27 +6600,29 @@
             lines.push(['No'].concat(PK_COLS.map(function (c) { return c.label; })).map(_lightCsvCell).join(','));
             pkItemsOf(k).forEach(function (it, i) {
                 lines.push([i + 1].concat(PK_COLS.map(function (c) {
-                    return (c.t === 'calc') ? _lightRateTxt(it.listPrice, it.netPrice) : it[c.f];
+                    if (c.t === 'calc') return _lightRateTxt(it.listPrice, it.netPrice);
+                    if (c.t === 'kousyu') return pkKsLabel(it);
+                    return it[c.f];
                 })).map(_lightCsvCell).join(','));
             });
             _lightDownload(PK_DEFS[k].label + '部材登録_' + _lightProjName() + '.csv', lines.join('\n'));
         }
         function pkExportSumCsv(k) {
-            var d = PK_DEFS[k], items = pkItemsOf(k), lines = [];
+            var d = PK_DEFS[k], items = pkCols(k), lines = [];
             var head = d.circuit ? ['No', '盤名称', '回路No', '階', '室名'] : ['No', '階', '室名'];
-            items.forEach(function (it) { var s = it.symbol || it.name || ''; head.push(s + '(設計)'); head.push(s + '(実行)'); });
+            items.forEach(function (c) { var s = (c.it.symbol || c.it.name || '') + (c.multi && c.ks ? '[' + c.ks + ']' : ''); head.push(s + '(設計)'); head.push(s + '(実行)'); });
             head = head.concat(['注文済', '注文日', '備考']);
             lines.push(head.map(_lightCsvCell).join(','));
             _pk[k].rows.forEach(function (r, i) {
                 var a = d.circuit ? [i + 1, r.panel, r.circuit, r.floor, r.room] : [i + 1, r.floor, r.room];
-                items.forEach(function (it) { a.push((r.counts || {})[it.id] || ''); a.push((r.countsA || {})[it.id] || ''); });
+                items.forEach(function (c) { a.push((r.counts || {})[c.key] || ''); a.push((r.countsA || {})[c.key] || ''); });
                 a.push(r.ordered ? '○' : ''); a.push(r.orderedDate || ''); a.push(r.remark || '');
                 lines.push(a.map(_lightCsvCell).join(','));
             });
             lines.push('');
             lines.push(['記号', '工種', '品名', '型番', 'メーカー', '設計数量', '実行数量', '増減', '注文済数量', '残', '定価', '定価金額', 'NET単価', '設計NET金額', 'NET金額'].map(_lightCsvCell).join(','));
             pkAggData(k).forEach(function (x) {
-                lines.push([x.it.symbol, x.it.kousyu, x.it.name, x.it.kataban, x.it.maker, x.dq || '', x.n, x.diff, x.ordN, x.rest,
+                lines.push([x.it.symbol, x.ks, x.it.name, x.it.kataban, x.it.maker, x.dq || '', x.n, x.diff, x.ordN, x.rest,
                             pkN(x.it.listPrice) || '', x.lpAmt || '', pkN(x.it.netPrice) || '', x.npAmtD || '', x.npAmt || ''].map(_lightCsvCell).join(','));
             });
             _lightDownload(d.label + '拾い表_' + _lightProjName() + '.csv', lines.join('\n'));
@@ -6580,13 +6641,13 @@
         function _pkOrderLines(k, rowIds) {
             var rows = _pk[k].rows.filter(function (r) { return rowIds.indexOf(r.id) >= 0; });
             var out = [];
-            pkItemsOf(k).forEach(function (it) {
+            pkCols(k).forEach(function (c) {
                 var n = 0, places = [];
                 rows.forEach(function (r) {
-                    var c = pkN((r.countsA || {})[it.id]);
-                    if (c > 0) { n += c; places.push(((r.floor || '') + ' ' + (r.room || '')).trim()); }
+                    var q = pkN((r.countsA || {})[c.key]);
+                    if (q > 0) { n += q; places.push(((r.floor || '') + ' ' + (r.room || '')).trim()); }
                 });
-                if (n > 0) out.push({ it: it, n: n, unit: '個', places: places });
+                if (n > 0) out.push({ it: c.it, ks: c.ks, key: c.key, n: n, unit: '個', places: places });
             });
             return out;
         }
