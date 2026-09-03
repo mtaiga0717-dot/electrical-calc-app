@@ -1524,20 +1524,22 @@
         .pk-list tbody td.light-fix { position:sticky; left:0; z-index:3; background:#fafafa; width:52px; min-width:52px; max-width:52px; }
         .pk-list tbody td.pk-sym { position:sticky; left:52px; z-index:3; background:#fff; box-shadow:2px 0 0 #d84315; }
         .pk-list tbody tr:hover td.light-fix, .pk-list tbody tr:hover td.pk-sym { background:#fff3e0; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(1), #pkSumTable_outlet tbody td:nth-child(1) { position:sticky; left:0;     width:40px;  min-width:40px;  max-width:40px; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(2), #pkSumTable_outlet tbody td:nth-child(2) { position:sticky; left:40px;  width:110px; min-width:110px; max-width:110px; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(3), #pkSumTable_outlet tbody td:nth-child(3) { position:sticky; left:150px; width:80px;  min-width:80px;  max-width:80px; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(4), #pkSumTable_outlet tbody td:nth-child(4) { position:sticky; left:230px; width:80px;  min-width:80px;  max-width:80px; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(5), #pkSumTable_outlet tbody td:nth-child(5) { position:sticky; left:310px; width:150px; min-width:150px; box-shadow:2px 0 0 #d84315; }
-        #pkSumTable_outlet tbody td:nth-child(-n+5) { background:#fff; z-index:2; }
-        #pkSumTable_outlet thead tr:first-child th:nth-child(-n+5) { z-index:6; }
-        #pkSumTable_outlet tbody tr:hover td:nth-child(-n+5) { background:#fff3e0; }
-        #pkSumTable_wiring thead tr:first-child th:nth-child(1), #pkSumTable_wiring tbody td:nth-child(1) { position:sticky; left:0;     width:40px;  min-width:40px;  max-width:40px; }
-        #pkSumTable_wiring thead tr:first-child th:nth-child(2), #pkSumTable_wiring tbody td:nth-child(2) { position:sticky; left:40px;  width:80px;  min-width:80px;  max-width:80px; }
-        #pkSumTable_wiring thead tr:first-child th:nth-child(3), #pkSumTable_wiring tbody td:nth-child(3) { position:sticky; left:120px; width:150px; min-width:150px; box-shadow:2px 0 0 #d84315; }
-        #pkSumTable_wiring tbody td:nth-child(-n+3) { background:#fff; z-index:2; }
-        #pkSumTable_wiring thead tr:first-child th:nth-child(-n+3) { z-index:6; }
-        #pkSumTable_wiring tbody tr:hover td:nth-child(-n+3) { background:#fff3e0; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(1), #pkSumTable_outlet tbody td:nth-child(1) { position:sticky; left:0;     width:28px;  min-width:28px;  max-width:28px; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(2), #pkSumTable_outlet tbody td:nth-child(2) { position:sticky; left:28px;  width:40px;  min-width:40px;  max-width:40px; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(3), #pkSumTable_outlet tbody td:nth-child(3) { position:sticky; left:68px;  width:110px; min-width:110px; max-width:110px; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(4), #pkSumTable_outlet tbody td:nth-child(4) { position:sticky; left:178px; width:80px;  min-width:80px;  max-width:80px; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(5), #pkSumTable_outlet tbody td:nth-child(5) { position:sticky; left:258px; width:80px;  min-width:80px;  max-width:80px; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(6), #pkSumTable_outlet tbody td:nth-child(6) { position:sticky; left:338px; width:150px; min-width:150px; box-shadow:2px 0 0 #d84315; }
+        #pkSumTable_outlet tbody td:nth-child(-n+6) { background:#fff; z-index:2; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(-n+6) { z-index:6; }
+        #pkSumTable_outlet tbody tr:hover td:nth-child(-n+6) { background:#fff3e0; }
+        #pkSumTable_wiring thead tr:first-child th:nth-child(1), #pkSumTable_wiring tbody td:nth-child(1) { position:sticky; left:0;     width:28px;  min-width:28px;  max-width:28px; }
+        #pkSumTable_wiring thead tr:first-child th:nth-child(2), #pkSumTable_wiring tbody td:nth-child(2) { position:sticky; left:28px;  width:40px;  min-width:40px;  max-width:40px; }
+        #pkSumTable_wiring thead tr:first-child th:nth-child(3), #pkSumTable_wiring tbody td:nth-child(3) { position:sticky; left:68px;  width:80px;  min-width:80px;  max-width:80px; }
+        #pkSumTable_wiring thead tr:first-child th:nth-child(4), #pkSumTable_wiring tbody td:nth-child(4) { position:sticky; left:148px; width:150px; min-width:150px; box-shadow:2px 0 0 #d84315; }
+        #pkSumTable_wiring tbody td:nth-child(-n+4) { background:#fff; z-index:2; }
+        #pkSumTable_wiring thead tr:first-child th:nth-child(-n+4) { z-index:6; }
+        #pkSumTable_wiring tbody tr:hover td:nth-child(-n+4) { background:#fff3e0; }
 
     </style>
 </head>
@@ -3060,6 +3062,7 @@
                 <div id="pkViewSum_outlet" style="display:none;">
                     <div class="light-sub">
                         <button class="btn-action" style="background:#00838f;color:#fff;" onclick="pkAddRow('outlet')">＋ 行を追加</button>
+                        <button class="btn-action" style="background:#c62828;color:#fff;" onclick="pkOpenOrderDialog('outlet')">注文書PDF</button>
                         <span id="pkInfo_outlet" style="font-size:0.78rem;color:#666;"></span>
                         <span style="flex:1;"></span>
                         <button class="btn-action" onclick="pkExportSumCsv('outlet')">CSV出力</button>
@@ -3098,6 +3101,7 @@
                 <div id="pkViewSum_wiring" style="display:none;">
                     <div class="light-sub">
                         <button class="btn-action" style="background:#6a1b9a;color:#fff;" onclick="pkAddRow('wiring')">＋ 行を追加</button>
+                        <button class="btn-action" style="background:#c62828;color:#fff;" onclick="pkOpenOrderDialog('wiring')">注文書PDF</button>
                         <span id="pkInfo_wiring" style="font-size:0.78rem;color:#666;"></span>
                         <span style="flex:1;"></span>
                         <button class="btn-action" onclick="pkExportSumCsv('wiring')">CSV出力</button>
@@ -6404,7 +6408,7 @@
             var d = PK_DEFS[k], items = _pk[k].items;
             var fixed = d.circuit ? ['No', '盤名称', '回路No', '階', '室名'] : ['No', '階', '室名'];
             var fw = { 'No': 40, '盤名称': 110, '回路No': 80, '階': 80, '室名': 150 };
-            var h = '<tr>';
+            var h = '<tr><th rowspan="2" style="width:28px;"><input type="checkbox" style="width:auto;" title="全選択" onclick="pkToggleAll(\'' + k + '\',this.checked)"></th>';
             fixed.forEach(function (lb) { h += '<th rowspan="2" style="min-width:' + fw[lb] + 'px;">' + lb + '</th>'; });
             items.forEach(function (it) {
                 h += '<th colspan="2" title="' + pkEsc((it.name || '') + ' / ' + (it.kataban || '')) + '" style="min-width:96px;">' + pkEsc(it.symbol || it.name || '(記号なし)') + '</th>';
@@ -6416,11 +6420,12 @@
             items.forEach(function () { h += '<th class="sub-d" style="min-width:46px;">設計</th><th class="sub-a" style="min-width:46px;">実行</th>'; });
             h += '</tr>';
             thead.innerHTML = h;
-            var total = fixed.length + items.length * 2 + 4;
+            var total = 1 + fixed.length + items.length * 2 + 4;
             var b = '';
             _pk[k].rows.forEach(function (r, i) {
                 var rc = function (f) { return 'pkRowChange(\'' + k + '\',\'' + r.id + '\',\'' + f + '\',this.value)'; };
                 b += '<tr>';
+                b += '<td style="text-align:center;"><input type="checkbox" class="pk-rowsel" data-id="' + r.id + '" style="width:auto;"></td>';
                 b += '<td class="light-fix" style="text-align:center;white-space:nowrap;">' + (i + 1)
                    + '<button class="light-ins" title="この行の下に挿入" onclick="pkInsertRowAfter(\'' + k + '\',\'' + r.id + '\')">＋</button></td>';
                 if (d.circuit) {
@@ -6544,6 +6549,156 @@
                             pkN(x.it.listPrice) || '', x.lpAmt || '', pkN(x.it.netPrice) || '', x.npAmtD || '', x.npAmt || ''].map(_lightCsvCell).join(','));
             });
             _lightDownload(d.label + '拾い表_' + _lightProjName() + '.csv', lines.join('\n'));
+        }
+
+
+        var PK_ORDER_KEY = 'elecCalc:pkOrderHeader';
+        function _pkOrderHeader() { try { return JSON.parse(localStorage.getItem(PK_ORDER_KEY) || '{}') || {}; } catch (e) { return {}; } }
+        function _pkSaveOrderHeader(h) { try { localStorage.setItem(PK_ORDER_KEY, JSON.stringify(h)); } catch (e) {} }
+        function pkToggleAll(k, on) {
+            Array.prototype.forEach.call(document.querySelectorAll('#pkSumTbody_' + k + ' input.pk-rowsel'), function (cb) { cb.checked = !!on; });
+        }
+        function _pkSelectedRowIds(k) {
+            return Array.prototype.map.call(document.querySelectorAll('#pkSumTbody_' + k + ' input.pk-rowsel:checked'), function (cb) { return cb.getAttribute('data-id'); });
+        }
+        function _pkOrderLines(k, rowIds) {
+            var rows = _pk[k].rows.filter(function (r) { return rowIds.indexOf(r.id) >= 0; });
+            var out = [];
+            _pk[k].items.forEach(function (it) {
+                var n = 0, places = [];
+                rows.forEach(function (r) {
+                    var c = pkN((r.countsA || {})[it.id]);
+                    if (c > 0) { n += c; places.push(((r.floor || '') + ' ' + (r.room || '')).trim()); }
+                });
+                if (n > 0) out.push({ it: it, n: n, unit: '個', places: places });
+            });
+            return out;
+        }
+        function pkCloseOrderDialog() { var m = document.getElementById('pkOrderMask'); if (m) m.parentNode.removeChild(m); }
+        function pkOpenOrderDialog(k) {
+            var ids = _pkSelectedRowIds(k);
+            if (!ids.length) { alert('拾い表の行（部屋）を選択してください。'); return; }
+            var lines = _pkOrderLines(k, ids);
+            if (!lines.length) { alert('選択した行に実行数量が入っていません。'); return; }
+            window.__pkOrder = { k: k, ids: ids, lines: lines };
+            var h = _pkOrderHeader(), st = _lightWcSettings();
+            var rooms = [];
+            _pk[k].rows.filter(function (r) { return ids.indexOf(r.id) >= 0; }).forEach(function (r) {
+                var s = ((r.floor || '') + ' ' + (r.room || '')).trim();
+                if (s && rooms.indexOf(s) < 0) rooms.push(s);
+            });
+            var dl = function (list) { return (list || []).map(function (x) { return '<option value="' + pkEsc(x) + '"></option>'; }).join(''); };
+            var body = '';
+            lines.forEach(function (x, i) {
+                body += '<tr>'
+                     + '<td style="text-align:center;"><input type="checkbox" class="pk-ordsel" data-i="' + i + '" checked style="width:auto;"></td>'
+                     + '<td style="text-align:center;font-weight:bold;">' + pkEsc(x.it.symbol) + '</td>'
+                     + '<td>' + pkEsc(x.it.name) + '</td>'
+                     + '<td>' + pkEsc(x.it.kataban) + '</td>'
+                     + '<td>' + pkEsc(x.it.maker) + '</td>'
+                     + '<td><input type="number" class="pk-ordqty" data-i="' + i + '" value="' + x.n + '" min="0" step="1" style="width:74px;text-align:right;"></td>'
+                     + '<td><input type="text" class="pk-ordnote" data-i="' + i + '" placeholder="備考" style="width:160px;"></td>'
+                     + '</tr>';
+            });
+            var mask = document.createElement('div');
+            mask.id = 'pkOrderMask';
+            mask.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
+            mask.innerHTML = '<div style="background:#fff;border-radius:6px;width:min(960px,94vw);max-height:88vh;overflow:auto;padding:1rem 1.2rem;">'
+                + '<h3 style="margin:0 0 0.5rem;">注文書の作成（' + PK_DEFS[k].label + '）</h3>'
+                + '<div style="font-size:0.78rem;color:#555;margin-bottom:0.6rem;">対象部屋：' + pkEsc(rooms.join(' ／ ')) + '</div>'
+                + '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.5rem;margin-bottom:0.8rem;">'
+                + '<label style="font-size:0.8rem;">宛先<br><input list="pkOrdAtesakiList" id="pkOrdAtesaki" value="' + pkEsc(h.atesaki || '') + '" style="width:100%;padding:3px;"><datalist id="pkOrdAtesakiList">' + dl(st.atesaki) + '</datalist></label>'
+                + '<label style="font-size:0.8rem;">担当者<br><input list="pkOrdTantouList" id="pkOrdTantou" value="' + pkEsc(h.tantou || '') + '" style="width:100%;padding:3px;"><datalist id="pkOrdTantouList">' + dl(st.tantou) + '</datalist></label>'
+                + '<label style="font-size:0.8rem;">工事名<br><input id="pkOrdKojiName" value="' + pkEsc(h.koujiName || _lightProjName()) + '" style="width:100%;padding:3px;"></label>'
+                + '<label style="font-size:0.8rem;">工事番号<br><input id="pkOrdKojiNo" value="' + pkEsc(h.koujiNo || '') + '" style="width:100%;padding:3px;"></label>'
+                + '</div>'
+                + '<table class="light-table" style="width:100%;"><thead><tr><th style="width:40px;">選択</th><th style="width:70px;">記号</th><th>品名</th><th>型番</th><th>メーカー</th><th style="width:90px;">数量</th><th style="width:180px;">備考</th></tr></thead><tbody>' + body + '</tbody></table>'
+                + '<div style="margin-top:0.9rem;display:flex;gap:0.5rem;align-items:center;">'
+                + '<label style="font-size:0.78rem;display:flex;align-items:center;gap:4px;margin-right:auto;"><input type="checkbox" id="pkOrdMark" checked style="width:auto;">出力した行に注文済／注文日を記録する</label>'
+                + '<button class="btn-action" onclick="pkCloseOrderDialog()">キャンセル</button>'
+                + '<button class="btn-action" style="background:#c62828;color:#fff;" onclick="pkDoExportOrder()">注文書を出力</button>'
+                + '</div></div>';
+            document.body.appendChild(mask);
+        }
+
+        function pkDoExportOrder() {
+            var o = window.__pkOrder;
+            if (!o) return;
+            var picked = [];
+            Array.prototype.forEach.call(document.querySelectorAll('#pkOrderMask input.pk-ordsel:checked'), function (cb) {
+                var i = Number(cb.getAttribute('data-i')), x = o.lines[i];
+                if (!x) return;
+                var q = document.querySelector('#pkOrderMask input.pk-ordqty[data-i="' + i + '"]');
+                var nt = document.querySelector('#pkOrderMask input.pk-ordnote[data-i="' + i + '"]');
+                picked.push({ it: x.it, n: pkN(q ? q.value : x.n), unit: x.unit, note: nt ? nt.value : '' });
+            });
+            if (!picked.length) { alert('出力する品目を選択してください。'); return; }
+            var atesaki = (document.getElementById('pkOrdAtesaki') || {}).value || '';
+            var tantou = (document.getElementById('pkOrdTantou') || {}).value || '';
+            var koujiName = (document.getElementById('pkOrdKojiName') || {}).value || '';
+            var koujiNo = (document.getElementById('pkOrdKojiNo') || {}).value || '';
+            var mark = !!(document.getElementById('pkOrdMark') || {}).checked;
+            _pkSaveOrderHeader({ atesaki: atesaki, tantou: tantou, koujiName: koujiName, koujiNo: koujiNo });
+            var rows = _pk[o.k].rows.filter(function (r) { return o.ids.indexOf(r.id) >= 0; });
+            var rooms = [];
+            rows.forEach(function (r) { var s = ((r.floor || '') + ' ' + (r.room || '')).trim(); if (s && rooms.indexOf(s) < 0) rooms.push(s); });
+            var d = new Date();
+            var dateStr = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+            var iso = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+            var totalQty = 0;
+            picked.forEach(function (p) { totalQty += pkN(p.n); });
+            var css = '*{box-sizing:border-box;}'
+                + '@page{size:210mm 297mm;margin:14mm 11mm;}'
+                + 'body{font-family:"Yu Gothic","Meiryo","Hiragino Kaku Gothic ProN",sans-serif;font-size:9pt;color:#111;margin:0;padding:0;width:188mm;}'
+                + '.ttl{text-align:center;font-size:19pt;font-weight:700;letter-spacing:10px;margin:0 0 1mm 0;}'
+                + '.ttl-rule{width:52mm;height:1px;background:#111;margin:0 auto 6mm auto;}'
+                + '.top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5mm;}'
+                + '.to{font-size:12pt;font-weight:700;border-bottom:1px solid #111;padding:0 6mm 1mm 0;min-width:70mm;}'
+                + '.from{font-size:8.5pt;line-height:1.6;text-align:right;}'
+                + '.meta{width:100%;border-collapse:collapse;margin-bottom:4mm;}'
+                + '.meta th,.meta td{border:1px solid #666;padding:1.4mm 2mm;font-size:8.5pt;}'
+                + '.meta th{background:#f0f0f0;width:24mm;text-align:left;font-weight:600;}'
+                + 'table.items{width:100%;border-collapse:collapse;}'
+                + 'table.items th,table.items td{border:1px solid #666;padding:1.6mm 2mm;font-size:8.5pt;}'
+                + 'table.items th{background:#eceff1;font-weight:600;text-align:center;}'
+                + 'table.items td.c{text-align:center;}table.items td.r{text-align:right;}'
+                + 'tfoot td{background:#f5f5f5;font-weight:700;}'
+                + '.note{margin-top:5mm;font-size:8pt;color:#333;line-height:1.6;}';
+            var b = '';
+            picked.forEach(function (p, i) {
+                b += '<tr><td class="c">' + (i + 1) + '</td>'
+                   + '<td class="c">' + pkEsc(p.it.symbol) + '</td>'
+                   + '<td>' + pkEsc(p.it.name) + '</td>'
+                   + '<td>' + pkEsc(p.it.kataban) + '</td>'
+                   + '<td>' + pkEsc(p.it.maker) + '</td>'
+                   + '<td class="r">' + p.n + '</td>'
+                   + '<td class="c">' + pkEsc(p.unit) + '</td>'
+                   + '<td>' + pkEsc(p.note) + '</td></tr>';
+            });
+            var html = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>注文書 ' + pkEsc(koujiName) + '</title><style>' + css + '</style></head><body>'
+                + '<div class="ttl">注 文 書</div><div class="ttl-rule"></div>'
+                + '<div class="top"><div><div class="to">' + pkEsc(atesaki) + ' 御中</div></div>'
+                + '<div class="from">' + pkEsc(dateStr) + '<br>エル・エル・イー電気株式会社<br>担当：' + pkEsc(tantou) + '</div></div>'
+                + '<table class="meta">'
+                + '<tr><th>工事名</th><td>' + pkEsc(koujiName) + '</td><th>工事番号</th><td>' + pkEsc(koujiNo) + '</td></tr>'
+                + '<tr><th>区分</th><td>' + pkEsc(PK_DEFS[o.k].label) + '</td><th>合計数量</th><td>' + totalQty + '</td></tr>'
+                + '<tr><th>対象部屋</th><td colspan="3">' + pkEsc(rooms.join(' ／ ')) + '</td></tr>'
+                + '</table>'
+                + '<table class="items"><thead><tr>'
+                + '<th style="width:10mm;">No</th><th style="width:16mm;">記号</th><th>品名</th><th style="width:38mm;">型番</th><th style="width:26mm;">メーカー</th>'
+                + '<th style="width:16mm;">数量</th><th style="width:12mm;">単位</th><th style="width:34mm;">備考</th></tr></thead>'
+                + '<tbody>' + b + '</tbody>'
+                + '<tfoot><tr><td colspan="5" class="c">合　計</td><td class="r">' + totalQty + '</td><td colspan="2"></td></tr></tfoot></table>'
+                + '<div class="note">※ 下記の通りご注文いたします。数量・型番のご確認をお願いいたします。</div>'
+                + '</body></html>';
+            var w = window.open('', '_blank');
+            if (!w) { alert('ポップアップがブロックされました。ブラウザの設定を確認してください。'); return; }
+            w.document.open(); w.document.write(html); w.document.close();
+            if (mark) {
+                rows.forEach(function (r) { r.ordered = true; r.orderedDate = iso; pkUpsertRow(o.k, r); });
+                pkRenderSum(o.k); pkRenderAgg(o.k);
+            }
+            pkCloseOrderDialog();
         }
 
         function switchTab(tabName) {
