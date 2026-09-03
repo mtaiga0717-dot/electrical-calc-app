@@ -1510,6 +1510,35 @@
         #lightTable tbody td.light-fix { position:sticky; left:0; z-index:3; background:#fafafa; width:52px; min-width:52px; max-width:52px; }
         #lightTable tbody td.light-sym { position:sticky; left:52px; z-index:3; background:#fff; box-shadow:2px 0 0 #d84315; }
         #lightTable tbody tr:hover td.light-fix, #lightTable tbody tr:hover td.light-sym { background:#fff3e0; }
+        /* ===== コンセント／配線器具 拾い表 ===== */
+        .pk-wrap-sum { max-height:calc(100vh - 330px); min-height:260px; }
+        .pk-sum thead th { padding:2px 3px; line-height:16px; }
+        .pk-sum thead tr:first-child th { position:sticky; top:0; z-index:4; box-shadow:0 1px 0 #d84315; }
+        .pk-sum thead tr:nth-child(2) th { position:sticky; top:22px; z-index:4; box-shadow:0 1px 0 #d84315; font-size:0.68rem; font-weight:normal; }
+        .pk-sum thead th.sub-d { background:#8d6e63; }
+        .pk-sum thead th.sub-a { background:#00695c; }
+        .pk-sum td.cell-d { border-right:1px dashed #ccc; }
+        .pk-sum td.cell-a { border-right:1px solid #999; }
+        .pk-list thead th:nth-child(1) { position:sticky; left:0; z-index:6; width:52px; min-width:52px; max-width:52px; }
+        .pk-list thead th:nth-child(2) { position:sticky; left:52px; z-index:6; box-shadow:2px 0 0 #d84315; }
+        .pk-list tbody td.light-fix { position:sticky; left:0; z-index:3; background:#fafafa; width:52px; min-width:52px; max-width:52px; }
+        .pk-list tbody td.pk-sym { position:sticky; left:52px; z-index:3; background:#fff; box-shadow:2px 0 0 #d84315; }
+        .pk-list tbody tr:hover td.light-fix, .pk-list tbody tr:hover td.pk-sym { background:#fff3e0; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(1), #pkSumTable_outlet tbody td:nth-child(1) { position:sticky; left:0;     width:40px;  min-width:40px;  max-width:40px; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(2), #pkSumTable_outlet tbody td:nth-child(2) { position:sticky; left:40px;  width:110px; min-width:110px; max-width:110px; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(3), #pkSumTable_outlet tbody td:nth-child(3) { position:sticky; left:150px; width:80px;  min-width:80px;  max-width:80px; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(4), #pkSumTable_outlet tbody td:nth-child(4) { position:sticky; left:230px; width:80px;  min-width:80px;  max-width:80px; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(5), #pkSumTable_outlet tbody td:nth-child(5) { position:sticky; left:310px; width:150px; min-width:150px; box-shadow:2px 0 0 #d84315; }
+        #pkSumTable_outlet tbody td:nth-child(-n+5) { background:#fff; z-index:2; }
+        #pkSumTable_outlet thead tr:first-child th:nth-child(-n+5) { z-index:6; }
+        #pkSumTable_outlet tbody tr:hover td:nth-child(-n+5) { background:#fff3e0; }
+        #pkSumTable_wiring thead tr:first-child th:nth-child(1), #pkSumTable_wiring tbody td:nth-child(1) { position:sticky; left:0;     width:40px;  min-width:40px;  max-width:40px; }
+        #pkSumTable_wiring thead tr:first-child th:nth-child(2), #pkSumTable_wiring tbody td:nth-child(2) { position:sticky; left:40px;  width:80px;  min-width:80px;  max-width:80px; }
+        #pkSumTable_wiring thead tr:first-child th:nth-child(3), #pkSumTable_wiring tbody td:nth-child(3) { position:sticky; left:120px; width:150px; min-width:150px; box-shadow:2px 0 0 #d84315; }
+        #pkSumTable_wiring tbody td:nth-child(-n+3) { background:#fff; z-index:2; }
+        #pkSumTable_wiring thead tr:first-child th:nth-child(-n+3) { z-index:6; }
+        #pkSumTable_wiring tbody tr:hover td:nth-child(-n+3) { background:#fff3e0; }
+
     </style>
 </head>
 <body>
@@ -1549,6 +1578,8 @@
                 <button class="nav-tab" data-tab="weakCurrent" style="background:#00695c;color:#fff;">弱電幹線</button>
                 <button class="nav-tab" data-tab="qaTab" style="background:#1565c0;color:#fff;">質疑応答書</button>
                 <button class="nav-tab" data-tab="lighting" style="background:#ef6c00;color:#fff;">照明器具</button>
+                <button class="nav-tab" data-tab="outlet" style="background:#00838f;color:#fff;">コンセント</button>
+                <button class="nav-tab" data-tab="wiring" style="background:#4527a0;color:#fff;">配線器具</button>
                 <button class="nav-tab" data-tab="siteMaster" style="background:#6a1b9a;color:#fff;">現場マスタ</button>
             </div>
         </div>
@@ -3004,6 +3035,83 @@
             </div>
 
             <!-- Master Tab -->
+
+
+            <!-- コンセント拾い表 Tab -->
+            <div id="outlet" class="tab-content">
+                <h3 style="margin:0.5rem 0;">コンセント拾い表</h3>
+                <div class="light-sub">
+                    <button class="light-viewbtn active" id="pkBtnL_outlet" onclick="pkSwitchView('outlet','list')">部材登録</button>
+                    <button class="light-viewbtn" id="pkBtnS_outlet" onclick="pkSwitchView('outlet','sum')">拾い表</button>
+                    <span style="flex:1;"></span>
+                    <button class="btn-action" onclick="pkReload('outlet')">&#8635; 再読込</button>
+                </div>
+                <div id="pkViewList_outlet">
+                    <div class="light-sub">
+                        <button class="btn-action" style="background:#00838f;color:#fff;" onclick="pkAddItem('outlet')">＋ 部材を追加</button>
+                        <input id="pkSearch_outlet" type="text" placeholder="検索（記号 / 品名 / 型番 / メーカー）" oninput="pkRenderList('outlet')" style="font-size:0.8rem;padding:0.25rem;width:250px;">
+                        <span style="flex:1;"></span>
+                        <button class="btn-action" onclick="pkExportItemsCsv('outlet')">CSV出力</button>
+                    </div>
+                    <div class="light-wrap">
+                        <table class="light-table pk-list" id="pkTable_outlet"><thead id="pkThead_outlet"></thead><tbody id="pkTbody_outlet"></tbody></table>
+                    </div>
+                </div>
+                <div id="pkViewSum_outlet" style="display:none;">
+                    <div class="light-sub">
+                        <button class="btn-action" style="background:#00838f;color:#fff;" onclick="pkAddRow('outlet')">＋ 行を追加</button>
+                        <span id="pkInfo_outlet" style="font-size:0.78rem;color:#666;"></span>
+                        <span style="flex:1;"></span>
+                        <button class="btn-action" onclick="pkExportSumCsv('outlet')">CSV出力</button>
+                    </div>
+                    <div style="font-size:0.72rem;color:#888;margin-bottom:3px;">※ 階・室名は「質疑応答書」タブで登録したフロア／部屋リストを共有しています。</div>
+                    <div class="light-wrap pk-wrap-sum">
+                        <table class="light-table pk-sum" id="pkSumTable_outlet"><thead id="pkSumThead_outlet"></thead><tbody id="pkSumTbody_outlet"></tbody></table>
+                    </div>
+                    <h4 style="margin:0.8rem 0 0.3rem;">部材別集計</h4>
+                    <div class="light-wrap">
+                        <table class="light-table" id="pkAggTable_outlet"><thead id="pkAggThead_outlet"></thead><tbody id="pkAggTbody_outlet"></tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 配線器具拾い表 Tab -->
+            <div id="wiring" class="tab-content">
+                <h3 style="margin:0.5rem 0;">配線器具拾い表</h3>
+                <div class="light-sub">
+                    <button class="light-viewbtn active" id="pkBtnL_wiring" onclick="pkSwitchView('wiring','list')">部材登録</button>
+                    <button class="light-viewbtn" id="pkBtnS_wiring" onclick="pkSwitchView('wiring','sum')">拾い表</button>
+                    <span style="flex:1;"></span>
+                    <button class="btn-action" onclick="pkReload('wiring')">&#8635; 再読込</button>
+                </div>
+                <div id="pkViewList_wiring">
+                    <div class="light-sub">
+                        <button class="btn-action" style="background:#6a1b9a;color:#fff;" onclick="pkAddItem('wiring')">＋ 部材を追加</button>
+                        <input id="pkSearch_wiring" type="text" placeholder="検索（記号 / 品名 / 型番 / メーカー）" oninput="pkRenderList('wiring')" style="font-size:0.8rem;padding:0.25rem;width:250px;">
+                        <span style="flex:1;"></span>
+                        <button class="btn-action" onclick="pkExportItemsCsv('wiring')">CSV出力</button>
+                    </div>
+                    <div class="light-wrap">
+                        <table class="light-table pk-list" id="pkTable_wiring"><thead id="pkThead_wiring"></thead><tbody id="pkTbody_wiring"></tbody></table>
+                    </div>
+                </div>
+                <div id="pkViewSum_wiring" style="display:none;">
+                    <div class="light-sub">
+                        <button class="btn-action" style="background:#6a1b9a;color:#fff;" onclick="pkAddRow('wiring')">＋ 行を追加</button>
+                        <span id="pkInfo_wiring" style="font-size:0.78rem;color:#666;"></span>
+                        <span style="flex:1;"></span>
+                        <button class="btn-action" onclick="pkExportSumCsv('wiring')">CSV出力</button>
+                    </div>
+                    <div style="font-size:0.72rem;color:#888;margin-bottom:3px;">※ 階・室名は「質疑応答書」タブで登録したフロア／部屋リストを共有しています。</div>
+                    <div class="light-wrap pk-wrap-sum">
+                        <table class="light-table pk-sum" id="pkSumTable_wiring"><thead id="pkSumThead_wiring"></thead><tbody id="pkSumTbody_wiring"></tbody></table>
+                    </div>
+                    <h4 style="margin:0.8rem 0 0.3rem;">部材別集計</h4>
+                    <div class="light-wrap">
+                        <table class="light-table" id="pkAggTable_wiring"><thead id="pkAggThead_wiring"></thead><tbody id="pkAggTbody_wiring"></tbody></table>
+                    </div>
+                </div>
+            </div>
 
             <!-- 照明器具 Tab -->
             <div id="lighting" class="tab-content">
@@ -6049,6 +6157,374 @@
             initTransformerRegistryUI();
         }
 
+
+        /* ================= コンセント／配線器具 拾い表 ================= */
+        var PK_DEFS = {
+            outlet: { label: 'コンセント', itemT: 'outlet_items', cntT: 'outlet_counts', circuit: true },
+            wiring: { label: '配線器具',   itemT: 'wiring_items', cntT: 'wiring_counts', circuit: false }
+        };
+        var PK_COLS = [
+            { f: 'symbol',    label: '記号',     w: 80,  t: 'text' },
+            { f: 'name',      label: '品名',     w: 180, t: 'text' },
+            { f: 'maker',     label: 'メーカー', w: 110, t: 'text' },
+            { f: 'kataban',   label: '型番',     w: 160, t: 'text' },
+            { f: 'listPrice', label: '定価',     w: 92,  t: 'price' },
+            { f: 'netPrice',  label: 'NET単価',  w: 92,  t: 'price' },
+            { f: 'netRate',   label: '率',       w: 64,  t: 'calc' },
+            { f: 'remark',    label: '備考',     w: 160, t: 'text' }
+        ];
+        var _pk = { outlet: { items: [], rows: [], pid: null }, wiring: { items: [], rows: [], pid: null } };
+        function pkUid(p) { return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+        function pkEsc(v) { return _lightEsc(v); }
+        function pkN(v) { return _lightN(v); }
+        function pkY(v) { return _lightY(v); }
+        function pkOpts(list, val) {
+            var s = '<option value=""></option>', found = false;
+            (list || []).forEach(function (v) {
+                if (v === val) found = true;
+                s += '<option value="' + pkEsc(v) + '"' + (v === val ? ' selected' : '') + '>' + pkEsc(v) + '</option>';
+            });
+            if (val && !found) s += '<option value="' + pkEsc(val) + '" selected>' + pkEsc(val) + '</option>';
+            return s;
+        }
+        function pkPanelList() {
+            try { return (allPanels || []).map(function (p) { return p.name; }).filter(function (x) { return !!x; }); }
+            catch (e) { return []; }
+        }
+        function pkCircuitList(panel) {
+            try {
+                if (!panel) return [];
+                return (allCircuits || []).filter(function (c) { return c.panel_name === panel && c.type !== 'RC'; })
+                    .map(function (c) { return String((c.symbol || '') + (c.circuit_no == null ? '' : c.circuit_no)).trim(); })
+                    .filter(function (x, i, a) { return x && a.indexOf(x) === i; });
+            } catch (e) { return []; }
+        }
+
+        async function pkLoad(k) {
+            var d = PK_DEFS[k], pid = projectGetCurrent();
+            try {
+                var r1 = await db.from(d.itemT).select('*').eq('project_id', pid).order('no', { ascending: true });
+                if (r1.error) throw r1.error;
+                _pk[k].items = (r1.data || []).map(function (row) {
+                    return { id: row.item_id, no: row.no || 0, symbol: row.symbol || '', name: row.name || '',
+                             maker: row.maker || '', kataban: row.kataban || '',
+                             listPrice: row.list_price || 0, netPrice: row.net_price || 0, remark: row.remark || '' };
+                });
+                var r2 = await db.from(d.cntT).select('*').eq('project_id', pid).order('no', { ascending: true });
+                if (r2.error) throw r2.error;
+                _pk[k].rows = (r2.data || []).map(function (row) {
+                    return { id: row.row_id, no: row.no || 0, panel: row.panel_name || '', circuit: row.circuit_no || '',
+                             floor: row.floor || '', room: row.room || '',
+                             counts: row.counts || {}, countsA: row.counts_actual || {},
+                             ordered: !!row.ordered, orderedDate: row.ordered_date || '', remark: row.remark || '' };
+                });
+            } catch (e) {
+                console.error('[PK] load ' + k, e);
+                alert(d.label + 'データの読込に失敗しました。\n' + (e.message || e));
+            }
+        }
+        async function pkUpsertItem(k, it) {
+            var d = PK_DEFS[k];
+            try {
+                var r = await db.from(d.itemT).upsert({
+                    project_id: projectGetCurrent(), item_id: it.id, no: it.no || 0,
+                    symbol: it.symbol || '', name: it.name || '', maker: it.maker || '', kataban: it.kataban || '',
+                    list_price: pkN(it.listPrice), net_price: pkN(it.netPrice), remark: it.remark || '',
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'project_id,item_id' });
+                if (r.error) console.error('[PK] item upsert', r.error);
+            } catch (e) { console.error('[PK] item upsert ex', e); }
+        }
+        async function pkUpsertRow(k, row) {
+            var d = PK_DEFS[k];
+            try {
+                var p = { project_id: projectGetCurrent(), row_id: row.id, no: row.no || 0,
+                          floor: row.floor || '', room: row.room || '',
+                          counts: row.counts || {}, counts_actual: row.countsA || {},
+                          ordered: !!row.ordered, ordered_date: row.orderedDate || '', remark: row.remark || '',
+                          updated_at: new Date().toISOString() };
+                if (d.circuit) { p.panel_name = row.panel || ''; p.circuit_no = row.circuit || ''; }
+                var r = await db.from(d.cntT).upsert(p, { onConflict: 'project_id,row_id' });
+                if (r.error) console.error('[PK] row upsert', r.error);
+            } catch (e) { console.error('[PK] row upsert ex', e); }
+        }
+        async function pkInit(k) {
+            var pid = projectGetCurrent();
+            if (_pk[k].pid === pid) { pkRenderAll(k); return; }
+            _pk[k].pid = pid;
+            await pkLoad(k);
+            pkRenderAll(k);
+        }
+        function pkReload(k) { _pk[k].pid = null; pkInit(k); }
+        function pkRenderAll(k) { pkRenderList(k); pkRenderSum(k); pkRenderAgg(k); }
+        function pkSwitchView(k, v) {
+            var l = document.getElementById('pkViewList_' + k), s = document.getElementById('pkViewSum_' + k);
+            if (l) l.style.display = (v === 'list') ? '' : 'none';
+            if (s) s.style.display = (v === 'sum') ? '' : 'none';
+            var b1 = document.getElementById('pkBtnL_' + k), b2 = document.getElementById('pkBtnS_' + k);
+            if (b1) { if (v === 'list') b1.classList.add('active'); else b1.classList.remove('active'); }
+            if (b2) { if (v === 'sum') b2.classList.add('active'); else b2.classList.remove('active'); }
+            pkRenderAll(k);
+        }
+
+        function pkNewItem() { return { id: pkUid('pi'), no: 0, symbol: '', name: '', maker: '', kataban: '', listPrice: 0, netPrice: 0, remark: '' }; }
+        function pkAddItem(k) {
+            var mx = 0; _pk[k].items.forEach(function (x) { if (x.no > mx) mx = x.no; });
+            var it = pkNewItem(); it.no = mx + 1;
+            _pk[k].items.push(it); pkUpsertItem(k, it); pkRenderAll(k);
+        }
+        function pkInsertItemAfter(k, id) {
+            var list = _pk[k].items, i = -1;
+            for (var j = 0; j < list.length; j++) { if (list[j].id === id) { i = j; break; } }
+            if (i < 0) return;
+            list.splice(i + 1, 0, pkNewItem());
+            list.forEach(function (x, n) { x.no = n + 1; pkUpsertItem(k, x); });
+            pkRenderAll(k);
+        }
+        function pkItemChange(k, id, field, value) {
+            var it = _pk[k].items.filter(function (x) { return x.id === id; })[0];
+            if (!it) return;
+            if (field === 'listPrice' || field === 'netPrice') it[field] = _lightNC(value); else it[field] = value;
+            pkUpsertItem(k, it);
+            if (field === 'listPrice' || field === 'netPrice') pkRenderList(k);
+            if (field === 'symbol' || field === 'name' || field === 'kataban') pkRenderSum(k);
+            pkRenderAgg(k);
+        }
+        function pkDelItem(k, id) {
+            if (!confirm('この部材を削除しますか？（拾い表の数量も消えます）')) return;
+            _pk[k].items = _pk[k].items.filter(function (x) { return x.id !== id; });
+            db.from(PK_DEFS[k].itemT).delete().eq('project_id', projectGetCurrent()).eq('item_id', id);
+            pkRenderAll(k);
+        }
+        function pkRenderList(k) {
+            var thead = document.getElementById('pkThead_' + k), tbody = document.getElementById('pkTbody_' + k);
+            if (!thead || !tbody) return;
+            var h = '<tr><th style="width:52px;">No</th>';
+            PK_COLS.forEach(function (c) { h += '<th style="min-width:' + c.w + 'px;">' + c.label + '</th>'; });
+            h += '<th style="width:36px;">削除</th></tr>';
+            thead.innerHTML = h;
+            var el = document.getElementById('pkSearch_' + k);
+            var q = (el ? el.value : '').trim().toLowerCase();
+            var list = _pk[k].items.filter(function (it) {
+                if (!q) return true;
+                return ((it.symbol || '') + ' ' + (it.name || '') + ' ' + (it.kataban || '') + ' ' + (it.maker || '')).toLowerCase().indexOf(q) >= 0;
+            });
+            var b = '';
+            list.forEach(function (it, i) {
+                b += '<tr>';
+                b += '<td class="light-fix" style="text-align:center;white-space:nowrap;">' + (i + 1)
+                   + '<button class="light-ins" title="この行の下に挿入" onclick="pkInsertItemAfter(\'' + k + '\',\'' + it.id + '\')">＋</button></td>';
+                PK_COLS.forEach(function (c) {
+                    var v = it[c.f];
+                    var cb = 'pkItemChange(\'' + k + '\',\'' + it.id + '\',\'' + c.f + '\',this.value)';
+                    if (c.t === 'price') {
+                        b += '<td class="light-num" style="background:#e8f5e9;"><input type="text" inputmode="numeric" value="' + _lightFmt(v) + '" onchange="' + cb + '"></td>';
+                    } else if (c.t === 'calc') {
+                        b += '<td style="text-align:right;background:#e0f2f1;color:#00695c;font-weight:bold;">' + _lightRateTxt(it.listPrice, it.netPrice) + '</td>';
+                    } else {
+                        b += '<td' + (c.f === 'symbol' ? ' class="pk-sym"' : '') + '><input type="text" value="' + pkEsc(v) + '" onchange="' + cb + '"></td>';
+                    }
+                });
+                b += '<td style="text-align:center;"><button class="btn-delete" onclick="pkDelItem(\'' + k + '\',\'' + it.id + '\')">×</button></td>';
+                b += '</tr>';
+            });
+            tbody.innerHTML = b || '<tr><td colspan="' + (PK_COLS.length + 2) + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 部材を追加」から登録してください</td></tr>';
+            _lightBindCross('pkTable_' + k);
+            _lightApplyLock(document.getElementById('pkTable_' + k));
+        }
+
+        function pkNewRow() { return { id: pkUid('pr'), no: 0, panel: '', circuit: '', floor: '', room: '', counts: {}, countsA: {}, ordered: false, orderedDate: '', remark: '' }; }
+        function pkAddRow(k) {
+            var mx = 0; _pk[k].rows.forEach(function (r) { if (r.no > mx) mx = r.no; });
+            var r = pkNewRow(); r.no = mx + 1;
+            _pk[k].rows.push(r); pkUpsertRow(k, r); pkRenderSum(k); pkRenderAgg(k);
+        }
+        function pkInsertRowAfter(k, id) {
+            var list = _pk[k].rows, i = -1;
+            for (var j = 0; j < list.length; j++) { if (list[j].id === id) { i = j; break; } }
+            if (i < 0) return;
+            var nr = pkNewRow();
+            if (list[i]) { nr.panel = list[i].panel; nr.circuit = list[i].circuit; nr.floor = list[i].floor; }
+            list.splice(i + 1, 0, nr);
+            list.forEach(function (x, n) { x.no = n + 1; pkUpsertRow(k, x); });
+            pkRenderSum(k); pkRenderAgg(k);
+        }
+        function pkDelRow(k, id) {
+            if (!confirm('この行を削除しますか？')) return;
+            _pk[k].rows = _pk[k].rows.filter(function (x) { return x.id !== id; });
+            db.from(PK_DEFS[k].cntT).delete().eq('project_id', projectGetCurrent()).eq('row_id', id);
+            pkRenderSum(k); pkRenderAgg(k);
+        }
+        function pkRowChange(k, id, field, value) {
+            var r = _pk[k].rows.filter(function (x) { return x.id === id; })[0];
+            if (!r) return;
+            if (field === 'ordered') r.ordered = (value === true || value === 'true');
+            else r[field] = value;
+            if (field === 'floor') r.room = '';
+            if (field === 'panel') r.circuit = '';
+            pkUpsertRow(k, r);
+            if (field === 'floor' || field === 'panel' || field === 'ordered') pkRenderSum(k);
+            pkRenderAgg(k);
+        }
+        function pkCntChange(k, rowId, itemId, value, kind) {
+            var r = _pk[k].rows.filter(function (x) { return x.id === rowId; })[0];
+            if (!r) return;
+            if (!r.counts) r.counts = {};
+            if (!r.countsA) r.countsA = {};
+            var store = (kind === 'a') ? r.countsA : r.counts;
+            var n = pkN(value);
+            if (n) store[itemId] = n; else delete store[itemId];
+            pkUpsertRow(k, r);
+            pkRenderAgg(k);
+        }
+        function pkRenderSum(k) {
+            var thead = document.getElementById('pkSumThead_' + k), tbody = document.getElementById('pkSumTbody_' + k);
+            if (!thead || !tbody) return;
+            var d = PK_DEFS[k], items = _pk[k].items;
+            var fixed = d.circuit ? ['No', '盤名称', '回路No', '階', '室名'] : ['No', '階', '室名'];
+            var fw = { 'No': 40, '盤名称': 110, '回路No': 80, '階': 80, '室名': 150 };
+            var h = '<tr>';
+            fixed.forEach(function (lb) { h += '<th rowspan="2" style="min-width:' + fw[lb] + 'px;">' + lb + '</th>'; });
+            items.forEach(function (it) {
+                h += '<th colspan="2" title="' + pkEsc((it.name || '') + ' / ' + (it.kataban || '')) + '" style="min-width:96px;">' + pkEsc(it.symbol || it.name || '(記号なし)') + '</th>';
+            });
+            h += '<th rowspan="2" style="min-width:60px;background:#2e7d32;">注文済</th>'
+               + '<th rowspan="2" style="min-width:112px;background:#2e7d32;">注文日</th>'
+               + '<th rowspan="2" style="min-width:130px;">備考</th>'
+               + '<th rowspan="2" style="width:36px;">削除</th></tr><tr>';
+            items.forEach(function () { h += '<th class="sub-d" style="min-width:46px;">設計</th><th class="sub-a" style="min-width:46px;">実行</th>'; });
+            h += '</tr>';
+            thead.innerHTML = h;
+            var total = fixed.length + items.length * 2 + 4;
+            var b = '';
+            _pk[k].rows.forEach(function (r, i) {
+                var rc = function (f) { return 'pkRowChange(\'' + k + '\',\'' + r.id + '\',\'' + f + '\',this.value)'; };
+                b += '<tr>';
+                b += '<td class="light-fix" style="text-align:center;white-space:nowrap;">' + (i + 1)
+                   + '<button class="light-ins" title="この行の下に挿入" onclick="pkInsertRowAfter(\'' + k + '\',\'' + r.id + '\')">＋</button></td>';
+                if (d.circuit) {
+                    b += '<td><select onchange="' + rc('panel') + '">' + pkOpts(pkPanelList(), r.panel) + '</select></td>';
+                    b += '<td><select onchange="' + rc('circuit') + '">' + pkOpts(pkCircuitList(r.panel), r.circuit) + '</select></td>';
+                }
+                b += '<td><select onchange="' + rc('floor') + '">' + pkOpts(_lightFloorList(), r.floor) + '</select></td>';
+                b += '<td><select onchange="' + rc('room') + '">' + pkOpts(_lightRoomList(r.floor), r.room) + '</select></td>';
+                items.forEach(function (it) {
+                    var dv = (r.counts || {})[it.id], av = (r.countsA || {})[it.id];
+                    b += '<td class="light-cnt cell-d"><input type="number" min="0" step="1" value="' + (dv || '') + '" onchange="pkCntChange(\'' + k + '\',\'' + r.id + '\',\'' + it.id + '\',this.value,\'d\')"></td>';
+                    b += '<td class="light-cnt cell-a"><input type="number" min="0" step="1" value="' + (av || '') + '" onchange="pkCntChange(\'' + k + '\',\'' + r.id + '\',\'' + it.id + '\',this.value,\'a\')"></td>';
+                });
+                b += '<td style="text-align:center;background:' + (r.ordered ? '#e8f5e9' : '') + ';"><input type="checkbox" style="width:auto;"' + (r.ordered ? ' checked' : '') + ' onchange="pkRowChange(\'' + k + '\',\'' + r.id + '\',\'ordered\',this.checked)"></td>';
+                b += '<td style="background:' + (r.orderedDate ? '#e8f5e9' : '') + ';"><input type="date" value="' + pkEsc(r.orderedDate) + '" onchange="' + rc('orderedDate') + '"></td>';
+                b += '<td><input type="text" value="' + pkEsc(r.remark) + '" onchange="' + rc('remark') + '"></td>';
+                b += '<td style="text-align:center;"><button class="btn-delete" onclick="pkDelRow(\'' + k + '\',\'' + r.id + '\')">×</button></td>';
+                b += '</tr>';
+            });
+            tbody.innerHTML = b || '<tr><td colspan="' + total + '" style="text-align:center;padding:1.2rem;color:#999;">「＋ 行を追加」から入力してください</td></tr>';
+            var inf = document.getElementById('pkInfo_' + k);
+            if (inf) inf.textContent = _pk[k].rows.length + ' 行 / 部材 ' + items.length + ' 種';
+            _lightBindCross('pkSumTable_' + k);
+            _lightApplyLock(document.getElementById('pkSumTable_' + k));
+        }
+
+        function pkAggData(k) {
+            var out = [];
+            _pk[k].items.forEach(function (it) {
+                var dq = 0, n = 0, ordN = 0;
+                _pk[k].rows.forEach(function (r) {
+                    dq += pkN((r.counts || {})[it.id]);
+                    var c = pkN((r.countsA || {})[it.id]);
+                    n += c;
+                    if (r.ordered) ordN += c;
+                });
+                var lp = pkN(it.listPrice), np = pkN(it.netPrice);
+                out.push({ it: it, dq: dq, n: n, diff: n - dq, ordN: ordN, rest: n - ordN,
+                           lpAmt: lp * n, npAmt: np * n, npAmtD: np * dq });
+            });
+            return out;
+        }
+        function pkRenderAgg(k) {
+            var thead = document.getElementById('pkAggThead_' + k), tbody = document.getElementById('pkAggTbody_' + k);
+            if (!thead || !tbody) return;
+            thead.innerHTML = '<tr>'
+                + '<th style="min-width:80px;">記号</th><th style="min-width:170px;">品名</th>'
+                + '<th style="min-width:150px;">型番</th><th style="min-width:100px;">メーカー</th>'
+                + '<th style="min-width:74px;background:#5d4037;">設計数量</th>'
+                + '<th style="min-width:74px;background:#5d4037;">実行数量</th>'
+                + '<th style="min-width:56px;background:#5d4037;">増減</th>'
+                + '<th style="min-width:74px;background:#2e7d32;">注文済<br>数量</th>'
+                + '<th style="min-width:62px;background:#2e7d32;">残</th>'
+                + '<th style="min-width:84px;background:#00695c;">定価</th>'
+                + '<th style="min-width:104px;background:#00695c;">定価金額</th>'
+                + '<th style="min-width:84px;background:#00695c;">NET単価</th>'
+                + '<th style="min-width:110px;background:#455a64;">設計NET金額</th>'
+                + '<th style="min-width:104px;background:#00695c;">NET金額</th></tr>';
+            var rows = pkAggData(k), b = '';
+            var gDQ = 0, gN = 0, gOR = 0, gRE = 0, gLP = 0, gNP = 0, gND = 0;
+            rows.forEach(function (x) {
+                gDQ += x.dq; gN += x.n; gOR += x.ordN; gRE += x.rest; gLP += x.lpAmt; gNP += x.npAmt; gND += x.npAmtD;
+                b += '<tr>'
+                   + '<td style="text-align:center;font-weight:bold;">' + pkEsc(x.it.symbol) + '</td>'
+                   + '<td>' + pkEsc(x.it.name) + '</td>'
+                   + '<td>' + pkEsc(x.it.kataban) + '</td>'
+                   + '<td>' + pkEsc(x.it.maker) + '</td>'
+                   + '<td style="text-align:right;background:#efebe9;">' + (x.dq || '') + '</td>'
+                   + '<td style="text-align:right;background:#efebe9;font-weight:bold;">' + (x.n || '') + '</td>'
+                   + '<td style="text-align:right;background:#efebe9;' + (x.diff ? 'color:#c62828;font-weight:bold;' : 'color:#999;') + '">' + (x.diff ? (x.diff > 0 ? '+' + x.diff : x.diff) : '±0') + '</td>'
+                   + '<td style="text-align:right;background:#e8f5e9;color:#2e7d32;font-weight:bold;">' + (x.ordN || '') + '</td>'
+                   + '<td style="text-align:right;background:' + (x.rest > 0 ? '#fff3e0;color:#e65100;font-weight:bold;' : '#e8f5e9;color:#999;') + '">' + (x.rest > 0 ? x.rest : (x.n ? '0' : '')) + '</td>'
+                   + '<td style="text-align:right;background:#e0f2f1;">' + pkY(pkN(x.it.listPrice)) + '</td>'
+                   + '<td style="text-align:right;background:#e0f2f1;">' + pkY(x.lpAmt) + '</td>'
+                   + '<td style="text-align:right;background:#e0f2f1;">' + pkY(pkN(x.it.netPrice)) + '</td>'
+                   + '<td style="text-align:right;background:#eceff1;color:#455a64;">' + pkY(x.npAmtD) + '</td>'
+                   + '<td style="text-align:right;background:#e0f2f1;font-weight:bold;color:#00695c;">' + pkY(x.npAmt) + '</td>'
+                   + '</tr>';
+            });
+            if (b) {
+                b += '<tr class="light-total" style="border-top:2px solid #ef6c00;"><td colspan="4" style="text-align:center;">総合計</td>'
+                   + '<td style="text-align:right;">' + (gDQ || '') + '</td>'
+                   + '<td style="text-align:right;">' + gN + '</td>'
+                   + '<td style="text-align:right;' + ((gN - gDQ) ? 'color:#c62828;' : 'color:#999;') + '">' + ((gN - gDQ) ? ((gN - gDQ) > 0 ? '+' + (gN - gDQ) : (gN - gDQ)) : '±0') + '</td>'
+                   + '<td style="text-align:right;color:#2e7d32;">' + (gOR || '') + '</td>'
+                   + '<td style="text-align:right;' + (gRE > 0 ? 'color:#e65100;' : 'color:#999;') + '">' + (gRE > 0 ? gRE : '0') + '</td>'
+                   + '<td></td>'
+                   + '<td style="text-align:right;">' + pkY(gLP) + '</td>'
+                   + '<td></td>'
+                   + '<td style="text-align:right;color:#455a64;">' + pkY(gND) + '</td>'
+                   + '<td style="text-align:right;color:#00695c;">' + pkY(gNP) + '</td></tr>';
+            }
+            tbody.innerHTML = b || '<tr><td colspan="14" style="text-align:center;padding:1rem;color:#999;">部材を登録すると集計されます</td></tr>';
+        }
+        function pkExportItemsCsv(k) {
+            var lines = [];
+            lines.push(['No'].concat(PK_COLS.map(function (c) { return c.label; })).map(_lightCsvCell).join(','));
+            _pk[k].items.forEach(function (it, i) {
+                lines.push([i + 1].concat(PK_COLS.map(function (c) {
+                    return (c.t === 'calc') ? _lightRateTxt(it.listPrice, it.netPrice) : it[c.f];
+                })).map(_lightCsvCell).join(','));
+            });
+            _lightDownload(PK_DEFS[k].label + '部材登録_' + _lightProjName() + '.csv', lines.join('\n'));
+        }
+        function pkExportSumCsv(k) {
+            var d = PK_DEFS[k], items = _pk[k].items, lines = [];
+            var head = d.circuit ? ['No', '盤名称', '回路No', '階', '室名'] : ['No', '階', '室名'];
+            items.forEach(function (it) { var s = it.symbol || it.name || ''; head.push(s + '(設計)'); head.push(s + '(実行)'); });
+            head = head.concat(['注文済', '注文日', '備考']);
+            lines.push(head.map(_lightCsvCell).join(','));
+            _pk[k].rows.forEach(function (r, i) {
+                var a = d.circuit ? [i + 1, r.panel, r.circuit, r.floor, r.room] : [i + 1, r.floor, r.room];
+                items.forEach(function (it) { a.push((r.counts || {})[it.id] || ''); a.push((r.countsA || {})[it.id] || ''); });
+                a.push(r.ordered ? '○' : ''); a.push(r.orderedDate || ''); a.push(r.remark || '');
+                lines.push(a.map(_lightCsvCell).join(','));
+            });
+            lines.push('');
+            lines.push(['記号', '品名', '型番', 'メーカー', '設計数量', '実行数量', '増減', '注文済数量', '残', '定価', '定価金額', 'NET単価', '設計NET金額', 'NET金額'].map(_lightCsvCell).join(','));
+            pkAggData(k).forEach(function (x) {
+                lines.push([x.it.symbol, x.it.name, x.it.kataban, x.it.maker, x.dq || '', x.n, x.diff, x.ordN, x.rest,
+                            pkN(x.it.listPrice) || '', x.lpAmt || '', pkN(x.it.netPrice) || '', x.npAmtD || '', x.npAmt || ''].map(_lightCsvCell).join(','));
+            });
+            _lightDownload(d.label + '拾い表_' + _lightProjName() + '.csv', lines.join('\n'));
+        }
+
         function switchTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
@@ -6075,6 +6551,10 @@
                 wcInit();
             } else if (tabName === 'qaTab') {
                 qaInit();
+            } else if (tabName === 'outlet') {
+                pkInit('outlet');
+            } else if (tabName === 'wiring') {
+                pkInit('wiring');
             } else if (tabName === 'lighting') {
                 lightInit();
             } else if (tabName === 'siteMaster') {
