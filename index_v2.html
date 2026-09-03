@@ -3035,6 +3035,8 @@
                 <div class="light-sub">
                     <button class="light-viewbtn active" id="pkBtnL_wiring" onclick="pkSwitchView('wiring','list')">部材登録</button>
                     <button class="light-viewbtn" id="pkBtnS_wiring" onclick="pkSwitchView('wiring','sum')">拾い表</button>
+                    <span style="font-size:0.8rem;margin-left:10px;color:#4527a0;font-weight:bold;">工種</span>
+                    <select id="pkKousyu_wiring" onchange="pkSetKousyu('wiring',this.value)" style="font-size:0.8rem;padding:2px 4px;min-width:170px;"></select>
                     <span style="flex:1;"></span>
                     <button class="btn-action" onclick="pkReload('wiring')">&#8635; 再読込</button>
                 </div>
@@ -3044,6 +3046,12 @@
                         <input id="pkSearch_wiring" type="text" placeholder="検索（記号 / 品名 / 型番 / メーカー）" oninput="pkRenderList('wiring')" style="font-size:0.8rem;padding:0.25rem;width:250px;">
                         <span style="flex:1;"></span>
                         <button class="btn-action" onclick="pkExportItemsCsv('wiring')">CSV出力</button>
+                    </div>
+                    <div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:4px;padding:5px 8px;margin-bottom:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <span style="font-size:0.76rem;font-weight:bold;color:#4527a0;white-space:nowrap;">工種マスタ</span>
+                        <span id="pkKsList_wiring"></span>
+                        <input id="pkKsNew_wiring" type="text" placeholder="工種を追加（例：コンセント）" style="font-size:0.78rem;padding:2px 4px;width:190px;" onkeydown="if(event.key==='Enter'){event.preventDefault();pkAddKousyu('wiring');}">
+                        <button class="btn-action" style="background:#4527a0;color:#fff;padding:2px 10px;font-size:0.76rem;" onclick="pkAddKousyu('wiring')">追加</button>
                     </div>
                     <div class="light-wrap">
                         <table class="light-table pk-list" id="pkTable_wiring"><thead id="pkThead_wiring"></thead><tbody id="pkTbody_wiring"></tbody></table>
@@ -6120,6 +6128,7 @@
         };
         var PK_COLS = [
             { f: 'symbol',    label: '記号',     w: 80,  t: 'text' },
+            { f: 'kousyu',    label: '工種',     w: 120, t: 'kousyu' },
             { f: 'name',      label: '品名',     w: 180, t: 'text' },
             { f: 'maker',     label: 'メーカー', w: 110, t: 'text' },
             { f: 'kataban',   label: '型番',     w: 160, t: 'text' },
@@ -6128,7 +6137,7 @@
             { f: 'netRate',   label: '率',       w: 64,  t: 'calc' },
             { f: 'remark',    label: '備考',     w: 160, t: 'text' }
         ];
-        var _pk = { outlet: { items: [], rows: [], pid: null }, wiring: { items: [], rows: [], pid: null } };
+        var _pk = { outlet: { items: [], rows: [], pid: null, kousyuList: [], kousyu: '' }, wiring: { items: [], rows: [], pid: null, kousyuList: [], kousyu: '' } };
         function pkUid(p) { return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
         function pkEsc(v) { return _lightEsc(v); }
         function pkN(v) { return _lightN(v); }
@@ -6183,6 +6192,7 @@
                 _pk[k].items = (r1.data || []).map(function (row) {
                     return { id: row.item_id, no: row.no || 0, symbol: row.symbol || '', name: row.name || '',
                              maker: row.maker || '', kataban: row.kataban || '',
+                             kousyu: row.kousyu || '',
                              listPrice: row.list_price || 0, netPrice: row.net_price || 0, remark: row.remark || '' };
                 });
                 var r2 = await db.from(d.cntT).select('*').eq('project_id', pid).order('no', { ascending: true });
@@ -6193,6 +6203,9 @@
                              counts: row.counts || {}, countsA: row.counts_actual || {},
                              ordered: !!row.ordered, orderedDate: row.ordered_date || '', remark: row.remark || '' };
                 });
+                var r3 = await db.from('lighting_masters').select('*').eq('project_id', pid).eq('kind', 'pkKousyu_' + k);
+                var kl = (r3.data && r3.data[0] && r3.data[0].values) ? r3.data[0].values : [];
+                _pk[k].kousyuList = Array.isArray(kl) ? kl : [];
             } catch (e) {
                 console.error('[PK] load ' + k, e);
                 alert(d.label + 'データの読込に失敗しました。\n' + (e.message || e));
@@ -6203,7 +6216,7 @@
             try {
                 var r = await db.from(d.itemT).upsert({
                     project_id: projectGetCurrent(), item_id: it.id, no: it.no || 0,
-                    symbol: it.symbol || '', name: it.name || '', maker: it.maker || '', kataban: it.kataban || '',
+                    symbol: it.symbol || '', name: it.name || '', maker: it.maker || '', kataban: it.kataban || '', kousyu: it.kousyu || '',
                     list_price: pkN(it.listPrice), net_price: pkN(it.netPrice), remark: it.remark || '',
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'project_id,item_id' });
@@ -6232,7 +6245,7 @@
             pkRenderAll(k);
         }
         function pkReload(k) { _pk[k].pid = null; pkInit(k); }
-        function pkRenderAll(k) { pkRenderList(k); pkRenderSum(k); pkRenderAgg(k); }
+        function pkRenderAll(k) { pkRenderKousyuUI(k); pkRenderList(k); pkRenderSum(k); pkRenderAgg(k); }
         function pkSwitchView(k, v) {
             var l = document.getElementById('pkViewList_' + k), s = document.getElementById('pkViewSum_' + k);
             if (l) l.style.display = (v === 'list') ? '' : 'none';
@@ -6243,17 +6256,65 @@
             pkRenderAll(k);
         }
 
-        function pkNewItem() { return { id: pkUid('pi'), no: 0, symbol: '', name: '', maker: '', kataban: '', listPrice: 0, netPrice: 0, remark: '' }; }
+        function pkNewItem(k) { return { id: pkUid('pi'), no: 0, symbol: '', kousyu: (k && _pk[k] ? (_pk[k].kousyu || '') : ''), name: '', maker: '', kataban: '', listPrice: 0, netPrice: 0, remark: '' }; }
+        async function pkSaveKousyu(k) {
+            try {
+                var r = await db.from('lighting_masters').upsert({ project_id: projectGetCurrent(), kind: 'pkKousyu_' + k, values: _pk[k].kousyuList || [], updated_at: new Date().toISOString() }, { onConflict: 'project_id,kind' });
+                if (r.error) console.error('[PK] kousyu save', r.error);
+            } catch (e) { console.error('[PK] kousyu save ex', e); }
+        }
+        function pkAddKousyu(k) {
+            var el = document.getElementById('pkKsNew_' + k);
+            var v = (el ? el.value : '').trim();
+            if (!v) return;
+            if (!_pk[k].kousyuList) _pk[k].kousyuList = [];
+            if (_pk[k].kousyuList.indexOf(v) < 0) _pk[k].kousyuList.push(v);
+            if (el) el.value = '';
+            pkSaveKousyu(k); pkRenderAll(k);
+        }
+        function pkDelKousyuAt(k, i) {
+            var v = (_pk[k].kousyuList || [])[i];
+            if (v == null) return;
+            var used = _pk[k].items.filter(function (it) { return (it.kousyu || '') === v; }).length;
+            if (used && !confirm('工種「' + v + '」は ' + used + ' 件の部材で使われています。マスタから削除しますか？')) return;
+            _pk[k].kousyuList.splice(i, 1);
+            if (_pk[k].kousyu === v) _pk[k].kousyu = '';
+            pkSaveKousyu(k); pkRenderAll(k);
+        }
+        function pkSetKousyu(k, v) { _pk[k].kousyu = v || ''; pkRenderAll(k); }
+        function pkItemsOf(k) {
+            var f = _pk[k].kousyu || '';
+            if (!f) return _pk[k].items;
+            return _pk[k].items.filter(function (it) { return (it.kousyu || '') === f; });
+        }
+        function pkRenderKousyuUI(k) {
+            var sel = document.getElementById('pkKousyu_' + k);
+            if (sel) {
+                var cur = _pk[k].kousyu || '';
+                var s = '<option value="">（すべての工種）</option>';
+                (_pk[k].kousyuList || []).forEach(function (v) { s += '<option value="' + pkEsc(v) + '"' + (v === cur ? ' selected' : '') + '>' + pkEsc(v) + '</option>'; });
+                sel.innerHTML = s;
+                sel.value = cur;
+            }
+            var box = document.getElementById('pkKsList_' + k);
+            if (box) {
+                var lst = _pk[k].kousyuList || [];
+                box.innerHTML = lst.length ? lst.map(function (v, i) {
+                    return '<span style="display:inline-flex;align-items:center;gap:3px;background:#ede7f6;border:1px solid #b39ddb;border-radius:10px;padding:1px 4px 1px 8px;margin:0 4px 3px 0;font-size:0.74rem;">' + pkEsc(v)
+                         + '<button class="btn-delete" style="padding:0 4px;font-size:0.68rem;line-height:1.2;" title="削除" onclick="pkDelKousyuAt(\'' + k + '\',' + i + ')">×</button></span>';
+                }).join('') : '<span style="color:#999;font-size:0.74rem;">未登録</span>';
+            }
+        }
         function pkAddItem(k) {
             var mx = 0; _pk[k].items.forEach(function (x) { if (x.no > mx) mx = x.no; });
-            var it = pkNewItem(); it.no = mx + 1;
+            var it = pkNewItem(k); it.no = mx + 1;
             _pk[k].items.push(it); pkUpsertItem(k, it); pkRenderAll(k);
         }
         function pkInsertItemAfter(k, id) {
             var list = _pk[k].items, i = -1;
             for (var j = 0; j < list.length; j++) { if (list[j].id === id) { i = j; break; } }
             if (i < 0) return;
-            list.splice(i + 1, 0, pkNewItem());
+            list.splice(i + 1, 0, pkNewItem(k));
             list.forEach(function (x, n) { x.no = n + 1; pkUpsertItem(k, x); });
             pkRenderAll(k);
         }
@@ -6263,6 +6324,7 @@
             if (field === 'listPrice' || field === 'netPrice') it[field] = _lightNC(value); else it[field] = value;
             pkUpsertItem(k, it);
             if (field === 'listPrice' || field === 'netPrice') pkRenderList(k);
+            if (field === 'kousyu') { pkRenderAll(k); return; }
             if (field === 'symbol' || field === 'name' || field === 'kataban') pkRenderSum(k);
             pkRenderAgg(k);
         }
@@ -6281,7 +6343,7 @@
             thead.innerHTML = h;
             var el = document.getElementById('pkSearch_' + k);
             var q = (el ? el.value : '').trim().toLowerCase();
-            var list = _pk[k].items.filter(function (it) {
+            var list = pkItemsOf(k).filter(function (it) {
                 if (!q) return true;
                 return ((it.symbol || '') + ' ' + (it.name || '') + ' ' + (it.kataban || '') + ' ' + (it.maker || '')).toLowerCase().indexOf(q) >= 0;
             });
@@ -6293,7 +6355,9 @@
                 PK_COLS.forEach(function (c) {
                     var v = it[c.f];
                     var cb = 'pkItemChange(\'' + k + '\',\'' + it.id + '\',\'' + c.f + '\',this.value)';
-                    if (c.t === 'price') {
+                    if (c.t === 'kousyu') {
+                        b += '<td style="background:#f3e5f5;"><select onchange="' + cb + '">' + pkOpts(_pk[k].kousyuList || [], v) + '</select></td>';
+                    } else if (c.t === 'price') {
                         b += '<td class="light-num" style="background:#e8f5e9;"><input type="text" inputmode="numeric" value="' + _lightFmt(v) + '" onchange="' + cb + '"></td>';
                     } else if (c.t === 'calc') {
                         b += '<td style="text-align:right;background:#e0f2f1;color:#00695c;font-weight:bold;">' + _lightRateTxt(it.listPrice, it.netPrice) + '</td>';
@@ -6356,7 +6420,7 @@
         function pkRenderSum(k) {
             var thead = document.getElementById('pkSumThead_' + k), tbody = document.getElementById('pkSumTbody_' + k);
             if (!thead || !tbody) return;
-            var d = PK_DEFS[k], items = _pk[k].items;
+            var d = PK_DEFS[k], items = pkItemsOf(k);
             var fixed = d.circuit ? ['No', '盤名称', '回路No', '階', '室名'] : ['No', '階', '室名'];
             var fw = { 'No': 40, '盤名称': 110, '回路No': 80, '階': 80, '室名': 150 };
             var h = '<tr><th rowspan="2" style="width:28px;"><input type="checkbox" style="width:auto;" title="全選択" onclick="pkToggleAll(\'' + k + '\',this.checked)"></th>';
@@ -6405,7 +6469,7 @@
 
         function pkAggData(k) {
             var out = [];
-            _pk[k].items.forEach(function (it) {
+            pkItemsOf(k).forEach(function (it) {
                 var dq = 0, n = 0, ordN = 0;
                 _pk[k].rows.forEach(function (r) {
                     dq += pkN((r.counts || {})[it.id]);
@@ -6423,7 +6487,7 @@
             var thead = document.getElementById('pkAggThead_' + k), tbody = document.getElementById('pkAggTbody_' + k);
             if (!thead || !tbody) return;
             thead.innerHTML = '<tr>'
-                + '<th style="min-width:80px;">記号</th><th style="min-width:170px;">品名</th>'
+                + '<th style="min-width:80px;">記号</th><th style="min-width:110px;">工種</th><th style="min-width:170px;">品名</th>'
                 + '<th style="min-width:150px;">型番</th><th style="min-width:100px;">メーカー</th>'
                 + '<th style="min-width:74px;background:#5d4037;">設計数量</th>'
                 + '<th style="min-width:74px;background:#5d4037;">実行数量</th>'
@@ -6441,6 +6505,7 @@
                 gDQ += x.dq; gN += x.n; gOR += x.ordN; gRE += x.rest; gLP += x.lpAmt; gNP += x.npAmt; gND += x.npAmtD;
                 b += '<tr>'
                    + '<td style="text-align:center;font-weight:bold;">' + pkEsc(x.it.symbol) + '</td>'
+                   + '<td style="background:#f3e5f5;">' + pkEsc(x.it.kousyu) + '</td>'
                    + '<td>' + pkEsc(x.it.name) + '</td>'
                    + '<td>' + pkEsc(x.it.kataban) + '</td>'
                    + '<td>' + pkEsc(x.it.maker) + '</td>'
@@ -6457,7 +6522,7 @@
                    + '</tr>';
             });
             if (b) {
-                b += '<tr class="light-total" style="border-top:2px solid #ef6c00;"><td colspan="4" style="text-align:center;">総合計</td>'
+                b += '<tr class="light-total" style="border-top:2px solid #ef6c00;"><td colspan="5" style="text-align:center;">総合計</td>'
                    + '<td style="text-align:right;">' + (gDQ || '') + '</td>'
                    + '<td style="text-align:right;">' + gN + '</td>'
                    + '<td style="text-align:right;' + ((gN - gDQ) ? 'color:#c62828;' : 'color:#999;') + '">' + ((gN - gDQ) ? ((gN - gDQ) > 0 ? '+' + (gN - gDQ) : (gN - gDQ)) : '±0') + '</td>'
@@ -6469,12 +6534,12 @@
                    + '<td style="text-align:right;color:#455a64;">' + pkY(gND) + '</td>'
                    + '<td style="text-align:right;color:#00695c;">' + pkY(gNP) + '</td></tr>';
             }
-            tbody.innerHTML = b || '<tr><td colspan="14" style="text-align:center;padding:1rem;color:#999;">部材を登録すると集計されます</td></tr>';
+            tbody.innerHTML = b || '<tr><td colspan="15" style="text-align:center;padding:1rem;color:#999;">部材を登録すると集計されます</td></tr>';
         }
         function pkExportItemsCsv(k) {
             var lines = [];
             lines.push(['No'].concat(PK_COLS.map(function (c) { return c.label; })).map(_lightCsvCell).join(','));
-            _pk[k].items.forEach(function (it, i) {
+            pkItemsOf(k).forEach(function (it, i) {
                 lines.push([i + 1].concat(PK_COLS.map(function (c) {
                     return (c.t === 'calc') ? _lightRateTxt(it.listPrice, it.netPrice) : it[c.f];
                 })).map(_lightCsvCell).join(','));
@@ -6482,7 +6547,7 @@
             _lightDownload(PK_DEFS[k].label + '部材登録_' + _lightProjName() + '.csv', lines.join('\n'));
         }
         function pkExportSumCsv(k) {
-            var d = PK_DEFS[k], items = _pk[k].items, lines = [];
+            var d = PK_DEFS[k], items = pkItemsOf(k), lines = [];
             var head = d.circuit ? ['No', '盤名称', '回路No', '階', '室名'] : ['No', '階', '室名'];
             items.forEach(function (it) { var s = it.symbol || it.name || ''; head.push(s + '(設計)'); head.push(s + '(実行)'); });
             head = head.concat(['注文済', '注文日', '備考']);
@@ -6494,9 +6559,9 @@
                 lines.push(a.map(_lightCsvCell).join(','));
             });
             lines.push('');
-            lines.push(['記号', '品名', '型番', 'メーカー', '設計数量', '実行数量', '増減', '注文済数量', '残', '定価', '定価金額', 'NET単価', '設計NET金額', 'NET金額'].map(_lightCsvCell).join(','));
+            lines.push(['記号', '工種', '品名', '型番', 'メーカー', '設計数量', '実行数量', '増減', '注文済数量', '残', '定価', '定価金額', 'NET単価', '設計NET金額', 'NET金額'].map(_lightCsvCell).join(','));
             pkAggData(k).forEach(function (x) {
-                lines.push([x.it.symbol, x.it.name, x.it.kataban, x.it.maker, x.dq || '', x.n, x.diff, x.ordN, x.rest,
+                lines.push([x.it.symbol, x.it.kousyu, x.it.name, x.it.kataban, x.it.maker, x.dq || '', x.n, x.diff, x.ordN, x.rest,
                             pkN(x.it.listPrice) || '', x.lpAmt || '', pkN(x.it.netPrice) || '', x.npAmtD || '', x.npAmt || ''].map(_lightCsvCell).join(','));
             });
             _lightDownload(d.label + '拾い表_' + _lightProjName() + '.csv', lines.join('\n'));
@@ -6515,7 +6580,7 @@
         function _pkOrderLines(k, rowIds) {
             var rows = _pk[k].rows.filter(function (r) { return rowIds.indexOf(r.id) >= 0; });
             var out = [];
-            _pk[k].items.forEach(function (it) {
+            pkItemsOf(k).forEach(function (it) {
                 var n = 0, places = [];
                 rows.forEach(function (r) {
                     var c = pkN((r.countsA || {})[it.id]);
