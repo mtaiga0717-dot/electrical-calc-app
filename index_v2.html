@@ -6342,6 +6342,10 @@
             mask.innerHTML = '<div style="background:#fff;border-radius:6px;width:min(360px,92vw);max-height:80vh;overflow:auto;padding:0.9rem 1rem;">'
                 + '<h4 style="margin:0 0 0.2rem;">工種の選択</h4>'
                 + '<div style="font-size:0.76rem;color:#666;margin-bottom:0.5rem;">' + pkEsc((it.symbol || '') + ' ' + (it.name || '')) + '</div>'
+                + '<div style="display:flex;gap:6px;margin-bottom:6px;">'
+                + '<button class="btn-action" style="padding:2px 10px;font-size:0.76rem;" onclick="pkKsPickAll(true)">すべて選択</button>'
+                + '<button class="btn-action" style="padding:2px 10px;font-size:0.76rem;" onclick="pkKsPickAll(false)">すべて解除</button>'
+                + '</div>'
                 + body
                 + '<div style="font-size:0.72rem;color:#888;margin-top:0.5rem;">複数選ぶと、工種ごとに別々の列・別々の集計になります。</div>'
                 + '<div style="margin-top:0.8rem;display:flex;gap:0.5rem;justify-content:flex-end;">'
@@ -6349,6 +6353,9 @@
                 + '<button class="btn-action" style="background:#4527a0;color:#fff;" onclick="pkApplyKsPicker(\'' + k + '\',\'' + id + '\')">決定</button>'
                 + '</div></div>';
             document.body.appendChild(mask);
+        }
+        function pkKsPickAll(on) {
+            Array.prototype.forEach.call(document.querySelectorAll('#pkKsMask input.pk-kspick'), function (cb) { cb.checked = !!on; });
         }
         function pkCloseKsPicker() { var m = document.getElementById('pkKsMask'); if (m) m.parentNode.removeChild(m); }
         function pkApplyKsPicker(k, id) {
