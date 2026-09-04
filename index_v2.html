@@ -6271,15 +6271,13 @@
         }
         async function pkInit(k) {
             var pid = projectGetCurrent();
-            var now = Date.now();
-            if (_pk[k].pid === pid && _pk[k].loadedAt && (now - _pk[k].loadedAt) < 8000) { pkRenderAll(k); return; }
+            if (_pk[k].pid === pid) { pkRenderAll(k); return; }
             _pk[k].pid = pid;
-            _pk[k].loadedAt = now;
             await pkLoadPanels();
             await pkLoad(k);
             pkRenderAll(k);
         }
-        function pkReload(k) { _pk[k].pid = null; _pk[k].loadedAt = 0; pkInit(k); }
+        function pkReload(k) { _pk[k].pid = null; pkInit(k); }
         function pkRenderAll(k) { pkRenderKousyuUI(k); pkRenderList(k); pkRenderSum(k); pkRenderAgg(k); }
         function pkSwitchView(k, v) {
             var l = document.getElementById('pkViewList_' + k), s = document.getElementById('pkViewSum_' + k);
