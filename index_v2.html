@@ -6223,8 +6223,10 @@
                 alert(d.label + 'データの読込に失敗しました。\n' + (e.message || e));
             }
         }
+        var _pkDeleted = {};
         async function pkUpsertItem(k, it) {
             var d = PK_DEFS[k];
+            if (_pkDeleted['i:' + k + ':' + it.id]) return;
             try {
                 var r = await db.from(d.itemT).upsert({
                     project_id: projectGetCurrent(), item_id: it.id, no: it.no || 0,
@@ -6237,6 +6239,7 @@
         }
         async function pkUpsertRow(k, row) {
             var d = PK_DEFS[k];
+            if (_pkDeleted['r:' + k + ':' + row.id]) return;
             try {
                 var p = { project_id: projectGetCurrent(), row_id: row.id, no: row.no || 0,
                           floor: row.floor || '', room: row.room || '',
@@ -6453,11 +6456,19 @@
             if (field === 'symbol' || field === 'name' || field === 'kataban') pkRenderSum(k);
             pkRenderAgg(k);
         }
-        function pkDelItem(k, id) {
+        async function pkDelItem(k, id) {
             if (!confirm('この部材を削除しますか？（拾い表の数量も消えます）')) return;
+            _pkDeleted['i:' + k + ':' + id] = true;
             _pk[k].items = _pk[k].items.filter(function (x) { return x.id !== id; });
-            db.from(PK_DEFS[k].itemT).delete().eq('project_id', projectGetCurrent()).eq('item_id', id);
             pkRenderAll(k);
+            var pid = projectGetCurrent();
+            try {
+                var r = await db.from(PK_DEFS[k].itemT).delete().eq('project_id', pid).eq('item_id', id);
+                if (r.error) { alert('削除の保存に失敗しました。\n' + r.error.message); _pkDeleted['i:' + k + ':' + id] = false; return; }
+            } catch (e) { alert('削除の保存に失敗しました。\n' + (e.message || e)); _pkDeleted['i:' + k + ':' + id] = false; return; }
+            setTimeout(function () {
+                try { db.from(PK_DEFS[k].itemT).delete().eq('project_id', pid).eq('item_id', id); } catch (e) {}
+            }, 2000);
         }
         function pkRenderList(k) {
             var thead = document.getElementById('pkThead_' + k), tbody = document.getElementById('pkTbody_' + k);
@@ -6517,11 +6528,19 @@
             list.forEach(function (x, n) { x.no = n + 1; pkUpsertRow(k, x); });
             pkRenderSum(k); pkRenderAgg(k);
         }
-        function pkDelRow(k, id) {
+        async function pkDelRow(k, id) {
             if (!confirm('この行を削除しますか？')) return;
+            _pkDeleted['r:' + k + ':' + id] = true;
             _pk[k].rows = _pk[k].rows.filter(function (x) { return x.id !== id; });
-            db.from(PK_DEFS[k].cntT).delete().eq('project_id', projectGetCurrent()).eq('row_id', id);
             pkRenderSum(k); pkRenderAgg(k);
+            var pid = projectGetCurrent();
+            try {
+                var r = await db.from(PK_DEFS[k].cntT).delete().eq('project_id', pid).eq('row_id', id);
+                if (r.error) { alert('削除の保存に失敗しました。\n' + r.error.message); _pkDeleted['r:' + k + ':' + id] = false; return; }
+            } catch (e) { alert('削除の保存に失敗しました。\n' + (e.message || e)); _pkDeleted['r:' + k + ':' + id] = false; return; }
+            setTimeout(function () {
+                try { db.from(PK_DEFS[k].cntT).delete().eq('project_id', pid).eq('row_id', id); } catch (e) {}
+            }, 2000);
         }
         function pkRowChange(k, id, field, value) {
             var r = _pk[k].rows.filter(function (x) { return x.id === id; })[0];
