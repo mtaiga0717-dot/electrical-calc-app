@@ -7194,8 +7194,22 @@
             });
             return out;
         }
-        function rkNewItem(name1) {
-            return { id: rkUid('rk'), no: 0, name1: name1 || '', name2: '', hinban: '', maker: '', grp: RK_GROUPS[0], listPrice: 0, netPrice: 0, remark: '' };
+        function rkNewItem(name1, maker, grp) {
+            return { id: rkUid('rk'), no: 0, name1: name1 || '', name2: '', hinban: '', maker: maker || '', grp: (RK_GROUPS.indexOf(grp) >= 0) ? grp : RK_GROUPS[0], listPrice: 0, netPrice: 0, remark: '' };
+        }
+        function rkLastOf(name1, field) {
+            var v = '';
+            _rk.items.forEach(function (it) { if (!name1 || (it.name1 || '(未分類)') === name1) { if (it[field]) v = it[field]; } });
+            if (!v) _rk.items.forEach(function (it) { if (it[field]) v = it[field]; });
+            return v;
+        }
+        function rkSetGroupMaker(name1, v) {
+            if (!v) return;
+            var n = 0;
+            _rk.items.forEach(function (it) {
+                if ((it.name1 || '(未分類)') === name1 && it.maker !== v) { it.maker = v; rkUpsertItem(it); n++; }
+            });
+            rkRenderAll();
         }
         function rkRenumber() { _rk.items.forEach(function (x, n) { x.no = n + 1; rkUpsertItem(x); }); }
         function rkAddGroup() {
@@ -7203,7 +7217,7 @@
             var v = (el ? el.value : '').trim();
             if (!v) { alert('品名1を入力してください。'); return; }
             if (el) el.value = '';
-            var it = rkNewItem(v);
+            var it = rkNewItem(v, rkLastOf('', 'maker'));
             _rk.items.push(it);
             rkRenumber();
             rkRenderAll();
@@ -7211,7 +7225,7 @@
         function rkAddItemTo(name1) {
             var idx = -1;
             for (var i = _rk.items.length - 1; i >= 0; i--) { if ((_rk.items[i].name1 || '(未分類)') === name1) { idx = i; break; } }
-            var it = rkNewItem(name1 === '(未分類)' ? '' : name1);
+            var it = rkNewItem(name1 === '(未分類)' ? '' : name1, rkLastOf(name1, 'maker'), rkLastOf(name1, 'grp'));
             if (idx >= 0) _rk.items.splice(idx + 1, 0, it); else _rk.items.push(it);
             rkRenumber();
             rkRenderAll();
@@ -7277,6 +7291,8 @@
                    + '<span style="font-size:0.72rem;color:#00695c;font-weight:bold;margin-right:6px;">品名1</span>'
                    + '<input type="text" value="' + rkEsc(g.name1) + '" style="width:auto;min-width:240px;font-weight:bold;color:#004d40;background:#fff;border:1px solid #80cbc4;" onchange="rkRenameGroup(\'' + gn + '\',this.value)">'
                    + ' <button class="btn-action" style="background:#00838f;color:#fff;padding:1px 8px;font-size:0.72rem;" onclick="rkAddItemTo(\'' + gn + '\')">＋ 品名2を追加</button>'
+                   + ' <span style="font-size:0.7rem;color:#00695c;margin-left:8px;">メーカー一括</span>'
+                   + ' <select style="width:auto;font-size:0.74rem;background:#fff;border:1px solid #80cbc4;" onchange="rkSetGroupMaker(\'' + gn + '\',this.value);this.selectedIndex=0;"><option value="">選択…</option>' + rkOpts(pkMakerList(), '').replace('<option value=""></option>', '') + '</select>'
                    + ' <button class="btn-delete" style="font-size:0.72rem;padding:1px 7px;" onclick="rkDelGroup(\'' + gn + '\')">グループ削除</button>'
                    + '</td></tr>';
                 g.items.forEach(function (it) {
