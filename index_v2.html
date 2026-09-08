@@ -1522,6 +1522,8 @@
         .rk-list tbody tr.rk-grp td { position:sticky; top:22px; z-index:4; background:#e0f2f1 !important; box-shadow:0 1px 0 #80cbc4, 0 -1px 0 #80cbc4; }
         #rkTable2 thead th { background:#5d4037; border-color:#4e342e; }
         #rkTable2 tbody tr.rk-grp td { background:#efebe9 !important; box-shadow:0 1px 0 #bcaaa4, 0 -1px 0 #bcaaa4; }
+        #rkTable3 thead th { background:#33691e; border-color:#1b5e20; }
+        #rkTable3 tbody tr.rk-grp td { background:#f1f8e9 !important; box-shadow:0 1px 0 #aed581, 0 -1px 0 #aed581; }
         .rk-sum thead th { padding:2px 3px; line-height:16px; }
         .rk-sum thead tr:first-child th { position:sticky; top:0; z-index:4; box-shadow:0 1px 0 #d84315; }
         .rk-sum thead tr:nth-child(2) th { position:sticky; top:22px; z-index:4; box-shadow:0 1px 0 #d84315; }
@@ -3106,6 +3108,15 @@
                     <div class="light-wrap pk-wrap-half">
                         <table class="light-table rk-list" id="rkTable2"><thead id="rkThead2"></thead><tbody id="rkTbody2"></tbody></table>
                     </div>
+                    <div style="font-size:0.8rem;font-weight:bold;color:#33691e;margin:10px 0 3px;">■ 支持材</div>
+                    <div class="light-sub" style="margin:0 0 4px;">
+                        <select id="rkNewGroup3" style="font-size:0.82rem;padding:0.25rem;width:250px;"></select>
+                        <button class="btn-action" style="background:#33691e;color:#fff;" onclick="rkAddGroup('支持材')">＋ 支持材に品名1グループを追加</button>
+                        <span style="flex:1;"></span>
+                    </div>
+                    <div class="light-wrap pk-wrap-half">
+                        <table class="light-table rk-list" id="rkTable3"><thead id="rkThead3"></thead><tbody id="rkTbody3"></tbody></table>
+                    </div>
                 </div>
                 <div id="rkViewSum" style="display:none;">
                     <div class="light-sub">
@@ -3122,6 +3133,10 @@
                     <div style="font-size:0.8rem;font-weight:bold;color:#5d4037;margin:8px 0 3px;">■ 付属品</div>
                     <div class="light-wrap pk-wrap-half">
                         <table class="light-table rk-sum" id="rkSumTable2"><thead id="rkSumThead2"></thead><tbody id="rkSumTbody2"></tbody></table>
+                    </div>
+                    <div style="font-size:0.8rem;font-weight:bold;color:#33691e;margin:8px 0 3px;">■ 支持材</div>
+                    <div class="light-wrap pk-wrap-half">
+                        <table class="light-table rk-sum" id="rkSumTable3"><thead id="rkSumThead3"></thead><tbody id="rkSumTbody3"></tbody></table>
                     </div>
                     <h4 style="margin:0.8rem 0 0.3rem;">品名別集計</h4>
                     <div class="light-wrap">
@@ -7080,7 +7095,7 @@
 
 
         /* ================= ケーブルラック集計表 ================= */
-        var RK_GROUPS = ['本体', '付属品'];
+        var RK_GROUPS = ['本体', '付属品', '支持材'];
         function rkGrpOf(it) { var g = it && it.grp ? String(it.grp) : ''; return (RK_GROUPS.indexOf(g) >= 0) ? g : RK_GROUPS[0]; }
         var _rk = { items: [], rows: [], subs: [], pid: null, loadedAt: 0, view: 'list' };
         var _rkDeleted = {};
@@ -7245,14 +7260,17 @@
             return s;
         }
         function rkFillBaseSel() {
-            var sel = document.getElementById('rkNewGroup2');
-            if (!sel || sel.tagName !== 'SELECT') return;
-            var cur = sel.value, names = rkBaseNames();
-            var s = '<option value="">本体の品名1から選択…</option>';
-            names.forEach(function (m) { s += '<option value="' + rkEsc(m) + '">' + rkEsc(m) + '</option>'; });
-            s += '<option value="__free">（その他：本体に紐づけず入力）</option>';
-            sel.innerHTML = s;
-            if (cur && (names.indexOf(cur) >= 0 || cur === '__free')) sel.value = cur;
+            var names = rkBaseNames();
+            ['2', '3'].forEach(function (sfx) {
+                var sel = document.getElementById('rkNewGroup' + sfx);
+                if (!sel || sel.tagName !== 'SELECT') return;
+                var cur = sel.value;
+                var s = '<option value="">本体の品名1から選択…</option>';
+                names.forEach(function (m) { s += '<option value="' + rkEsc(m) + '">' + rkEsc(m) + '</option>'; });
+                s += '<option value="__free">（その他：本体に紐づけず入力）</option>';
+                sel.innerHTML = s;
+                if (cur && (names.indexOf(cur) >= 0 || cur === '__free')) sel.value = cur;
+            });
         }
         function rkGroups(grp) {
             var order = [], map = {};
@@ -7262,7 +7280,7 @@
                 if (!map[g]) { map[g] = { name1: g, items: [] }; order.push(map[g]); }
                 map[g].items.push(it);
             });
-            if (grp === RK_GROUPS[1]) {
+            if (grp && grp !== RK_GROUPS[0]) {
                 var base = rkBaseNames();
                 order = order.map(function (g, i) {
                     var p = base.indexOf(g.name1);
@@ -7273,7 +7291,7 @@
         }
         function rkCols(grp) {
             var out = [];
-            if (!grp) { return [].concat(rkCols(RK_GROUPS[0]), rkCols(RK_GROUPS[1])); }
+            if (!grp) { return [].concat(rkCols(RK_GROUPS[0]), rkCols(RK_GROUPS[1]), rkCols(RK_GROUPS[2])); }
             rkGroups(grp).forEach(function (g) {
                 g.items.forEach(function (it) { out.push({ key: it.id, it: it, g: g.name1 }); });
             });
@@ -7305,10 +7323,11 @@
         }
         function rkRenumber() { _rk.items.forEach(function (x, n) { x.no = n + 1; rkUpsertItem(x); }); }
         function rkAddGroup(grp) {
-            var sfx = (grp === RK_GROUPS[1]) ? '2' : '';
+            var gi = RK_GROUPS.indexOf(grp);
+            var sfx = (gi > 0) ? String(gi + 1) : '';
             var el = document.getElementById('rkNewGroup' + sfx);
             var v = (el ? el.value : '').trim();
-            if (grp === RK_GROUPS[1]) {
+            if (grp !== RK_GROUPS[0]) {
                 if (v === '__free') {
                     v = String(prompt('本体に紐づけない品名1を入力してください', '') || '').trim();
                     if (!v) { if (el) el.value = ''; return; }
@@ -7316,7 +7335,7 @@
                     if (!rkBaseNames().length) { alert('先に本体の品名1グループを登録してください。付属品の品名1は本体から選びます。'); return; }
                     alert('本体の品名1を選択してください。'); return;
                 }
-                var exists = rkGroups(RK_GROUPS[1]).filter(function (g) { return g.name1 === v; })[0];
+                var exists = rkGroups(grp).filter(function (g) { return g.name1 === v; })[0];
                 if (exists) { if (el) el.value = ''; rkAddItemTo(v, grp); return; }
             } else if (!v) { alert('品名1を入力してください。'); return; }
             if (el) el.value = '';
@@ -7334,6 +7353,15 @@
             rkRenumber();
             rkRenderAll();
         }
+        function rkInsertItemAfter(id) {
+            var list = _rk.items, i = -1;
+            for (var j = 0; j < list.length; j++) { if (list[j].id === id) { i = j; break; } }
+            if (i < 0) return;
+            var src = list[i];
+            list.splice(i + 1, 0, rkNewItem(src.name1 || '', src.maker || '', rkGrpOf(src)));
+            rkRenumber();
+            rkRenderAll();
+        }
         function rkRenameGroup(oldName, grp, nv) {
             nv = String(nv == null ? '' : nv).trim();
             if (!nv || nv === oldName) { rkRenderList(); return; }
@@ -7343,7 +7371,7 @@
             });
             if (grp === RK_GROUPS[0]) {
                 _rk.items.forEach(function (it) {
-                    if (rkGrpOf(it) !== RK_GROUPS[1]) return;
+                    if (rkGrpOf(it) === RK_GROUPS[0]) return;
                     if ((it.name1 || '(未分類)') === oldName) { it.name1 = nv; rkUpsertItem(it); }
                 });
             }
@@ -7363,7 +7391,7 @@
         function rkMoveItem(id) {
             var it = _rk.items.filter(function (x) { return x.id === id; })[0];
             if (!it) return;
-            it.grp = (rkGrpOf(it) === RK_GROUPS[0]) ? RK_GROUPS[1] : RK_GROUPS[0];
+            it.grp = RK_GROUPS[(RK_GROUPS.indexOf(rkGrpOf(it)) + 1) % RK_GROUPS.length];
             rkUpsertItem(it);
             rkRenderAll();
         }
@@ -7400,14 +7428,14 @@
                 + '<th style="min-width:92px;">NET単価</th>'
                 + '<th style="min-width:64px;">率</th>'
                 + '<th style="min-width:150px;">備考</th>'
-                + '<th style="width:70px;">操作</th></tr>';
-            var other = (grp === RK_GROUPS[0]) ? RK_GROUPS[1] : RK_GROUPS[0];
+                + '<th style="width:98px;">操作</th></tr>';
+            var other = RK_GROUPS[(RK_GROUPS.indexOf(grp) + 1) % RK_GROUPS.length];
             var b = '', n = 0;
             rkGroups(grp).forEach(function (g) {
                 var gn = g.name1.replace(/'/g, '&#39;');
                 b += '<tr class="rk-grp"><td colspan="9" style="background:#e0f2f1;">'
                    + '<span style="font-size:0.72rem;color:#00695c;font-weight:bold;margin-right:6px;">品名1</span>'
-                   + ((grp === RK_GROUPS[1])
+                   + ((grp !== RK_GROUPS[0])
                         ? ('<select style="width:auto;min-width:230px;font-weight:bold;color:#4e342e;background:#fff;border:1px solid #bcaaa4;" onchange="rkRenameGroup(\'' + gn + '\',\'' + grp + '\',this.value)">' + rkBaseOpts(g.name1) + '</select>'
                            + (rkIsLinked(g.name1)
                                 ? ' <span style="font-size:0.7rem;color:#2e7d32;">🔗 本体と紐付け</span>'
@@ -7432,6 +7460,7 @@
                        + '<td style="text-align:right;background:#e0f2f1;color:#00695c;font-weight:bold;">' + _lightRateTxt(it.listPrice, it.netPrice) + '</td>'
                        + '<td><input type="text" value="' + rkEsc(it.remark) + '" onchange="' + cb('remark') + '"></td>'
                        + '<td style="text-align:center;white-space:nowrap;">'
+                       + '<button class="light-ins" title="この行の下に品名2を挿入" onclick="rkInsertItemAfter(\'' + it.id + '\')">＋</button> '
                        + '<button class="light-ins" title="' + other + 'へ移動" onclick="rkMoveItem(\'' + it.id + '\')">⇄</button> '
                        + '<button class="btn-delete" onclick="rkDelItem(\'' + it.id + '\')">×</button></td>'
                        + '</tr>';
@@ -7444,6 +7473,7 @@
         function rkRenderList() {
             rkRenderListTable(RK_GROUPS[0], '');
             rkRenderListTable(RK_GROUPS[1], '2');
+            rkRenderListTable(RK_GROUPS[2], '3');
             rkFillBaseSel();
         }
         function rkNewRow() { return { id: rkUid('rr'), no: 0, floor: '', sub: '', counts: {}, countsA: {}, ordered: false, orderedDate: '', remark: '' }; }
@@ -7553,8 +7583,9 @@
         function rkRenderSum() {
             var n1 = rkRenderSumTable(RK_GROUPS[0], '');
             var n2 = rkRenderSumTable(RK_GROUPS[1], '2');
+            var n3 = rkRenderSumTable(RK_GROUPS[2], '3');
             var inf = document.getElementById('rkInfo');
-            if (inf) inf.textContent = _rk.rows.length + ' 行 / 本体 ' + n1 + ' 列・付属品 ' + n2 + ' 列';
+            if (inf) inf.textContent = _rk.rows.length + ' 行 / 本体 ' + n1 + ' 列・付属品 ' + n2 + ' 列・支持材 ' + n3 + ' 列';
         }
         function rkAggData() {
             var out = [];
