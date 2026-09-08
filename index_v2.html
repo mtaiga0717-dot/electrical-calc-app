@@ -7538,8 +7538,8 @@
             return out;
         }
         function rkPickLabel(it) {
-            var hb = (it.hinban || '').trim(), n1 = (it.name1 || '(未分類)').trim();
-            return hb ? (hb + '（' + n1 + '）') : n1;
+            var hb = (it.hinban || '').trim();
+            return hb ? hb : ((it.name1 || '(未分類)').trim());
         }
         function rkPickOf(r, mc) {
             for (var i = 0; i < mc.items.length; i++) { if (rkN((r.counts || {})[mc.items[i].id])) return mc.items[i].id; }
