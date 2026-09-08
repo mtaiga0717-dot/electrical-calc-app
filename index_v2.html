@@ -7488,9 +7488,9 @@
             if (!r) return;
             if (!r.counts) r.counts = {};
             if (!r.countsA) r.countsA = {};
-            var store = (kind === 'a') ? r.countsA : r.counts;
+            var stores = (kind === 'b') ? [r.counts, r.countsA] : [((kind === 'a') ? r.countsA : r.counts)];
             var n = rkN(value);
-            if (n) store[key] = n; else delete store[key];
+            stores.forEach(function (store) { if (n) store[key] = n; else delete store[key]; });
             rkUpsertRow(r);
             rkRenderAgg();
         }
@@ -7502,29 +7502,27 @@
             if (!thead || !tbody) return 0;
             var groups = rkGroups(grp), cols = rkCols(grp), main = (sfx === '');
             var h = '<tr>';
-            if (main) h += '<th rowspan="3" style="width:28px;"><input type="checkbox" style="width:auto;" title="全選択" onclick="rkToggleAll(this.checked)"></th>';
-            h += '<th rowspan="3" style="min-width:40px;">No</th>'
-               + '<th rowspan="3" style="min-width:80px;">階</th>'
-               + '<th rowspan="3" style="min-width:120px;">小区分</th>';
+            if (main) h += '<th rowspan="2" style="width:28px;"><input type="checkbox" style="width:auto;" title="全選択" onclick="rkToggleAll(this.checked)"></th>';
+            h += '<th rowspan="2" style="min-width:40px;">No</th>'
+               + '<th rowspan="2" style="min-width:80px;">階</th>'
+               + '<th rowspan="2" style="min-width:120px;">小区分</th>';
             groups.forEach(function (g) {
-                h += '<th colspan="' + (g.items.length * 2) + '" class="rk-g1">' + rkEsc(g.name1) + '</th>';
+                h += '<th colspan="' + g.items.length + '" class="rk-g1">' + rkEsc(g.name1) + '</th>';
             });
-            if (!cols.length) h += '<th rowspan="3" style="min-width:230px;color:#ffe0b2;font-weight:normal;">（この区分の部材が未登録です）</th>';
+            if (!cols.length) h += '<th rowspan="2" style="min-width:230px;color:#ffe0b2;font-weight:normal;">（この区分の部材が未登録です）</th>';
             if (main) {
-                h += '<th rowspan="3" style="min-width:60px;background:#2e7d32;">注文済</th>'
-                   + '<th rowspan="3" style="min-width:112px;background:#2e7d32;">注文日</th>'
-                   + '<th rowspan="3" style="min-width:130px;">備考</th>'
-                   + '<th rowspan="3" style="width:36px;">削除</th>';
+                h += '<th rowspan="2" style="min-width:60px;background:#2e7d32;">注文済</th>'
+                   + '<th rowspan="2" style="min-width:112px;background:#2e7d32;">注文日</th>'
+                   + '<th rowspan="2" style="min-width:130px;">備考</th>'
+                   + '<th rowspan="2" style="width:36px;">削除</th>';
             }
             h += '</tr><tr>';
             cols.forEach(function (c) {
-                h += '<th colspan="2" title="' + rkEsc((c.it.hinban || '') + ' / ' + (c.it.maker || '')) + '" style="min-width:96px;">' + rkEsc(c.it.name2 || '(品名2なし)') + '</th>';
+                h += '<th title="' + rkEsc((c.it.hinban || '') + ' / ' + (c.it.maker || '')) + '" style="min-width:96px;">' + rkEsc(c.it.name2 || '(品名2なし)') + '</th>';
             });
-            h += '</tr><tr>';
-            cols.forEach(function () { h += '<th class="sub-d" style="min-width:46px;">設計</th><th class="sub-a" style="min-width:46px;">実行</th>'; });
             h += '</tr>';
             thead.innerHTML = h;
-            var total = (main ? 1 : 0) + 3 + (cols.length ? cols.length * 2 : 1) + (main ? 4 : 0);
+            var total = (main ? 1 : 0) + 3 + (cols.length ? cols.length : 1) + (main ? 4 : 0);
             var b = '';
             _rk.rows.forEach(function (r, i) {
                 var rc = function (f) { return 'rkRowChange(\'' + r.id + '\',\'' + f + '\',this.value)'; };
@@ -7535,9 +7533,8 @@
                 b += '<td><select onchange="' + rc('floor') + '">' + rkOpts(_lightFloorList(), r.floor) + '</select></td>';
                 b += '<td><select onchange="' + rc('sub') + '">' + rkOpts(_rk.subs || [], r.sub) + '</select></td>';
                 cols.forEach(function (c) {
-                    var dv = (r.counts || {})[c.key], av = (r.countsA || {})[c.key];
-                    b += '<td class="light-cnt cell-d"><input type="number" min="0" step="1" value="' + (dv || '') + '" onchange="rkCntChange(\'' + r.id + '\',\'' + c.key + '\',this.value,\'d\')"></td>';
-                    b += '<td class="light-cnt cell-a"><input type="number" min="0" step="1" value="' + (av || '') + '" onchange="rkCntChange(\'' + r.id + '\',\'' + c.key + '\',this.value,\'a\')"></td>';
+                    var dv = (r.counts || {})[c.key];
+                    b += '<td class="light-cnt cell-d"><input type="number" min="0" step="1" value="' + (dv || '') + '" onchange="rkCntChange(\'' + r.id + '\',\'' + c.key + '\',this.value,\'b\')"></td>';
                 });
                 if (!cols.length) b += '<td style="color:#bbb;text-align:center;">—</td>';
                 if (main) {
@@ -7581,15 +7578,12 @@
             thead.innerHTML = '<tr>'
                 + '<th style="min-width:90px;">区分</th><th style="min-width:150px;">品名1</th><th style="min-width:180px;">品名2</th>'
                 + '<th style="min-width:140px;">品番</th><th style="min-width:110px;">メーカー</th>'
-                + '<th style="min-width:74px;background:#5d4037;">設計数量</th>'
-                + '<th style="min-width:74px;background:#5d4037;">実行数量</th>'
-                + '<th style="min-width:56px;background:#5d4037;">増減</th>'
+                + '<th style="min-width:74px;background:#5d4037;">数量</th>'
                 + '<th style="min-width:74px;background:#2e7d32;">注文済<br>数量</th>'
                 + '<th style="min-width:62px;background:#2e7d32;">残</th>'
                 + '<th style="min-width:84px;background:#00695c;">定価</th>'
                 + '<th style="min-width:104px;background:#00695c;">定価金額</th>'
                 + '<th style="min-width:84px;background:#00695c;">NET単価</th>'
-                + '<th style="min-width:110px;background:#455a64;">設計NET金額</th>'
                 + '<th style="min-width:104px;background:#00695c;">NET金額</th></tr>';
             var rows = rkAggData(), b = '';
             var gDQ = 0, gN = 0, gOR = 0, gRE = 0, gLP = 0, gNP = 0, gND = 0;
@@ -7597,12 +7591,9 @@
             function sub() {
                 if (cur === null) return;
                 b += '<tr class="light-total"><td colspan="5" style="text-align:center;">' + rkEsc(curLabel) + ' 小計</td>'
-                   + '<td style="text-align:right;">' + (sDQ || '') + '</td>'
                    + '<td style="text-align:right;">' + (sN || '') + '</td>'
-                   + '<td style="text-align:right;' + ((sN - sDQ) ? 'color:#c62828;' : 'color:#999;') + '">' + ((sN - sDQ) ? ((sN - sDQ) > 0 ? '+' + (sN - sDQ) : (sN - sDQ)) : '±0') + '</td>'
                    + '<td></td><td></td><td></td>'
                    + '<td style="text-align:right;">' + rkY(sLP) + '</td><td></td>'
-                   + '<td style="text-align:right;color:#455a64;">' + rkY(sND) + '</td>'
                    + '<td style="text-align:right;">' + rkY(sNP) + '</td></tr>';
                 sDQ = 0; sN = 0; sLP = 0; sNP = 0; sND = 0;
             }
@@ -7617,32 +7608,26 @@
                    + '<td style="font-weight:bold;">' + rkEsc(x.it.name2) + '</td>'
                    + '<td>' + rkEsc(x.it.hinban) + '</td>'
                    + '<td>' + rkEsc(x.it.maker) + '</td>'
-                   + '<td style="text-align:right;background:#efebe9;">' + (x.dq || '') + '</td>'
                    + '<td style="text-align:right;background:#efebe9;font-weight:bold;">' + (x.n || '') + '</td>'
-                   + '<td style="text-align:right;background:#efebe9;' + (x.diff ? 'color:#c62828;font-weight:bold;' : 'color:#999;') + '">' + (x.diff ? (x.diff > 0 ? '+' + x.diff : x.diff) : '±0') + '</td>'
                    + '<td style="text-align:right;background:#e8f5e9;color:#2e7d32;font-weight:bold;">' + (x.ordN || '') + '</td>'
                    + '<td style="text-align:right;background:' + (x.rest > 0 ? '#fff3e0;color:#e65100;font-weight:bold;' : '#e8f5e9;color:#999;') + '">' + (x.rest > 0 ? x.rest : (x.n ? '0' : '')) + '</td>'
                    + '<td style="text-align:right;background:#e0f2f1;">' + rkY(rkN(x.it.listPrice)) + '</td>'
                    + '<td style="text-align:right;background:#e0f2f1;">' + rkY(x.lpAmt) + '</td>'
                    + '<td style="text-align:right;background:#e0f2f1;">' + rkY(rkN(x.it.netPrice)) + '</td>'
-                   + '<td style="text-align:right;background:#eceff1;color:#455a64;">' + rkY(x.npAmtD) + '</td>'
                    + '<td style="text-align:right;background:#e0f2f1;font-weight:bold;color:#00695c;">' + rkY(x.npAmt) + '</td>'
                    + '</tr>';
             });
             sub();
             if (b) {
                 b += '<tr class="light-total" style="border-top:2px solid #ef6c00;"><td colspan="5" style="text-align:center;">総合計</td>'
-                   + '<td style="text-align:right;">' + (gDQ || '') + '</td>'
                    + '<td style="text-align:right;">' + gN + '</td>'
-                   + '<td style="text-align:right;' + ((gN - gDQ) ? 'color:#c62828;' : 'color:#999;') + '">' + ((gN - gDQ) ? ((gN - gDQ) > 0 ? '+' + (gN - gDQ) : (gN - gDQ)) : '±0') + '</td>'
                    + '<td style="text-align:right;color:#2e7d32;">' + (gOR || '') + '</td>'
                    + '<td style="text-align:right;' + (gRE > 0 ? 'color:#e65100;' : 'color:#999;') + '">' + (gRE > 0 ? gRE : '0') + '</td>'
                    + '<td></td>'
                    + '<td style="text-align:right;">' + rkY(gLP) + '</td><td></td>'
-                   + '<td style="text-align:right;color:#455a64;">' + rkY(gND) + '</td>'
                    + '<td style="text-align:right;color:#00695c;">' + rkY(gNP) + '</td></tr>';
             }
-            tbody.innerHTML = b || '<tr><td colspan="15" style="text-align:center;padding:1rem;color:#999;">部材を登録すると集計されます</td></tr>';
+            tbody.innerHTML = b || '<tr><td colspan="12" style="text-align:center;padding:1rem;color:#999;">部材を登録すると集計されます</td></tr>';
         }
         function rkExportCsv() {
             var cols = rkCols(), lines = [];
