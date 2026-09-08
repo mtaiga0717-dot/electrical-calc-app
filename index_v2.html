@@ -7354,21 +7354,6 @@
             rkRenumber();
             rkRenderAll();
         }
-        function rkInsertGroupAfter(name1, grp) {
-            var v = '';
-            if (grp !== RK_GROUPS[1]) {
-                v = String(prompt('この下に追加する品名1を入力してください', '') || '').trim();
-                if (!v) return;
-            }
-            var idx = -1;
-            for (var i = _rk.items.length - 1; i >= 0; i--) {
-                if (rkGrpOf(_rk.items[i]) === grp && (_rk.items[i].name1 || '(未分類)') === name1) { idx = i; break; }
-            }
-            var it = rkNewItem(v, rkLastOf(name1, grp, 'maker'), grp);
-            if (idx >= 0) _rk.items.splice(idx + 1, 0, it); else _rk.items.push(it);
-            rkRenumber();
-            rkRenderAll();
-        }
         function rkInsertItemAfter(id) {
             var list = _rk.items, i = -1;
             for (var j = 0; j < list.length; j++) { if (list[j].id === id) { i = j; break; } }
@@ -7458,7 +7443,6 @@
                                 : ' <span style="font-size:0.7rem;color:#e65100;">⚠ 未紐付け</span>'))
                         : ('<input type="text" value="' + rkEsc(g.name1) + '" style="width:auto;min-width:230px;font-weight:bold;color:#004d40;background:#fff;border:1px solid #80cbc4;" onchange="rkRenameGroup(\'' + gn + '\',\'' + grp + '\',this.value)">'))
                    + ' <button class="btn-action" style="background:#00838f;color:#fff;padding:1px 8px;font-size:0.72rem;" onclick="rkAddItemTo(\'' + gn + '\',\'' + grp + '\')">＋ 品名2を追加</button>'
-                   + ' <button class="btn-action" style="background:#546e7a;color:#fff;padding:1px 8px;font-size:0.72rem;" title="このグループの下に新しい品名1グループを挿入" onclick="rkInsertGroupAfter(\'' + gn + '\',\'' + grp + '\')">↓ 品名1を挿入</button>'
                    + ' <span style="font-size:0.7rem;color:#00695c;margin-left:8px;">メーカー一括</span>'
                    + ' <select style="width:auto;font-size:0.74rem;background:#fff;border:1px solid #80cbc4;"><option value="">選択…</option>' + rkOpts(pkMakerList(), '').replace('<option value=""></option>', '') + '</select>'
                    + ' <button class="btn-action" style="background:#00695c;color:#fff;padding:1px 8px;font-size:0.72rem;" onclick="rkSetGroupMaker(\'' + gn + '\',\'' + grp + '\',this.previousElementSibling.value)">一括設定</button>'
