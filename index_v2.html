@@ -7542,12 +7542,15 @@
         function rkToggleAll(on) {
             Array.prototype.forEach.call(document.querySelectorAll('#rkSumTbody input.rk-rowsel'), function (cb) { cb.checked = !!on; });
         }
-        function rkMergeCols(grp) {
-            var out = [], map = {};
+        function rkMergeGroups(grp) {
+            var out = [], gmap = {};
             rkCols(grp).forEach(function (c) {
+                var g1 = c.g || '(未分類)';
+                if (!gmap[g1]) { gmap[g1] = { name1: g1, cols: [], map: {} }; out.push(gmap[g1]); }
+                var G = gmap[g1];
                 var nm = c.it.name2 || '(品名2なし)';
-                if (!map[nm]) { map[nm] = { name2: nm, items: [] }; out.push(map[nm]); }
-                map[nm].items.push(c.it);
+                if (!G.map[nm]) { G.map[nm] = { key: g1 + '|' + nm, name1: g1, name2: nm, items: [] }; G.cols.push(G.map[nm]); }
+                G.map[nm].items.push(c.it);
             });
             return out;
         }
@@ -7557,16 +7560,16 @@
         }
         function rkPickOf(r, mc) {
             for (var i = 0; i < mc.items.length; i++) { if (rkN((r.counts || {})[mc.items[i].id])) return mc.items[i].id; }
-            var p = ((_rk.pick || {})[r.id] || {})[mc.name2];
+            var p = ((_rk.pick || {})[r.id] || {})[mc.key];
             for (var j = 0; j < mc.items.length; j++) { if (mc.items[j].id === p) return p; }
             return mc.items[0].id;
         }
-        function rkSetPick(rowId, name2, itemId, oldId) {
+        function rkSetPick(rowId, key, itemId, oldId) {
             var r = _rk.rows.filter(function (x) { return x.id === rowId; })[0];
             if (!r) return;
             if (!_rk.pick) _rk.pick = {};
             if (!_rk.pick[rowId]) _rk.pick[rowId] = {};
-            _rk.pick[rowId][name2] = itemId;
+            _rk.pick[rowId][key] = itemId;
             if (oldId && oldId !== itemId) {
                 var v = rkN((r.counts || {})[oldId]);
                 if (v) {
@@ -7582,25 +7585,31 @@
         function rkRenderSumTable(grp, sfx) {
             var thead = document.getElementById('rkSumThead' + sfx), tbody = document.getElementById('rkSumTbody' + sfx);
             if (!thead || !tbody) return 0;
-            var mcols = rkMergeCols(grp), main = (sfx === '');
+            var groups = rkMergeGroups(grp), main = (sfx === '');
+            var mcols = [];
+            groups.forEach(function (G) { G.cols.forEach(function (mc) { mcols.push(mc); }); });
             var h = '<tr>';
-            if (main) h += '<th style="width:28px;"><input type="checkbox" style="width:auto;" title="全選択" onclick="rkToggleAll(this.checked)"></th>';
-            h += '<th style="min-width:40px;">No</th>'
-               + '<th style="min-width:80px;">階</th>'
-               + '<th style="min-width:120px;">小区分</th>';
+            if (main) h += '<th rowspan="2" style="width:28px;"><input type="checkbox" style="width:auto;" title="全選択" onclick="rkToggleAll(this.checked)"></th>';
+            h += '<th rowspan="2" style="min-width:40px;">No</th>'
+               + '<th rowspan="2" style="min-width:80px;">階</th>'
+               + '<th rowspan="2" style="min-width:120px;">小区分</th>';
+            groups.forEach(function (G) {
+                h += '<th colspan="' + G.cols.length + '" class="rk-g1">' + rkEsc(G.name1) + '</th>';
+            });
+            if (!mcols.length) h += '<th rowspan="2" style="min-width:230px;color:#ffe0b2;font-weight:normal;">（この区分の部材が未登録です）</th>';
+            if (main) {
+                h += '<th rowspan="2" style="min-width:60px;background:#2e7d32;">注文済</th>'
+                   + '<th rowspan="2" style="min-width:112px;background:#2e7d32;">注文日</th>'
+                   + '<th rowspan="2" style="min-width:130px;">備考</th>'
+                   + '<th rowspan="2" style="width:36px;">削除</th>';
+            }
+            h += '</tr><tr>';
             mcols.forEach(function (mc) {
-                var tip = mc.items.map(function (it) { return (it.name1 || '(未分類)') + ' / ' + (it.hinban || '-') + ' / ' + (it.maker || '-'); }).join(' , ');
+                var tip = mc.items.map(function (it) { return (it.hinban || '-') + ' / ' + (it.maker || '-'); }).join(' , ');
                 var sub = (mc.items.length > 1) ? '' : rkPickLabel(mc.items[0]);
-                h += '<th class="rk-g1" title="' + rkEsc(tip) + '" style="min-width:104px;">' + rkEsc(mc.name2)
+                h += '<th title="' + rkEsc(tip) + '" style="min-width:104px;">' + rkEsc(mc.name2)
                    + (sub ? ('<br><span style="font-weight:normal;font-size:0.64rem;color:#b2ebf2;">' + rkEsc(sub) + '</span>') : '') + '</th>';
             });
-            if (!mcols.length) h += '<th style="min-width:230px;color:#ffe0b2;font-weight:normal;">（この区分の部材が未登録です）</th>';
-            if (main) {
-                h += '<th style="min-width:60px;background:#2e7d32;">注文済</th>'
-                   + '<th style="min-width:112px;background:#2e7d32;">注文日</th>'
-                   + '<th style="min-width:130px;">備考</th>'
-                   + '<th style="width:36px;">削除</th>';
-            }
             h += '</tr>';
             thead.innerHTML = h;
             var total = (main ? 1 : 0) + 3 + (mcols.length ? mcols.length : 1) + (main ? 4 : 0);
@@ -7618,8 +7627,8 @@
                     var dv = (r.counts || {})[pid];
                     var cell = '';
                     if (mc.items.length > 1) {
-                        var n2 = mc.name2.replace(/'/g, '&#39;');
-                        cell += '<select class="rk-pick" onchange="rkSetPick(\'' + r.id + '\',\'' + n2 + '\',this.value,\'' + pid + '\')">'
+                        var mk = mc.key.replace(/'/g, '&#39;');
+                        cell += '<select class="rk-pick" onchange="rkSetPick(\'' + r.id + '\',\'' + mk + '\',this.value,\'' + pid + '\')">'
                               + mc.items.map(function (it) { return '<option value="' + it.id + '"' + (it.id === pid ? ' selected' : '') + '>' + rkEsc(rkPickLabel(it)) + '</option>'; }).join('')
                               + '</select>';
                     }
