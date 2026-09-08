@@ -7562,7 +7562,7 @@
                 var it = c.it, dq = 0, n = 0, ordN = 0;
                 _rk.rows.forEach(function (r) {
                     dq += rkN((r.counts || {})[c.key]);
-                    var q = rkN((r.countsA || {})[c.key]);
+                    var q = rkN((r.counts || {})[c.key]);
                     n += q;
                     if (r.ordered) ordN += q;
                 });
@@ -7632,20 +7632,20 @@
         function rkExportCsv() {
             var cols = rkCols(), lines = [];
             var head = ['No', '階', '小区分'];
-            cols.forEach(function (c) { var s = rkGrpOf(c.it) + '/' + (c.g || '') + '/' + (c.it.name2 || ''); head.push(s + '(設計)'); head.push(s + '(実行)'); });
+            cols.forEach(function (c) { head.push(rkGrpOf(c.it) + '/' + (c.g || '') + '/' + (c.it.name2 || '')); });
             head = head.concat(['注文済', '注文日', '備考']);
             lines.push(head.map(_lightCsvCell).join(','));
             _rk.rows.forEach(function (r, i) {
                 var a = [i + 1, r.floor, r.sub];
-                cols.forEach(function (c) { a.push((r.counts || {})[c.key] || ''); a.push((r.countsA || {})[c.key] || ''); });
+                cols.forEach(function (c) { a.push((r.counts || {})[c.key] || ''); });
                 a.push(r.ordered ? '○' : ''); a.push(r.orderedDate || ''); a.push(r.remark || '');
                 lines.push(a.map(_lightCsvCell).join(','));
             });
             lines.push('');
-            lines.push(['区分', '品名1', '品名2', '品番', 'メーカー', '設計数量', '実行数量', '増減', '注文済数量', '残', '定価', '定価金額', 'NET単価', '設計NET金額', 'NET金額'].map(_lightCsvCell).join(','));
+            lines.push(['区分', '品名1', '品名2', '品番', 'メーカー', '数量', '注文済数量', '残', '定価', '定価金額', 'NET単価', 'NET金額'].map(_lightCsvCell).join(','));
             rkAggData().forEach(function (x) {
-                lines.push([x.grp, x.g, x.it.name2, x.it.hinban, x.it.maker, x.dq || '', x.n, x.diff, x.ordN, x.rest,
-                            rkN(x.it.listPrice) || '', x.lpAmt || '', rkN(x.it.netPrice) || '', x.npAmtD || '', x.npAmt || ''].map(_lightCsvCell).join(','));
+                lines.push([x.grp, x.g, x.it.name2, x.it.hinban, x.it.maker, x.n, x.ordN, x.rest,
+                            rkN(x.it.listPrice) || '', x.lpAmt || '', rkN(x.it.netPrice) || '', x.npAmt || ''].map(_lightCsvCell).join(','));
             });
             _lightDownload('ケーブルラック集計表_' + _lightProjName() + '.csv', lines.join('\n'));
         }
@@ -7658,7 +7658,7 @@
             var out = [];
             rkCols().forEach(function (c) {
                 var n = 0;
-                rows.forEach(function (r) { n += rkN((r.countsA || {})[c.key]); });
+                rows.forEach(function (r) { n += rkN((r.counts || {})[c.key]); });
                 if (n > 0) out.push({ it: c.it, g: c.g, key: c.key, n: n, unit: '本', note: '' });
             });
             return out;
@@ -7743,7 +7743,7 @@
                     var ls = [];
                     picked.forEach(function (p) {
                         var n = 0;
-                        rs.forEach(function (r) { n += rkN((r.countsA || {})[p.key]); });
+                        rs.forEach(function (r) { n += rkN((r.counts || {})[p.key]); });
                         if (n > 0) ls.push({ it: p.it, g: p.g, n: n, unit: p.unit, note: p.note });
                     });
                     if (ls.length) secs.push({ sub: kk, places: [kk], lines: ls });
