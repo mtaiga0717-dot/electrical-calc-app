@@ -3100,7 +3100,7 @@
                     </div>
                     <div style="font-size:0.8rem;font-weight:bold;color:#5d4037;margin:10px 0 3px;">■ 付属品</div>
                     <div class="light-sub" style="margin:0 0 4px;">
-                        <select id="rkNewGroup2" style="font-size:0.82rem;padding:0.25rem;width:250px;"></select>
+                        <input id="rkNewGroup2" type="text" placeholder="品名1（例：ジョイント金具）" style="font-size:0.82rem;padding:0.25rem;width:250px;" onkeydown="if(event.key==='Enter'){event.preventDefault();rkAddGroup('付属品');}">
                         <button class="btn-action" style="background:#5d4037;color:#fff;" onclick="rkAddGroup('付属品')">＋ 付属品に品名1グループを追加</button>
                         <span style="flex:1;"></span>
                     </div>
@@ -7228,38 +7228,6 @@
             box.innerHTML = h;
         }
 
-        function rkBaseNames() {
-            var out = [], seen = {};
-            _rk.items.forEach(function (it) {
-                if (rkGrpOf(it) !== RK_GROUPS[0]) return;
-                var g = it.name1 || '(未分類)';
-                if (!seen[g]) { seen[g] = 1; out.push(g); }
-            });
-            return out;
-        }
-        function rkIsLinked(name1) { return rkBaseNames().indexOf(name1) >= 0; }
-        function rkBaseOpts(cur) {
-            var names = rkBaseNames(), s = '', found = false;
-            names.forEach(function (m) {
-                if (m === cur) found = true;
-                s += '<option value="' + rkEsc(m) + '"' + (m === cur ? ' selected' : '') + '>' + rkEsc(m) + '</option>';
-            });
-            if (!found) s = '<option value="' + rkEsc(cur) + '" selected>' + rkEsc(cur) + '（未紐付け）</option>' + s;
-            return s;
-        }
-        function rkFillBaseSel() {
-            var names = rkBaseNames();
-            ['2'].forEach(function (sfx) {
-                var sel = document.getElementById('rkNewGroup' + sfx);
-                if (!sel || sel.tagName !== 'SELECT') return;
-                var cur = sel.value;
-                var s = '<option value="">本体の品名1から選択…</option>';
-                names.forEach(function (m) { s += '<option value="' + rkEsc(m) + '">' + rkEsc(m) + '</option>'; });
-                s += '<option value="__free">（その他：本体に紐づけず入力）</option>';
-                sel.innerHTML = s;
-                if (cur && (names.indexOf(cur) >= 0 || cur === '__free')) sel.value = cur;
-            });
-        }
         function rkGroups(grp) {
             var order = [], map = {};
             _rk.items.forEach(function (it) {
@@ -7268,13 +7236,6 @@
                 if (!map[g]) { map[g] = { name1: g, items: [] }; order.push(map[g]); }
                 map[g].items.push(it);
             });
-            if (grp === RK_GROUPS[1]) {
-                var base = rkBaseNames();
-                order = order.map(function (g, i) {
-                    var p = base.indexOf(g.name1);
-                    return { g: g, k: (p >= 0 ? p : base.length + i) };
-                }).sort(function (a, b) { return a.k - b.k; }).map(function (x) { return x.g; });
-            }
             return order;
         }
         function rkCols(grp) {
@@ -7315,17 +7276,7 @@
             var sfx = (gi > 0) ? String(gi + 1) : '';
             var el = document.getElementById('rkNewGroup' + sfx);
             var v = (el ? el.value : '').trim();
-            if (grp === RK_GROUPS[1]) {
-                if (v === '__free') {
-                    v = String(prompt('本体に紐づけない品名1を入力してください', '') || '').trim();
-                    if (!v) { if (el) el.value = ''; return; }
-                } else if (!v) {
-                    if (!rkBaseNames().length) { alert('先に本体の品名1グループを登録してください。付属品の品名1は本体から選びます。'); return; }
-                    alert('本体の品名1を選択してください。'); return;
-                }
-                var exists = rkGroups(grp).filter(function (g) { return g.name1 === v; })[0];
-                if (exists) { if (el) el.value = ''; rkAddItemTo(v, grp); return; }
-            } else if (!v) { alert('品名1を入力してください。'); return; }
+            if (!v) { alert('品名1を入力してください。'); return; }
             if (el) el.value = '';
             _rk.items.push(rkNewItem(v, rkLastOf('', grp, 'maker'), grp));
             rkRenumber();
@@ -7357,12 +7308,6 @@
                 if (rkGrpOf(it) !== grp) return;
                 if ((it.name1 || '(未分類)') === oldName) { it.name1 = nv; rkUpsertItem(it); }
             });
-            if (grp === RK_GROUPS[0]) {
-                _rk.items.forEach(function (it) {
-                    if (rkGrpOf(it) !== RK_GROUPS[1]) return;
-                    if ((it.name1 || '(未分類)') === oldName) { it.name1 = nv; rkUpsertItem(it); }
-                });
-            }
             rkRenderAll();
         }
         function rkDelGroup(name1, grp) {
@@ -7423,12 +7368,7 @@
                 var gn = g.name1.replace(/'/g, '&#39;');
                 b += '<tr class="rk-grp"><td colspan="9" style="background:#e0f2f1;">'
                    + '<span style="font-size:0.72rem;color:#00695c;font-weight:bold;margin-right:6px;">品名1</span>'
-                   + ((grp === RK_GROUPS[1])
-                        ? ('<select style="width:auto;min-width:230px;font-weight:bold;color:#4e342e;background:#fff;border:1px solid #bcaaa4;" onchange="rkRenameGroup(\'' + gn + '\',\'' + grp + '\',this.value)">' + rkBaseOpts(g.name1) + '</select>'
-                           + (rkIsLinked(g.name1)
-                                ? ' <span style="font-size:0.7rem;color:#2e7d32;">🔗 本体と紐付け</span>'
-                                : ' <span style="font-size:0.7rem;color:#e65100;">⚠ 未紐付け</span>'))
-                        : ('<input type="text" value="' + rkEsc(g.name1) + '" style="width:auto;min-width:230px;font-weight:bold;color:#004d40;background:#fff;border:1px solid #80cbc4;" onchange="rkRenameGroup(\'' + gn + '\',\'' + grp + '\',this.value)">'))
+                   + '<input type="text" value="' + rkEsc(g.name1) + '" style="width:auto;min-width:230px;font-weight:bold;color:#004d40;background:#fff;border:1px solid #80cbc4;" onchange="rkRenameGroup(\'' + gn + '\',\'' + grp + '\',this.value)">'
                    + ' <button class="btn-action" style="background:#00838f;color:#fff;padding:1px 8px;font-size:0.72rem;" onclick="rkAddItemTo(\'' + gn + '\',\'' + grp + '\')">＋ 品名2を追加</button>'
                    + ' <span style="font-size:0.7rem;color:#00695c;margin-left:8px;">メーカー一括</span>'
                    + ' <select style="width:auto;font-size:0.74rem;background:#fff;border:1px solid #80cbc4;"><option value="">選択…</option>' + rkOpts(pkMakerList(), '').replace('<option value=""></option>', '') + '</select>'
@@ -7462,7 +7402,6 @@
             rkRenderListTable(RK_GROUPS[0], '');
             rkRenderListTable(RK_GROUPS[1], '2');
             rkRenderListTable(RK_GROUPS[2], '3');
-            rkFillBaseSel();
         }
         function rkNewRow() { return { id: rkUid('rr'), no: 0, floor: '', sub: '', counts: {}, countsA: {}, ordered: false, orderedDate: '', remark: '' }; }
         function rkAddRow() {
