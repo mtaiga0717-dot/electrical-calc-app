@@ -1520,6 +1520,8 @@
         .rk-list thead th { z-index:7; }
         .rk-list thead th:nth-child(1), .rk-list thead th:nth-child(2) { z-index:8; }
         .rk-list tbody tr.rk-grp td { position:sticky; top:22px; z-index:4; background:#e0f2f1 !important; box-shadow:0 1px 0 #80cbc4, 0 -1px 0 #80cbc4; }
+        #rkTable2 thead th { background:#5d4037; border-color:#4e342e; }
+        #rkTable2 tbody tr.rk-grp td { background:#efebe9 !important; box-shadow:0 1px 0 #bcaaa4, 0 -1px 0 #bcaaa4; }
         .rk-sum thead th { padding:2px 3px; line-height:16px; }
         .rk-sum thead tr:first-child th { position:sticky; top:0; z-index:4; box-shadow:0 1px 0 #d84315; }
         .rk-sum thead tr:nth-child(2) th { position:sticky; top:22px; z-index:4; box-shadow:0 1px 0 #d84315; }
@@ -3085,14 +3087,24 @@
                     <button class="btn-action" onclick="rkReload()">&#8635; 再読込</button>
                 </div>
                 <div id="rkViewList">
-                    <div class="light-sub">
-                        <input id="rkNewGroup" type="text" placeholder="品名1（例：ケーブルラック）" style="font-size:0.82rem;padding:0.25rem;width:250px;" onkeydown="if(event.key==='Enter'){event.preventDefault();rkAddGroup();}">
-                        <button class="btn-action" style="background:#00838f;color:#fff;" onclick="rkAddGroup()">＋ 品名1グループを追加</button>
+                    <div style="font-size:0.74rem;color:#888;margin-bottom:4px;">※ 小区分（北棟・南棟など）の登録・編集は「現場マスタ」タブの <b>⑧ ケーブルラック：小区分マスタ</b>、メーカーは <b>⑦ 共通：メーカーマスタ</b> で行います。行末の ⇄ で本体／付属品を入れ替えられます。</div>
+                    <div style="font-size:0.8rem;font-weight:bold;color:#00838f;margin:6px 0 3px;">■ 本体</div>
+                    <div class="light-sub" style="margin:0 0 4px;">
+                        <input id="rkNewGroup" type="text" placeholder="品名1（例：ケーブルラック）" style="font-size:0.82rem;padding:0.25rem;width:250px;" onkeydown="if(event.key==='Enter'){event.preventDefault();rkAddGroup('本体');}">
+                        <button class="btn-action" style="background:#00838f;color:#fff;" onclick="rkAddGroup('本体')">＋ 本体に品名1グループを追加</button>
                         <span style="flex:1;"></span>
                     </div>
-                    <div style="font-size:0.74rem;color:#888;margin-bottom:4px;">※ 小区分（北棟・南棟など）の登録・編集は「現場マスタ」タブの <b>⑧ ケーブルラック：小区分マスタ</b>、メーカーは <b>⑦ 共通：メーカーマスタ</b> で行います。</div>
-                    <div class="light-wrap">
+                    <div class="light-wrap pk-wrap-half">
                         <table class="light-table rk-list" id="rkTable"><thead id="rkThead"></thead><tbody id="rkTbody"></tbody></table>
+                    </div>
+                    <div style="font-size:0.8rem;font-weight:bold;color:#5d4037;margin:10px 0 3px;">■ 付属品</div>
+                    <div class="light-sub" style="margin:0 0 4px;">
+                        <input id="rkNewGroup2" type="text" placeholder="品名1（例：ジョイント金具）" style="font-size:0.82rem;padding:0.25rem;width:250px;" onkeydown="if(event.key==='Enter'){event.preventDefault();rkAddGroup('付属品');}">
+                        <button class="btn-action" style="background:#5d4037;color:#fff;" onclick="rkAddGroup('付属品')">＋ 付属品に品名1グループを追加</button>
+                        <span style="flex:1;"></span>
+                    </div>
+                    <div class="light-wrap pk-wrap-half">
+                        <table class="light-table rk-list" id="rkTable2"><thead id="rkThead2"></thead><tbody id="rkTbody2"></tbody></table>
                     </div>
                 </div>
                 <div id="rkViewSum" style="display:none;">
@@ -7197,57 +7209,71 @@
         function rkNewItem(name1, maker, grp) {
             return { id: rkUid('rk'), no: 0, name1: name1 || '', name2: '', hinban: '', maker: maker || '', grp: (RK_GROUPS.indexOf(grp) >= 0) ? grp : RK_GROUPS[0], listPrice: 0, netPrice: 0, remark: '' };
         }
-        function rkLastOf(name1, field) {
+        function rkLastOf(name1, grp, field) {
             var v = '';
-            _rk.items.forEach(function (it) { if (!name1 || (it.name1 || '(未分類)') === name1) { if (it[field]) v = it[field]; } });
+            _rk.items.forEach(function (it) {
+                if (grp && rkGrpOf(it) !== grp) return;
+                if (!name1 || (it.name1 || '(未分類)') === name1) { if (it[field]) v = it[field]; }
+            });
+            if (!v) _rk.items.forEach(function (it) { if (grp && rkGrpOf(it) !== grp) return; if (it[field]) v = it[field]; });
             if (!v) _rk.items.forEach(function (it) { if (it[field]) v = it[field]; });
             return v;
         }
-        function rkSetGroupMaker(name1, v) {
+        function rkSetGroupMaker(name1, grp, v) {
             if (!v) return;
-            var n = 0;
             _rk.items.forEach(function (it) {
-                if ((it.name1 || '(未分類)') === name1 && it.maker !== v) { it.maker = v; rkUpsertItem(it); n++; }
+                if (rkGrpOf(it) !== grp) return;
+                if ((it.name1 || '(未分類)') === name1 && it.maker !== v) { it.maker = v; rkUpsertItem(it); }
             });
             rkRenderAll();
         }
         function rkRenumber() { _rk.items.forEach(function (x, n) { x.no = n + 1; rkUpsertItem(x); }); }
-        function rkAddGroup() {
-            var el = document.getElementById('rkNewGroup');
+        function rkAddGroup(grp) {
+            var sfx = (grp === RK_GROUPS[1]) ? '2' : '';
+            var el = document.getElementById('rkNewGroup' + sfx);
             var v = (el ? el.value : '').trim();
             if (!v) { alert('品名1を入力してください。'); return; }
             if (el) el.value = '';
-            var it = rkNewItem(v, rkLastOf('', 'maker'));
-            _rk.items.push(it);
+            _rk.items.push(rkNewItem(v, rkLastOf('', grp, 'maker'), grp));
             rkRenumber();
             rkRenderAll();
         }
-        function rkAddItemTo(name1) {
+        function rkAddItemTo(name1, grp) {
             var idx = -1;
-            for (var i = _rk.items.length - 1; i >= 0; i--) { if ((_rk.items[i].name1 || '(未分類)') === name1) { idx = i; break; } }
-            var it = rkNewItem(name1 === '(未分類)' ? '' : name1, rkLastOf(name1, 'maker'), rkLastOf(name1, 'grp'));
+            for (var i = _rk.items.length - 1; i >= 0; i--) {
+                if (rkGrpOf(_rk.items[i]) === grp && (_rk.items[i].name1 || '(未分類)') === name1) { idx = i; break; }
+            }
+            var it = rkNewItem(name1 === '(未分類)' ? '' : name1, rkLastOf(name1, grp, 'maker'), grp);
             if (idx >= 0) _rk.items.splice(idx + 1, 0, it); else _rk.items.push(it);
             rkRenumber();
             rkRenderAll();
         }
-        function rkRenameGroup(oldName, nv) {
+        function rkRenameGroup(oldName, grp, nv) {
             nv = String(nv == null ? '' : nv).trim();
             if (!nv || nv === oldName) { rkRenderList(); return; }
             _rk.items.forEach(function (it) {
+                if (rkGrpOf(it) !== grp) return;
                 if ((it.name1 || '(未分類)') === oldName) { it.name1 = nv; rkUpsertItem(it); }
             });
             rkRenderAll();
         }
-        function rkDelGroup(name1) {
-            var list = _rk.items.filter(function (it) { return (it.name1 || '(未分類)') === name1; });
-            if (!confirm('品名1「' + name1 + '」と、ぶら下がる ' + list.length + ' 件の品名2をまとめて削除しますか？（拾い表の数量も消えます）')) return;
+        function rkDelGroup(name1, grp) {
+            var list = _rk.items.filter(function (it) { return rkGrpOf(it) === grp && (it.name1 || '(未分類)') === name1; });
+            if (!confirm('［' + grp + '］品名1「' + name1 + '」と、ぶら下がる ' + list.length + ' 件の品名2をまとめて削除しますか？（集計表の数量も消えます）')) return;
             list.forEach(function (it) { _rkDeleted['i:' + it.id] = true; });
-            _rk.items = _rk.items.filter(function (it) { return (it.name1 || '(未分類)') !== name1; });
+            var ids = {};
+            list.forEach(function (it) { ids[it.id] = 1; });
+            _rk.items = _rk.items.filter(function (it) { return !ids[it.id]; });
             rkRenderAll();
             var pid = projectGetCurrent();
-            list.forEach(function (it) {
-                db.from('rack_items').delete().eq('project_id', pid).eq('item_id', it.id);
-            });
+            list.forEach(function (it) { db.from('rack_items').delete().eq('project_id', pid).eq('item_id', it.id); });
+        }
+        function rkMoveItem(id) {
+            var it = _rk.items.filter(function (x) { return x.id === id; })[0];
+            if (!it) return;
+            it.grp = (rkGrpOf(it) === RK_GROUPS[0]) ? RK_GROUPS[1] : RK_GROUPS[0];
+            rkUpsertItem(it);
+            rkRenderAll();
         }
         function rkItemChange(id, field, value) {
             var it = _rk.items.filter(function (x) { return x.id === id; })[0];
@@ -7255,11 +7281,11 @@
             if (field === 'listPrice' || field === 'netPrice') it[field] = _lightNC(value); else it[field] = value;
             rkUpsertItem(it);
             if (field === 'listPrice' || field === 'netPrice') rkRenderList();
-            if (field === 'name2' || field === 'grp') rkRenderSum();
+            if (field === 'name2') rkRenderSum();
             rkRenderAgg();
         }
         async function rkDelItem(id) {
-            if (!confirm('この品名2を削除しますか？（拾い表の数量も消えます）')) return;
+            if (!confirm('この品名2を削除しますか？（集計表の数量も消えます）')) return;
             _rkDeleted['i:' + id] = true;
             _rk.items = _rk.items.filter(function (x) { return x.id !== id; });
             rkRenderAll();
@@ -7270,30 +7296,30 @@
             } catch (e) { alert('削除の保存に失敗しました。\n' + (e.message || e)); _rkDeleted['i:' + id] = false; return; }
             setTimeout(function () { try { db.from('rack_items').delete().eq('project_id', pid).eq('item_id', id); } catch (e) {} }, 2000);
         }
-        function rkRenderList() {
-            var thead = document.getElementById('rkThead'), tbody = document.getElementById('rkTbody');
+        function rkRenderListTable(grp, sfx) {
+            var thead = document.getElementById('rkThead' + sfx), tbody = document.getElementById('rkTbody' + sfx);
             if (!thead || !tbody) return;
             thead.innerHTML = '<tr>'
                 + '<th style="width:44px;">No</th>'
                 + '<th style="min-width:210px;">品名2</th>'
-                + '<th style="min-width:100px;">区分</th>'
                 + '<th style="min-width:150px;">品番</th>'
                 + '<th style="min-width:130px;">メーカー</th>'
                 + '<th style="min-width:92px;">定価</th>'
                 + '<th style="min-width:92px;">NET単価</th>'
                 + '<th style="min-width:64px;">率</th>'
                 + '<th style="min-width:150px;">備考</th>'
-                + '<th style="width:36px;">削除</th></tr>';
+                + '<th style="width:70px;">操作</th></tr>';
+            var other = (grp === RK_GROUPS[0]) ? RK_GROUPS[1] : RK_GROUPS[0];
             var b = '', n = 0;
-            rkGroups().forEach(function (g) {
+            rkGroups(grp).forEach(function (g) {
                 var gn = g.name1.replace(/'/g, '&#39;');
-                b += '<tr class="rk-grp"><td colspan="10" style="background:#e0f2f1;">'
+                b += '<tr class="rk-grp"><td colspan="9" style="background:#e0f2f1;">'
                    + '<span style="font-size:0.72rem;color:#00695c;font-weight:bold;margin-right:6px;">品名1</span>'
-                   + '<input type="text" value="' + rkEsc(g.name1) + '" style="width:auto;min-width:240px;font-weight:bold;color:#004d40;background:#fff;border:1px solid #80cbc4;" onchange="rkRenameGroup(\'' + gn + '\',this.value)">'
-                   + ' <button class="btn-action" style="background:#00838f;color:#fff;padding:1px 8px;font-size:0.72rem;" onclick="rkAddItemTo(\'' + gn + '\')">＋ 品名2を追加</button>'
+                   + '<input type="text" value="' + rkEsc(g.name1) + '" style="width:auto;min-width:230px;font-weight:bold;color:#004d40;background:#fff;border:1px solid #80cbc4;" onchange="rkRenameGroup(\'' + gn + '\',\'' + grp + '\',this.value)">'
+                   + ' <button class="btn-action" style="background:#00838f;color:#fff;padding:1px 8px;font-size:0.72rem;" onclick="rkAddItemTo(\'' + gn + '\',\'' + grp + '\')">＋ 品名2を追加</button>'
                    + ' <span style="font-size:0.7rem;color:#00695c;margin-left:8px;">メーカー一括</span>'
-                   + ' <select style="width:auto;font-size:0.74rem;background:#fff;border:1px solid #80cbc4;" onchange="rkSetGroupMaker(\'' + gn + '\',this.value);this.selectedIndex=0;"><option value="">選択…</option>' + rkOpts(pkMakerList(), '').replace('<option value=""></option>', '') + '</select>'
-                   + ' <button class="btn-delete" style="font-size:0.72rem;padding:1px 7px;" onclick="rkDelGroup(\'' + gn + '\')">グループ削除</button>'
+                   + ' <select style="width:auto;font-size:0.74rem;background:#fff;border:1px solid #80cbc4;" onchange="rkSetGroupMaker(\'' + gn + '\',\'' + grp + '\',this.value);this.selectedIndex=0;"><option value="">選択…</option>' + rkOpts(pkMakerList(), '').replace('<option value=""></option>', '') + '</select>'
+                   + ' <button class="btn-delete" style="font-size:0.72rem;padding:1px 7px;" onclick="rkDelGroup(\'' + gn + '\',\'' + grp + '\')">グループ削除</button>'
                    + '</td></tr>';
                 g.items.forEach(function (it) {
                     n++;
@@ -7301,22 +7327,26 @@
                     b += '<tr>'
                        + '<td class="light-fix" style="text-align:center;">' + n + '</td>'
                        + '<td style="padding-left:14px;"><input type="text" value="' + rkEsc(it.name2) + '" placeholder="品名2" onchange="' + cb('name2') + '"></td>'
-                       + '<td style="background:#e8eaf6;"><select onchange="' + cb('grp') + '">' + RK_GROUPS.map(function (g) { return '<option value="' + rkEsc(g) + '"' + (g === rkGrpOf(it) ? ' selected' : '') + '>' + rkEsc(g) + '</option>'; }).join('') + '</select></td>'
                        + '<td><input type="text" value="' + rkEsc(it.hinban) + '" onchange="' + cb('hinban') + '"></td>'
                        + '<td><select onchange="' + cb('maker') + '">' + rkOpts(pkMakerList(), it.maker) + '</select></td>'
                        + '<td class="light-num" style="background:#e8f5e9;"><input type="text" inputmode="numeric" value="' + _lightFmt(it.listPrice) + '" onchange="' + cb('listPrice') + '"></td>'
                        + '<td class="light-num" style="background:#e8f5e9;"><input type="text" inputmode="numeric" value="' + _lightFmt(it.netPrice) + '" onchange="' + cb('netPrice') + '"></td>'
                        + '<td style="text-align:right;background:#e0f2f1;color:#00695c;font-weight:bold;">' + _lightRateTxt(it.listPrice, it.netPrice) + '</td>'
                        + '<td><input type="text" value="' + rkEsc(it.remark) + '" onchange="' + cb('remark') + '"></td>'
-                       + '<td style="text-align:center;"><button class="btn-delete" onclick="rkDelItem(\'' + it.id + '\')">×</button></td>'
+                       + '<td style="text-align:center;white-space:nowrap;">'
+                       + '<button class="light-ins" title="' + other + 'へ移動" onclick="rkMoveItem(\'' + it.id + '\')">⇄</button> '
+                       + '<button class="btn-delete" onclick="rkDelItem(\'' + it.id + '\')">×</button></td>'
                        + '</tr>';
                 });
             });
-            tbody.innerHTML = b || '<tr><td colspan="10" style="text-align:center;padding:1.2rem;color:#999;">「＋ 品名1グループを追加」から登録してください</td></tr>';
-            _lightBindCross('rkTable');
-            _lightApplyLock(document.getElementById('rkTable'));
+            tbody.innerHTML = b || '<tr><td colspan="9" style="text-align:center;padding:1.2rem;color:#999;">上の入力欄から品名1グループを追加してください</td></tr>';
+            _lightBindCross('rkTable' + sfx);
+            _lightApplyLock(document.getElementById('rkTable' + sfx));
         }
-
+        function rkRenderList() {
+            rkRenderListTable(RK_GROUPS[0], '');
+            rkRenderListTable(RK_GROUPS[1], '2');
+        }
         function rkNewRow() { return { id: rkUid('rr'), no: 0, floor: '', sub: '', counts: {}, countsA: {}, ordered: false, orderedDate: '', remark: '' }; }
         function rkAddRow() {
             var mx = 0; _rk.rows.forEach(function (r) { if (r.no > mx) mx = r.no; });
