@@ -1517,7 +1517,9 @@
         .rk-list thead th:nth-child(1) { position:sticky; left:0; z-index:6; width:44px; min-width:44px; max-width:44px; }
         .rk-list thead th:nth-child(2) { position:sticky; left:44px; z-index:6; box-shadow:2px 0 0 #d84315; }
         .rk-list tbody td.light-fix { position:sticky; left:0; z-index:3; background:#fafafa; width:44px; min-width:44px; max-width:44px; }
-        .rk-list tbody tr.rk-grp td { position:relative; }
+        .rk-list thead th { z-index:7; }
+        .rk-list thead th:nth-child(1), .rk-list thead th:nth-child(2) { z-index:8; }
+        .rk-list tbody tr.rk-grp td { position:sticky; top:22px; z-index:4; background:#e0f2f1 !important; box-shadow:0 1px 0 #80cbc4, 0 -1px 0 #80cbc4; }
         .rk-sum thead th { padding:2px 3px; line-height:16px; }
         .rk-sum thead tr:first-child th { position:sticky; top:0; z-index:4; box-shadow:0 1px 0 #d84315; }
         .rk-sum thead tr:nth-child(2) th { position:sticky; top:22px; z-index:4; box-shadow:0 1px 0 #d84315; }
