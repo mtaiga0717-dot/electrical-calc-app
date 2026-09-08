@@ -7505,6 +7505,19 @@
             } catch (e) { alert('削除の保存に失敗しました。\n' + (e.message || e)); _rkDeleted['r:' + id] = false; return; }
             setTimeout(function () { try { db.from('rack_counts').delete().eq('project_id', pid).eq('row_id', id); } catch (e) {} }, 2000);
         }
+        function rkSyncRowFields(id) {
+            var idx = -1;
+            for (var i = 0; i < _rk.rows.length; i++) { if (_rk.rows[i].id === id) { idx = i; break; } }
+            if (idx < 0) return;
+            var r = _rk.rows[idx];
+            ['rkSumTbody', 'rkSumTbody2', 'rkSumTbody3'].forEach(function (tid) {
+                var tb = document.getElementById(tid);
+                if (!tb || !tb.rows[idx]) return;
+                var ss = tb.rows[idx].querySelectorAll('td > select');
+                if (ss[0]) ss[0].value = r.floor || '';
+                if (ss[1]) ss[1].value = r.sub || '';
+            });
+        }
         function rkRowChange(id, field, value) {
             var r = _rk.rows.filter(function (x) { return x.id === id; })[0];
             if (!r) return;
@@ -7512,6 +7525,7 @@
             else r[field] = value;
             rkUpsertRow(r);
             if (field === 'ordered') rkRenderSum();
+            if (field === 'floor' || field === 'sub') rkSyncRowFields(id);
             rkRenderAgg();
         }
         function rkCntChange(rowId, key, value, kind) {
