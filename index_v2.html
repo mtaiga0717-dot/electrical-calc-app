@@ -7537,6 +7537,10 @@
             });
             return out;
         }
+        function rkPickLabel(it) {
+            var hb = (it.hinban || '').trim(), n1 = (it.name1 || '(未分類)').trim();
+            return hb ? (hb + '（' + n1 + '）') : n1;
+        }
         function rkPickOf(r, mc) {
             for (var i = 0; i < mc.items.length; i++) { if (rkN((r.counts || {})[mc.items[i].id])) return mc.items[i].id; }
             var p = ((_rk.pick || {})[r.id] || {})[mc.name2];
@@ -7572,7 +7576,7 @@
                + '<th style="min-width:120px;">小区分</th>';
             mcols.forEach(function (mc) {
                 var tip = mc.items.map(function (it) { return (it.name1 || '(未分類)') + ' / ' + (it.hinban || '-') + ' / ' + (it.maker || '-'); }).join(' , ');
-                var sub = (mc.items.length > 1) ? (mc.items.length + '種から選択') : (mc.items[0].name1 || '(未分類)');
+                var sub = (mc.items.length > 1) ? (mc.items.length + '種から選択') : rkPickLabel(mc.items[0]);
                 h += '<th class="rk-g1" title="' + rkEsc(tip) + '" style="min-width:104px;">' + rkEsc(mc.name2)
                    + '<br><span style="font-weight:normal;font-size:0.64rem;color:#b2ebf2;">' + rkEsc(sub) + '</span></th>';
             });
@@ -7602,7 +7606,7 @@
                     if (mc.items.length > 1) {
                         var n2 = mc.name2.replace(/'/g, '&#39;');
                         cell += '<select class="rk-pick" onchange="rkSetPick(\'' + r.id + '\',\'' + n2 + '\',this.value,\'' + pid + '\')">'
-                              + mc.items.map(function (it) { return '<option value="' + it.id + '"' + (it.id === pid ? ' selected' : '') + '>' + rkEsc(it.name1 || '(未分類)') + '</option>'; }).join('')
+                              + mc.items.map(function (it) { return '<option value="' + it.id + '"' + (it.id === pid ? ' selected' : '') + '>' + rkEsc(rkPickLabel(it)) + '</option>'; }).join('')
                               + '</select>';
                     }
                     cell += '<input type="number" min="0" step="1" value="' + (dv || '') + '" onchange="rkCntChange(\'' + r.id + '\',\'' + pid + '\',this.value,\'b\')">';
