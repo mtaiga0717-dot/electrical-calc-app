@@ -7257,11 +7257,14 @@
             return v;
         }
         function rkSetGroupMaker(name1, grp, v) {
-            if (!v) return;
-            _rk.items.forEach(function (it) {
-                if (rkGrpOf(it) !== grp) return;
-                if ((it.name1 || '(未分類)') === name1 && it.maker !== v) { it.maker = v; rkUpsertItem(it); }
+            if (!v) { alert('メーカーを選んでください'); return; }
+            var chg = _rk.items.filter(function (it) {
+                if (rkGrpOf(it) !== grp) return false;
+                return (it.name1 || '(未分類)') === name1 && it.maker !== v;
             });
+            if (!chg.length) { alert('変更対象の行がありません（すでに「' + v + '」です）'); return; }
+            if (!confirm('［' + grp + '］' + name1 + ' の ' + chg.length + ' 行のメーカーを「' + v + '」に設定します。よろしいですか？')) return;
+            chg.forEach(function (it) { it.maker = v; rkUpsertItem(it); });
             rkRenderAll();
         }
         function rkRenumber() { _rk.items.forEach(function (x, n) { x.no = n + 1; rkUpsertItem(x); }); }
@@ -7355,7 +7358,8 @@
                    + '<input type="text" value="' + rkEsc(g.name1) + '" style="width:auto;min-width:230px;font-weight:bold;color:#004d40;background:#fff;border:1px solid #80cbc4;" onchange="rkRenameGroup(\'' + gn + '\',\'' + grp + '\',this.value)">'
                    + ' <button class="btn-action" style="background:#00838f;color:#fff;padding:1px 8px;font-size:0.72rem;" onclick="rkAddItemTo(\'' + gn + '\',\'' + grp + '\')">＋ 品名2を追加</button>'
                    + ' <span style="font-size:0.7rem;color:#00695c;margin-left:8px;">メーカー一括</span>'
-                   + ' <select style="width:auto;font-size:0.74rem;background:#fff;border:1px solid #80cbc4;" onchange="rkSetGroupMaker(\'' + gn + '\',\'' + grp + '\',this.value);this.selectedIndex=0;"><option value="">選択…</option>' + rkOpts(pkMakerList(), '').replace('<option value=""></option>', '') + '</select>'
+                   + ' <select style="width:auto;font-size:0.74rem;background:#fff;border:1px solid #80cbc4;"><option value="">選択…</option>' + rkOpts(pkMakerList(), '').replace('<option value=""></option>', '') + '</select>'
+                   + ' <button class="btn-action" style="background:#00695c;color:#fff;padding:1px 8px;font-size:0.72rem;" onclick="rkSetGroupMaker(\'' + gn + '\',\'' + grp + '\',this.previousElementSibling.value)">一括設定</button>'
                    + ' <button class="btn-delete" style="font-size:0.72rem;padding:1px 7px;" onclick="rkDelGroup(\'' + gn + '\',\'' + grp + '\')">グループ削除</button>'
                    + '</td></tr>';
                 g.items.forEach(function (it) {
