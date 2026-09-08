@@ -7576,9 +7576,9 @@
                + '<th style="min-width:120px;">小区分</th>';
             mcols.forEach(function (mc) {
                 var tip = mc.items.map(function (it) { return (it.name1 || '(未分類)') + ' / ' + (it.hinban || '-') + ' / ' + (it.maker || '-'); }).join(' , ');
-                var sub = (mc.items.length > 1) ? (mc.items.length + '種から選択') : rkPickLabel(mc.items[0]);
+                var sub = (mc.items.length > 1) ? '' : rkPickLabel(mc.items[0]);
                 h += '<th class="rk-g1" title="' + rkEsc(tip) + '" style="min-width:104px;">' + rkEsc(mc.name2)
-                   + '<br><span style="font-weight:normal;font-size:0.64rem;color:#b2ebf2;">' + rkEsc(sub) + '</span></th>';
+                   + (sub ? ('<br><span style="font-weight:normal;font-size:0.64rem;color:#b2ebf2;">' + rkEsc(sub) + '</span>') : '') + '</th>';
             });
             if (!mcols.length) h += '<th style="min-width:230px;color:#ffe0b2;font-weight:normal;">（この区分の部材が未登録です）</th>';
             if (main) {
