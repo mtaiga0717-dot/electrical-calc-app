@@ -6373,6 +6373,29 @@
                 if (r.error) console.error('[PK] row upsert', r.error);
             } catch (e) { console.error('[PK] row upsert ex', e); }
         }
+        var _pkRt = {}, _pkRtTimer = {};
+        function pkSubscribeRt(k) {
+            var pid = projectGetCurrent(), d = PK_DEFS[k];
+            if (_pkRt[k]) { try { db.removeChannel(_pkRt[k]); } catch (e) {} _pkRt[k] = null; }
+            if (!pid || !d) return;
+            var flt = 'project_id=eq.' + pid;
+            var cb = function () { pkOnRt(k); };
+            _pkRt[k] = db.channel('pk-' + k + '-' + pid)
+                .on('postgres_changes', { event: '*', schema: 'public', table: d.itemT, filter: flt }, cb)
+                .on('postgres_changes', { event: '*', schema: 'public', table: d.cntT, filter: flt }, cb)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'lighting_masters', filter: flt }, cb)
+                .subscribe();
+        }
+        function pkOnRt(k) {
+            if (_pkRtTimer[k]) clearTimeout(_pkRtTimer[k]);
+            _pkRtTimer[k] = setTimeout(async function () {
+                var ae = document.activeElement;
+                if (ae && ae.closest && ae.closest('#' + k)) { pkOnRt(k); return; }
+                await pkLoad(k);
+                _pk[k].loadedAt = Date.now();
+                pkRenderAll(k);
+            }, 1200);
+        }
         async function pkInit(k) {
             var pid = projectGetCurrent();
             var now = Date.now();
@@ -6381,6 +6404,7 @@
             _pk[k].loadedAt = now;
             await pkLoadPanels();
             await pkLoad(k);
+            pkSubscribeRt(k);
             pkRenderAll(k);
         }
         function pkReload(k) { _pk[k].pid = null; _pk[k].loadedAt = 0; pkInit(k); }
@@ -6721,7 +6745,7 @@
             var store = (kind === 'a') ? r.countsA : r.counts;
             var n = pkN(value);
             if (n) store[itemId] = n; else delete store[itemId];
-            pkUpsertRow(k, r);
+            _ccCellSet(PK_DEFS[k].cntT, r.id, itemId, ((kind === 'a') ? 'a' : 'd'), n).then(function (ok) { if (!ok) pkUpsertRow(k, r); });
             pkRenderAgg(k);
         }
         function pkRenderSumTable(k, grp, sfx) {
@@ -7160,6 +7184,7 @@
             if (_rk.pid === pid && _rk.loadedAt && (now - _rk.loadedAt) < 8000) { rkRenderAll(); return; }
             _rk.pid = pid; _rk.loadedAt = now;
             await rkLoad();
+            rkSubscribeRt();
             rkRenderAll();
         }
         function rkReload() { _rk.pid = null; _rk.loadedAt = 0; rkInit(); }
@@ -7455,6 +7480,40 @@
             if (field === 'floor' || field === 'sub') rkSyncRowFields(id);
             rkRenderAgg();
         }
+        async function _ccCellSet(table, rowId, key, kind, val) {
+            try {
+                var pid = projectGetCurrent();
+                if (!pid) return false;
+                var r = await db.rpc('count_cell_set', {
+                    p_table: table, p_project: String(pid), p_row_id: String(rowId),
+                    p_key: String(key), p_kind: kind, p_val: (val > 0 ? val : null)
+                });
+                if (r.error) { console.warn('[CC] rpc', r.error.message); return false; }
+                return (r.data > 0);
+            } catch (e) { console.warn('[CC] rpc ex', e); return false; }
+        }
+        var _rkRt = null;
+        function rkSubscribeRt() {
+            var pid = projectGetCurrent();
+            if (_rkRt) { try { db.removeChannel(_rkRt); } catch (e) {} _rkRt = null; }
+            if (!pid) return;
+            var flt = 'project_id=eq.' + pid;
+            _rkRt = db.channel('rack-' + pid)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'rack_items', filter: flt }, rkOnRt)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'rack_counts', filter: flt }, rkOnRt)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'lighting_masters', filter: flt }, rkOnRt)
+                .subscribe();
+        }
+        function rkOnRt() {
+            if (window._rkRtDebounce) clearTimeout(window._rkRtDebounce);
+            window._rkRtDebounce = setTimeout(async function () {
+                var ae = document.activeElement;
+                if (ae && ae.closest && ae.closest('#rack')) { rkOnRt(); return; }
+                await rkLoad();
+                _rk.loadedAt = Date.now();
+                rkRenderAll();
+            }, 1200);
+        }
         function rkCntChange(rowId, key, value, kind) {
             var r = _rk.rows.filter(function (x) { return x.id === rowId; })[0];
             if (!r) return;
@@ -7463,7 +7522,7 @@
             var stores = (kind === 'b') ? [r.counts, r.countsA] : [((kind === 'a') ? r.countsA : r.counts)];
             var n = rkN(value);
             stores.forEach(function (store) { if (n) store[key] = n; else delete store[key]; });
-            rkUpsertRow(r);
+            _ccCellSet('rack_counts', r.id, key, ((kind === 'b') ? 'b' : ((kind === 'a') ? 'a' : 'd')), n).then(function (ok) { if (!ok) rkUpsertRow(r); });
             rkRenderAgg();
         }
         function rkToggleAll(on) {
@@ -17620,7 +17679,7 @@ ${contentRows}
             var store = (kind === 'a') ? r.countsA : r.counts;
             var n = _lightN(value);
             if (n > 0) store[fxId] = n; else delete store[fxId];
-            _lightQueueRow(r);
+            _ccCellSet('lighting_counts', r.id, fxId, ((kind === 'a') ? 'a' : 'd'), n).then(function (ok) { if (!ok) _lightQueueRow(r); });
             _lightSyncDiff(r, fxId);
             lightRenderSumTotals();
             lightRenderAgg();
