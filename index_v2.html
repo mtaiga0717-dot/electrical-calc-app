@@ -6324,6 +6324,7 @@
                              kousyu: pkKsParse(row.kousyu), grp: row.grp || '',
                              listPrice: row.list_price || 0, netPrice: row.net_price || 0, remark: row.remark || '' };
                 });
+                _ccTrack(d.itemT, 'item_id', r1.data);
                 var r2 = await db.from(d.cntT).select('*').eq('project_id', pid).order('no', { ascending: true });
                 if (r2.error) throw r2.error;
                 _pk[k].rows = (r2.data || []).map(function (row) {
@@ -6349,12 +6350,13 @@
         async function pkUpsertItem(k, it) {
             var d = PK_DEFS[k];
             if (_pkDeleted['i:' + k + ':' + it.id]) return;
+            if (await _ccStale(d.itemT, 'item_id', it.id)) { _ccWarn('部材', function () { pkReload(k); }); return; }
             try {
                 var r = await db.from(d.itemT).upsert({
                     project_id: projectGetCurrent(), item_id: it.id, no: it.no || 0,
                     symbol: it.symbol || '', name: it.name || '', maker: it.maker || '', kataban: it.kataban || '', kousyu: pkKsStr(it.kousyu), grp: pkGrpOf(it),
                     list_price: pkN(it.listPrice), net_price: pkN(it.netPrice), remark: it.remark || '',
-                    updated_at: new Date().toISOString()
+                    updated_at: _ccStamp(d.itemT, it.id)
                 }, { onConflict: 'project_id,item_id' });
                 if (r.error) console.error('[PK] item upsert', r.error);
             } catch (e) { console.error('[PK] item upsert ex', e); }
@@ -7134,6 +7136,7 @@
                              hinban: row.hinban || '', maker: row.maker || '', grp: row.grp || '',
                              listPrice: row.list_price || 0, netPrice: row.net_price || 0, remark: row.remark || '' };
                 });
+                _ccTrack('rack_items', 'item_id', r1.data);
                 var r2 = await db.from('rack_counts').select('*').eq('project_id', pid).order('no', { ascending: true });
                 if (r2.error) throw r2.error;
                 _rk.rows = (r2.data || []).map(function (row) {
@@ -7156,12 +7159,13 @@
         }
         async function rkUpsertItem(it) {
             if (_rkDeleted['i:' + it.id]) return;
+            if (await _ccStale('rack_items', 'item_id', it.id)) { _ccWarn('部材', rkReload); return; }
             try {
                 var r = await db.from('rack_items').upsert({
                     project_id: projectGetCurrent(), item_id: it.id, no: it.no || 0,
                     name1: it.name1 || '', name2: it.name2 || '', hinban: it.hinban || '', maker: it.maker || '', grp: rkGrpOf(it),
                     list_price: rkN(it.listPrice), net_price: rkN(it.netPrice), remark: it.remark || '',
-                    updated_at: new Date().toISOString()
+                    updated_at: _ccStamp('rack_items', it.id)
                 }, { onConflict: 'project_id,item_id' });
                 if (r.error) console.error('[RK] item upsert', r.error);
             } catch (e) { console.error('[RK] item upsert ex', e); }
@@ -7479,6 +7483,29 @@
             if (field === 'ordered') rkRenderSum();
             if (field === 'floor' || field === 'sub') rkSyncRowFields(id);
             rkRenderAgg();
+        }
+        var _ccVer = {}, _ccLastWarn = 0;
+        function _ccStamp(table, id) { var ts = new Date().toISOString(); _ccVer[table + '|' + id] = ts; return ts; }
+        function _ccTrack(table, idField, rows) {
+            (rows || []).forEach(function (row) { _ccVer[table + '|' + row[idField]] = row.updated_at; });
+        }
+        async function _ccStale(table, keyCol, keyVal) {
+            var ver = _ccVer[table + '|' + keyVal];
+            if (!ver) return false;
+            try {
+                var q = await db.from(table).select('updated_at').eq('project_id', projectGetCurrent()).eq(keyCol, keyVal).maybeSingle();
+                if (q.error || !q.data || !q.data.updated_at) return false;
+                var a = Date.parse(q.data.updated_at), b = Date.parse(ver);
+                if (!a || !b) return false;
+                return (a - b) > 1000;
+            } catch (e) { return false; }
+        }
+        function _ccWarn(label, reload) {
+            var now = Date.now();
+            if (now - _ccLastWarn < 8000) return;
+            _ccLastWarn = now;
+            alert('他の人が同じ' + label + 'を先に更新しました。\n上書きを避けるため、この変更は保存せずに最新の内容を読み込みます。');
+            try { if (typeof reload === 'function') reload(); } catch (e) {}
         }
         async function _ccCellSet(table, rowId, key, kind, val) {
             try {
@@ -16958,6 +16985,7 @@ ${contentRows}
                         remark: row.remark || ''
                     };
                 });
+                _ccTrack('lighting_fixtures', 'item_id', r1.data);
                 var r2 = await db.from('lighting_counts').select('*').eq('project_id', pid).order('no', { ascending: true });
                 if (r2.error) throw r2.error;
                 _lightRows = (r2.data || []).map(function (row) {
@@ -16979,6 +17007,7 @@ ${contentRows}
 
         async function _lightUpsertFx(item) {
             _lightGuardRt();
+            if (await _ccStale('lighting_fixtures', 'item_id', item.id)) { _ccWarn('照明器具', lightReload); return; }
             try {
                 var res = await db.from('lighting_fixtures').upsert({
                     project_id: projectGetCurrent(), item_id: item.id, no: item.no || 0,
@@ -16992,7 +17021,7 @@ ${contentRows}
                     design_qty: _lightN(item.designQty), list_price: _lightN(item.listPrice), net_price: _lightN(item.netPrice),
                     accessories: Array.isArray(item.accessories) ? item.accessories : [],
                     remark: item.remark || '',
-                    updated_at: new Date().toISOString()
+                    updated_at: _ccStamp('lighting_fixtures', item.id)
                 }, { onConflict: 'project_id,item_id' });
                 if (res.error) console.error('[LIGHT] upsert fixture error:', res.error);
             } catch (e) { console.error('[LIGHT] upsert fixture ex:', e); }
