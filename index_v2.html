@@ -1550,15 +1550,15 @@
         .rk-sum-b1 thead th { background:#5d4037; border-color:#4e342e; }
         .rk-sum-b2 thead th { background:#33691e; border-color:#1b5e20; }
 
-        #pkSumTable2_wiring thead tr:first-child th:nth-child(1), #pkSumTable2_wiring tbody td:nth-child(1) { position:sticky; left:0;     width:40px;  min-width:40px;  max-width:40px; }
-        #pkSumTable2_wiring thead tr:first-child th:nth-child(2), #pkSumTable2_wiring tbody td:nth-child(2) { position:sticky; left:40px;  width:80px;  min-width:80px;  max-width:80px; }
-        #pkSumTable2_wiring thead tr:first-child th:nth-child(3), #pkSumTable2_wiring tbody td:nth-child(3) { position:sticky; left:120px; width:150px; min-width:150px; box-shadow:2px 0 0 #d84315; }
-        #pkSumTable2_wiring tbody td:nth-child(-n+3) { background:#fff; z-index:2; }
-        #pkSumTable2_wiring thead tr:first-child th:nth-child(-n+3) { z-index:6; }
-        #pkSumTable2_wiring tbody tr:hover td:nth-child(-n+3) { background:#fff3e0; }
-        #pkSumTable2_wiring thead th { background:#00695c; border-color:#004d40; }
-        #pkSumTable2_wiring thead th.sub-d { background:#8d6e63; }
-        #pkSumTable2_wiring thead th.sub-a { background:#00838f; }
+        .pk-sum-sub thead tr:first-child th:nth-child(1), .pk-sum-sub tbody td:nth-child(1) { position:sticky; left:0;     width:40px;  min-width:40px;  max-width:40px; }
+        .pk-sum-sub thead tr:first-child th:nth-child(2), .pk-sum-sub tbody td:nth-child(2) { position:sticky; left:40px;  width:80px;  min-width:80px;  max-width:80px; }
+        .pk-sum-sub thead tr:first-child th:nth-child(3), .pk-sum-sub tbody td:nth-child(3) { position:sticky; left:120px; width:150px; min-width:150px; box-shadow:2px 0 0 #d84315; }
+        .pk-sum-sub tbody td:nth-child(-n+3) { background:#fff; z-index:2; }
+        .pk-sum-sub thead tr:first-child th:nth-child(-n+3) { z-index:6; }
+        .pk-sum-sub tbody tr:hover td:nth-child(-n+3) { background:#fff3e0; }
+        .pk-sum-sub thead th { background:#00695c; border-color:#004d40; }
+        .pk-sum-sub thead th.sub-d { background:#8d6e63; }
+        .pk-sum-sub thead th.sub-a { background:#00838f; }
         .pk-sum thead th { padding:2px 3px; line-height:16px; }
         .pk-sum thead tr:first-child th { position:sticky; top:0; z-index:4; box-shadow:0 1px 0 #d84315; }
         .pk-sum thead tr:nth-child(2) th { position:sticky; top:22px; z-index:4; box-shadow:0 1px 0 #d84315; font-size:0.68rem; font-weight:normal; }
@@ -1571,13 +1571,13 @@
         .pk-list tbody td.light-fix { position:sticky; left:0; z-index:3; background:#fafafa; width:52px; min-width:52px; max-width:52px; }
         .pk-list tbody td.pk-sym { position:sticky; left:52px; z-index:3; background:#fff; box-shadow:2px 0 0 #d84315; }
         .pk-list tbody tr:hover td.light-fix, .pk-list tbody tr:hover td.pk-sym { background:#fff3e0; }
-        #pkSumTable_wiring thead tr:first-child th:nth-child(1), #pkSumTable_wiring tbody td:nth-child(1) { position:sticky; left:0;     width:28px;  min-width:28px;  max-width:28px; }
-        #pkSumTable_wiring thead tr:first-child th:nth-child(2), #pkSumTable_wiring tbody td:nth-child(2) { position:sticky; left:28px;  width:40px;  min-width:40px;  max-width:40px; }
-        #pkSumTable_wiring thead tr:first-child th:nth-child(3), #pkSumTable_wiring tbody td:nth-child(3) { position:sticky; left:68px;  width:80px;  min-width:80px;  max-width:80px; }
-        #pkSumTable_wiring thead tr:first-child th:nth-child(4), #pkSumTable_wiring tbody td:nth-child(4) { position:sticky; left:148px; width:150px; min-width:150px; box-shadow:2px 0 0 #d84315; }
-        #pkSumTable_wiring tbody td:nth-child(-n+4) { background:#fff; z-index:2; }
-        #pkSumTable_wiring thead tr:first-child th:nth-child(-n+4) { z-index:6; }
-        #pkSumTable_wiring tbody tr:hover td:nth-child(-n+4) { background:#fff3e0; }
+        .pk-sum-main thead tr:first-child th:nth-child(1), .pk-sum-main tbody td:nth-child(1) { position:sticky; left:0;     width:28px;  min-width:28px;  max-width:28px; }
+        .pk-sum-main thead tr:first-child th:nth-child(2), .pk-sum-main tbody td:nth-child(2) { position:sticky; left:28px;  width:40px;  min-width:40px;  max-width:40px; }
+        .pk-sum-main thead tr:first-child th:nth-child(3), .pk-sum-main tbody td:nth-child(3) { position:sticky; left:68px;  width:80px;  min-width:80px;  max-width:80px; }
+        .pk-sum-main thead tr:first-child th:nth-child(4), .pk-sum-main tbody td:nth-child(4) { position:sticky; left:148px; width:150px; min-width:150px; box-shadow:2px 0 0 #d84315; }
+        .pk-sum-main tbody td:nth-child(-n+4) { background:#fff; z-index:2; }
+        .pk-sum-main thead tr:first-child th:nth-child(-n+4) { z-index:6; }
+        .pk-sum-main tbody tr:hover td:nth-child(-n+4) { background:#fff3e0; }
 
     </style>
 </head>
@@ -3169,14 +3169,7 @@
                         <button class="btn-action" onclick="pkExportSumCsv('wiring')">CSV出力</button>
                     </div>
                     <div style="font-size:0.72rem;color:#888;margin-bottom:3px;">※ 階・室名は「質疑応答書」タブで登録したフロア／部屋リストを共有しています。</div>
-                    <div style="font-size:0.8rem;font-weight:bold;color:#4527a0;margin:2px 0 3px;">■ 器具</div>
-                    <div class="light-wrap pk-wrap-half">
-                        <table class="light-table pk-sum" id="pkSumTable_wiring"><thead id="pkSumThead_wiring"></thead><tbody id="pkSumTbody_wiring"></tbody></table>
-                    </div>
-                    <div style="font-size:0.8rem;font-weight:bold;color:#00695c;margin:8px 0 3px;">■ ボックス・プレート・支持材</div>
-                    <div class="light-wrap pk-wrap-half">
-                        <table class="light-table pk-sum" id="pkSumTable2_wiring"><thead id="pkSumThead2_wiring"></thead><tbody id="pkSumTbody2_wiring"></tbody></table>
-                    </div>
+                    <div id="pkSumBlocks_wiring"></div>
                     <h4 style="margin:0.8rem 0 0.3rem;">部材別集計</h4>
                     <div class="light-wrap">
                         <table class="light-table" id="pkAggTable_wiring"><thead id="pkAggThead_wiring"></thead><tbody id="pkAggTbody_wiring"></tbody></table>
@@ -6264,7 +6257,7 @@
             { f: 'netRate',   label: '率',       w: 64,  t: 'calc' },
             { f: 'remark',    label: '備考',     w: 160, t: 'text' }
         ];
-        var PK_GROUPS = ['器具', 'ボックス・プレート・支持材'];
+        var PK_GROUPS = ['器具', 'ボックス', 'プレート', '支持材'];
         function pkGrpOf(it) { var g = it && it.grp ? String(it.grp) : ''; return (PK_GROUPS.indexOf(g) >= 0) ? g : PK_GROUPS[0]; }
         var _pk = { outlet: { items: [], rows: [], pid: null, kousyuList: [], kousyu: '' }, wiring: { items: [], rows: [], pid: null, kousyuList: [], kousyu: '' } };
         function pkUid(p) { return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -6808,15 +6801,29 @@
             _lightApplyLock(document.getElementById('pkSumTable' + sfx + '_' + k));
             return cols.length;
         }
+        var PK_GCOLORS = ['#4527a0', '#00695c', '#ad1457', '#33691e'];
         function pkRenderSum(k) {
-            var n1 = pkRenderSumTable(k, PK_GROUPS[0], '');
-            var n2 = pkRenderSumTable(k, PK_GROUPS[1], '2');
+            var host = document.getElementById('pkSumBlocks_' + k);
+            if (!host) return;
+            var html = '';
+            PK_GROUPS.forEach(function (g, i) {
+                var sfx = (i === 0) ? '' : ('_' + i);
+                html += '<div style="font-size:0.8rem;font-weight:bold;color:' + (PK_GCOLORS[i] || '#455a64') + ';margin:' + (i ? 10 : 2) + 'px 0 3px;">■ ' + pkEsc(g) + '</div>'
+                     + '<div class="light-wrap pk-wrap-half"><table class="light-table pk-sum ' + ((i === 0) ? 'pk-sum-main' : 'pk-sum-sub') + '" id="pkSumTable' + sfx + '_' + k + '">'
+                     + '<thead id="pkSumThead' + sfx + '_' + k + '"></thead><tbody id="pkSumTbody' + sfx + '_' + k + '"></tbody></table></div>';
+            });
+            host.innerHTML = html;
+            var parts = [];
+            PK_GROUPS.forEach(function (g, i) {
+                var n = pkRenderSumTable(k, g, (i === 0) ? '' : ('_' + i));
+                parts.push(g + ' ' + n + ' 列');
+            });
             var inf = document.getElementById('pkInfo_' + k);
-            if (inf) inf.textContent = _pk[k].rows.length + ' 行 / 器具 ' + n1 + ' 列・付属 ' + n2 + ' 列';
+            if (inf) inf.textContent = _pk[k].rows.length + ' 行 / ' + parts.join('・');
         }
         function pkAggData(k) {
             var out = [];
-            [].concat(pkCols(k, PK_GROUPS[0]), pkCols(k, PK_GROUPS[1])).forEach(function (c) {
+            PK_GROUPS.reduce(function (acc, g) { return acc.concat(pkCols(k, g)); }, []).forEach(function (c) {
                 var it = c.it, dq = 0, n = 0, ordN = 0;
                 _pk[k].rows.forEach(function (r) {
                     dq += pkN((r.counts || {})[c.key]);
@@ -6897,7 +6904,7 @@
             _lightDownload(PK_DEFS[k].label + '部材登録_' + _lightProjName() + '.csv', lines.join('\n'));
         }
         function pkExportSumCsv(k) {
-            var d = PK_DEFS[k], items = [].concat(pkCols(k, PK_GROUPS[0]), pkCols(k, PK_GROUPS[1])), lines = [];
+            var d = PK_DEFS[k], items = PK_GROUPS.reduce(function (acc, g) { return acc.concat(pkCols(k, g)); }, []), lines = [];
             var head = d.circuit ? ['No', '盤名称', '回路No', '階', '室名'] : ['No', '階', '室名'];
             items.forEach(function (c) { var s = (c.it.symbol || c.it.name || '') + (c.multi && c.ks ? '[' + c.ks + ']' : ''); head.push(s + '(設計)'); head.push(s + '(実行)'); });
             head = head.concat(['注文済', '注文日', '備考']);
