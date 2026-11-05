@@ -3038,7 +3038,7 @@
                     <div>工種：<select id="qaFilterKoushu" style="font-size:0.82rem;min-width:100px;" onchange="qaRender()"><option value="">すべて</option></select></div>
                     <div>内容：<select id="qaFilterSummary" style="font-size:0.82rem;min-width:100px;" onchange="qaRender()"><option value="">すべて</option></select></div>
                     <div>決議：<select id="qaFilterKetsugi" style="font-size:0.82rem;min-width:80px;" onchange="qaRender()">
-                        <option value="">すべて</option><option value="未決">未決</option><option value="継続">継続</option><option value="決定">決定</option>
+                        <option value="">すべて</option><option value="未決|継続">未決＋継続（未解決）</option><option value="未決">未決</option><option value="継続">継続</option><option value="決定">決定</option>
                     </select></div>
                     <div>打合せ回：<select id="qaFilterPrinted" style="font-size:0.82rem;min-width:80px;" onchange="qaRender()">
                         <option value="">すべて</option><option value="yes">出力済</option><option value="no">未出力</option>
@@ -16320,7 +16320,11 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
             let filtered = data.filter(d => {
                 if (fKoushu && d.koushu !== fKoushu) return false;
                 if (fSummary && (d.summary || '') !== fSummary) return false;
-                if (fKetsugi && qaGetFinalKetsugi(d) !== fKetsugi) return false;
+                if (fKetsugi) {
+                    const kv = qaGetFinalKetsugi(d);
+                    if (fKetsugi.indexOf('|') >= 0) { if (fKetsugi.split('|').indexOf(kv) < 0) return false; }
+                    else if (kv !== fKetsugi) return false;
+                }
                 if (fPrinted === 'yes' && !(d.exchanges||[]).some(e => e.printed)) return false;
                 if (fPrinted === 'no' && (d.exchanges||[]).every(e => e.printed)) return false;
                 if (fText) {
