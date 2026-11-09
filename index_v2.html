@@ -3310,6 +3310,9 @@
                                 <label style="font-size:0.82rem;">A- <input type="number" id="qaDrawLimitA" min="1" max="999" value="99" style="width:50px;font-size:0.82rem;"></label>
                                 <label style="font-size:0.82rem;">M- <input type="number" id="qaDrawLimitM" min="1" max="999" value="99" style="width:50px;font-size:0.82rem;"></label>
                             </div>
+                            <label style="font-weight:bold;font-size:0.85rem;display:block;margin-top:0.5rem;">仕様書・その他図書（1行に1つ）</label>
+                            <textarea id="qaDrawDocs" rows="3" style="font-size:0.82rem;width:220px;margin-top:0.2rem;" placeholder="例：&#10;空調仕様書&#10;衛生仕様書"></textarea>
+                            <div style="font-size:0.72rem;color:#666;">ここに登録した図書は、図面番号の欄で番号とページを手入力できます</div>
                         </div>
                             <button class="btn-action" style="background:#1565c0;color:#fff;" onclick="qaSaveSettings()">設定を保存</button>
                         </div>
@@ -15573,16 +15576,41 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
             var key = prefix.replace("-","");
             return limits[key] || 99;
         }
+        // ★ 仕様書などの追加図書（設定の drawingNoLimits._docs に保存）
+        function _qaGetDocList() {
+            var s = qaLoadSettings();
+            var l = (s.drawingNoLimits && Array.isArray(s.drawingNoLimits._docs)) ? s.drawingNoLimits._docs : [];
+            return l.filter(function(x){ return x && String(x).trim(); });
+        }
+        function _qaGetDrawingPrefixes() {
+            return QA_DRAWING_PREFIXES.concat(_qaGetDocList());
+        }
+        function _qaIsDocPrefix(prefix) {
+            return QA_DRAWING_PREFIXES.indexOf(prefix) < 0;
+        }
+        function _qaFormatOneDrawingNo(d) {
+            if (_qaIsDocPrefix(d.prefix)) {
+                var t = d.prefix;
+                if (d.num) t += ' ' + d.num;
+                if (d.page) t += ' p.' + d.page;
+                return t;
+            }
+            return d.prefix + d.num;
+        }
         function _qaFormatDrawingNos(drawingNos) {
             if (!drawingNos || !Array.isArray(drawingNos)) return "";
-            return drawingNos.filter(function(d){return d.num;}).map(function(d){return d.prefix+d.num;}).join(", ");
+            return drawingNos.filter(function(d){return d.num || d.page;}).map(_qaFormatOneDrawingNo).join(", ");
         }
         function qaUpdateDrawingNo(id, index, field, value) {
             var item = _qaDataCache.find(function(d){return d.id===id;});
             if (!item) return;
             if (!item.drawingNos) item.drawingNos = [{prefix:"E-",num:""}];
             if (index < item.drawingNos.length) {
-                item.drawingNos[index][field] = value;
+                var _dn = item.drawingNos[index];
+                if (field === 'prefix' && _qaIsDocPrefix(_dn.prefix) !== _qaIsDocPrefix(value)) {
+                    _dn.num = ''; _dn.page = '';
+                }
+                _dn[field] = value;
             }
             _qaUpsertItemToDB(item);
             qaRender();
@@ -15887,7 +15915,8 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
             s.drawingNoLimits = {
                 E: parseInt(document.getElementById('qaDrawLimitE').value) || 99,
                 A: parseInt(document.getElementById('qaDrawLimitA').value) || 99,
-                M: parseInt(document.getElementById('qaDrawLimitM').value) || 99
+                M: parseInt(document.getElementById('qaDrawLimitM').value) || 99,
+                _docs: (document.getElementById('qaDrawDocs').value || '').split('\n').map(function(x){return x.trim();}).filter(function(x, i, a){return x && a.indexOf(x) === i;})
             };
                         qaSaveSettingsData(s);
             qaPopulateFilterSummary();
@@ -15982,6 +16011,8 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
             if (_elE) _elE.value = _dnl.E || 99;
             if (_elA) _elA.value = _dnl.A || 99;
             if (_elM) _elM.value = _dnl.M || 99;
+            var _elDocs = document.getElementById('qaDrawDocs');
+            if (_elDocs) _elDocs.value = Array.isArray(_dnl._docs) ? _dnl._docs.join('\n') : '';
         }
 
         // 初期化
@@ -16383,17 +16414,28 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
                 var _dns = item.drawingNos || [{prefix:"E-",num:""}];
                 _dns.forEach(function(dn, di) {
                     html += '<div style="display:flex;align-items:center;gap:1px;margin-bottom:1px;">';
-                    html += '<select style="font-size:0.72rem;width:30px;padding:0 0 0 1px;" onchange="qaUpdateDrawingNo(\x27' + item.id + '\x27,' + di + ',\x27prefix\x27,this.value)">';
-                    QA_DRAWING_PREFIXES.forEach(function(p) {
-                        html += '<option value="' + p + '"' + (dn.prefix===p?' selected':'') + '>' + p.replace('-','') + '</option>';
+                    var _isDoc = _qaIsDocPrefix(dn.prefix);
+                    var _pfxs = _qaGetDrawingPrefixes();
+                    if (_pfxs.indexOf(dn.prefix) < 0) _pfxs = _pfxs.concat([dn.prefix]);
+                    html += '<select style="font-size:0.72rem;' + (_isDoc ? 'max-width:80px;' : 'width:30px;') + 'padding:0 0 0 1px;" onchange="qaUpdateDrawingNo(\x27' + item.id + '\x27,' + di + ',\x27prefix\x27,this.value)">';
+                    _pfxs.forEach(function(p) {
+                        var _pe = String(p).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+                        html += '<option value="' + _pe + '"' + (dn.prefix===p?' selected':'') + '>' + (_qaIsDocPrefix(p) ? _pe : p.replace('-','')) + '</option>';
                     });
                     html += '</select>';
+                    if (_isDoc) {
+                        var _ne = String(dn.num||'').replace(/"/g,'&quot;');
+                        var _pg = String(dn.page||'').replace(/"/g,'&quot;');
+                        html += '<input type="text" value="' + _ne + '" placeholder="番号" title="番号・章など" style="font-size:0.72rem;width:38px;padding:0 1px;" onchange="qaUpdateDrawingNo(\x27' + item.id + '\x27,' + di + ',\x27num\x27,this.value)">';
+                        html += '<span style="font-size:0.65rem;">p.</span><input type="text" value="' + _pg + '" placeholder="頁" title="ページ" style="font-size:0.72rem;width:30px;padding:0 1px;" onchange="qaUpdateDrawingNo(\x27' + item.id + '\x27,' + di + ',\x27page\x27,this.value)">';
+                    } else {
                     var _lim = _qaGetDrawingLimit(dn.prefix);
                     html += '<select style="font-size:0.72rem;width:36px;padding:0;" onchange="qaUpdateDrawingNo(\x27' + item.id + '\x27,' + di + ',\x27num\x27,this.value)"><option value="">-</option>';
                     for (var _ni = 1; _ni <= _lim; _ni++) {
                         html += '<option value="' + _ni + '"' + (String(dn.num)===String(_ni)?' selected':'') + '>' + _ni + '</option>';
                     }
                     html += '</select>';
+                    }
                     if (di > 0) html += '<span style="cursor:pointer;color:red;font-size:0.65rem;padding:0 1px;line-height:1;" onclick="qaRemoveDrawingNo(\x27' + item.id + '\x27,' + di + ')">\u2715</span>';
                     html += '</div>';
                 });
