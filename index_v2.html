@@ -15595,7 +15595,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                 if (d.page) t += ' p.' + d.page;
                 return t;
             }
-            return d.prefix + d.num;
+            return d.prefix + d.num + ((d.num && d.num2 && String(d.num2) !== String(d.num)) ? ('～' + d.num2) : '');
         }
         function _qaFormatDrawingNos(drawingNos) {
             if (!drawingNos || !Array.isArray(drawingNos)) return "";
@@ -15608,7 +15608,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
             if (index < item.drawingNos.length) {
                 var _dn = item.drawingNos[index];
                 if (field === 'prefix' && _qaIsDocPrefix(_dn.prefix) !== _qaIsDocPrefix(value)) {
-                    _dn.num = ''; _dn.page = '';
+                    _dn.num = ''; _dn.num2 = ''; _dn.page = '';
                 }
                 _dn[field] = value;
             }
@@ -16433,6 +16433,12 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
                     html += '<select style="font-size:0.72rem;width:36px;padding:0;" onchange="qaUpdateDrawingNo(\x27' + item.id + '\x27,' + di + ',\x27num\x27,this.value)"><option value="">-</option>';
                     for (var _ni = 1; _ni <= _lim; _ni++) {
                         html += '<option value="' + _ni + '"' + (String(dn.num)===String(_ni)?' selected':'') + '>' + _ni + '</option>';
+                    }
+                    html += '</select>';
+                    html += '<span style="font-size:0.65rem;color:#666;">～</span>';
+                    html += '<select style="font-size:0.72rem;width:36px;padding:0;" title="連番のときの終わり（E-1～15 のように出力）" onchange="qaUpdateDrawingNo(\x27' + item.id + '\x27,' + di + ',\x27num2\x27,this.value)"><option value="">-</option>';
+                    for (var _nj = 1; _nj <= _lim; _nj++) {
+                        html += '<option value="' + _nj + '"' + (String(dn.num2||'')===String(_nj)?' selected':'') + '>' + _nj + '</option>';
                     }
                     html += '</select>';
                     }
