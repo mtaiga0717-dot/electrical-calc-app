@@ -16282,6 +16282,63 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
         async function qaSaveFloorRooms(d){localStorage.setItem(QA_FLOOR_ROOM_KEY,JSON.stringify(d));var pid=projectGetCurrent();await db.from('floor_rooms').delete().eq('project_id',pid);var rows=[];Object.keys(d).forEach(function(f){rows.push({project_id:pid,floor:f,rooms:d[f]||[]})});if(rows.length>0){await db.from('floor_rooms').insert(rows)}}
         async function qaSyncFloorRoomsFromDB(){var pid=projectGetCurrent();var res=await db.from('floor_rooms').select('*').eq('project_id',pid);if(res.data&&res.data.length>0){var fr={};res.data.forEach(function(row){fr[row.floor]=row.rooms||[]});localStorage.setItem(QA_FLOOR_ROOM_KEY,JSON.stringify(fr))}}
         qaSyncFloorRoomsFromDB()
+        function _qaFloorList(item) {
+            return String((item && item.floor) || '').split(/[,、]/).map(function (s) { return s.trim(); }).filter(Boolean);
+        }
+        function _qaEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+        function qaOpenFloorPicker(id) {
+            var data = qaMigrateData(qaLoadData());
+            var item = data.find(function (d) { return d.id === id; });
+            if (!item) return;
+            var fr = qaLoadFloorRooms();
+            var floors = Object.keys(fr).sort(function (a, b) {
+                var na = parseInt(a), nb = parseInt(b);
+                return (!isNaN(na) && !isNaN(nb)) ? na - nb : a.localeCompare(b);
+            });
+            var cur = _qaFloorList(item);
+            var old = document.getElementById('qaFloorPicker');
+            if (old) old.remove();
+            var ov = document.createElement('div');
+            ov.id = 'qaFloorPicker';
+            ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.35);z-index:9999;display:flex;align-items:center;justify-content:center;';
+            var box = '<div style="background:#fff;border-radius:6px;padding:14px 16px;min-width:280px;max-height:70vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,0.3);">'
+                + '<div style="font-weight:bold;font-size:0.9rem;margin-bottom:8px;">階を選択（複数可）</div>'
+                + '<div style="margin-bottom:8px;">'
+                + '<button type="button" class="btn-action" style="font-size:0.72rem;padding:1px 8px;" onclick="_qaFloorPickAll(true)">全選択</button> '
+                + '<button type="button" class="btn-action" style="font-size:0.72rem;padding:1px 8px;" onclick="_qaFloorPickAll(false)">全解除</button>'
+                + '</div><div>';
+            if (!floors.length) { box += '<div style="font-size:0.8rem;color:#999;">階が登録されていません（質疑応答書の設定で登録してください）</div>'; }
+            floors.forEach(function (f) {
+                box += '<label style="display:block;font-size:0.84rem;padding:2px 0;"><input type="checkbox" class="qa-fp" value="' + _qaEsc(f) + '"' + ((cur.indexOf(f) >= 0) ? ' checked' : '') + ' style="width:auto;margin-right:6px;">' + _qaEsc(f) + '</label>';
+            });
+            box += '</div><div style="margin-top:12px;text-align:right;">'
+                + '<button type="button" class="btn-action" style="font-size:0.78rem;padding:2px 10px;" onclick="document.getElementById(\'qaFloorPicker\').remove()">キャンセル</button> '
+                + '<button type="button" class="btn-action" style="font-size:0.78rem;padding:2px 12px;background:#1565c0;color:#fff;" onclick="_qaFloorPickApply(\'' + id + '\')">OK</button>'
+                + '</div></div>';
+            ov.innerHTML = box;
+            ov.addEventListener('click', function (ev) { if (ev.target === ov) ov.remove(); });
+            document.body.appendChild(ov);
+        }
+        function _qaFloorPickAll(on) {
+            Array.prototype.forEach.call(document.querySelectorAll('#qaFloorPicker input.qa-fp'), function (cb) { cb.checked = !!on; });
+        }
+        function _qaFloorPickApply(id) {
+            var sel = Array.prototype.map.call(document.querySelectorAll('#qaFloorPicker input.qa-fp:checked'), function (cb) { return cb.value; });
+            var data = qaMigrateData(qaLoadData());
+            var item = data.find(function (d) { return d.id === id; });
+            if (item) {
+                item.floor = sel.join(',');
+                if (sel.length === 1) {
+                    var rooms = (qaLoadFloorRooms()[sel[0]]) || [];
+                    if (item.room && rooms.indexOf(item.room) < 0) item.room = '';
+                } else if (sel.length === 0) { item.room = ''; }
+                qaSaveData(data);
+                _qaUpsertItemToDB(item);
+            }
+            var ov = document.getElementById('qaFloorPicker');
+            if (ov) ov.remove();
+            qaRender();
+        }
         function _qaGetFloorOptions(sel){const fr=qaLoadFloorRooms();return Object.keys(fr).sort((a,b)=>{const na=parseInt(a),nb=parseInt(b);return(!isNaN(na)&&!isNaN(nb))?na-nb:a.localeCompare(b)}).map(f=>"<option value=\""+f+"\""+(f===sel?" selected":"")+">"+f+"</option>").join("")}
         function _qaGetRoomOptions(floor,sel){if(!floor)return "";const rooms=(qaLoadFloorRooms()[floor])||[];return rooms.map(r=>"<option value=\""+r+"\""+(r===sel?" selected":"")+">"+r+"</option>").join("")}
         function toHankaku(s){return s.replace(/[\uff01-\uff5e]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xfee0)}).replace(/\u3000/g,' ')}
@@ -16454,8 +16511,12 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
                 html += '<span style="cursor:pointer;color:#1565c0;font-size:0.65rem;" onclick="qaAddDrawingNo(\x27' + item.id + '\x27)">\uff0b</span></td>'
                         html += `<td rowspan="${exCount}"><select onchange="qaOnFieldChange('${item.id}','koushu',this.value)"><option value="">-</option>${koushuOpts.replace('value="'+item.koushu+'"', 'value="'+item.koushu+'" selected')}</select></td>`;
                         html += `<td rowspan="${exCount}"><select style="font-size:0.78rem;" onchange="qaOnFieldChange('${item.id}','summary',this.value)"><option value="">-</option>${summaryOpts.replace('value="'+(item.summary||'').replace(/"/g,'&quot;')+'"', 'value="'+(item.summary||'').replace(/"/g,'&quot;')+'" selected')}</select></td>`;
-                html+=`<td rowspan="${exCount}"><select style="font-size:0.78rem;width:100%;" onchange="qaOnFieldChange('${item.id}','floor',this.value);qaUpdateRoomOptions('${item.id}')"><option value="">-</option>${_qaGetFloorOptions(item.floor)}</select></td>`;
-                html+=`<td rowspan="${exCount}"><select id="qaRoom_${item.id}" style="font-size:0.78rem;width:100%;" onchange="qaOnFieldChange('${item.id}','room',this.value)"><option value="">-</option>${_qaGetRoomOptions(item.floor,item.room)}</select></td>`;
+                html+=`<td rowspan="${exCount}"><button type="button" title="階を選択（複数可）" onclick="qaOpenFloorPicker('${item.id}')" style="width:100%;font-size:0.74rem;padding:1px 2px;background:#fff;border:1px solid #bbb;border-radius:3px;cursor:pointer;white-space:normal;line-height:1.1;color:${item.floor?'#222':'#aaa'};">${item.floor ? _qaEsc(item.floor) : '-'}</button></td>`;
+                if (_qaFloorList(item).length === 1) {
+                    html+=`<td rowspan="${exCount}"><select id="qaRoom_${item.id}" style="font-size:0.78rem;width:100%;" onchange="qaOnFieldChange('${item.id}','room',this.value)"><option value="">-</option>${_qaGetRoomOptions(_qaFloorList(item)[0],item.room)}</select></td>`;
+                } else {
+                    html+=`<td rowspan="${exCount}"><input type="text" value="${_qaEsc(item.room||'')}" placeholder="部屋名" title="複数階・未選択のときは手入力（例：廊下、便所）" style="font-size:0.78rem;width:100%;" onchange="qaOnFieldChange('${item.id}','room',this.value)"></td>`;
+                }
                     }
 
                     // 質疑列
