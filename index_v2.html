@@ -16702,7 +16702,7 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
                 const members = grouped[comp];
                 const compLabel = comp ? `<span style="font-weight:bold;font-size:0.78rem;color:#1565c0;">【${comp}】</span>` : '';
                 const checks = members.map(e =>
-                    `<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;margin-right:8px;"><input type="checkbox" class="qa-print-seko" data-company="${(e.company||'').replace(/"/g,'&quot;')}" value="${(e.name||'').replace(/"/g,'&quot;')}" checked> ${e.name}</label>`
+                    `<label style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;margin-right:8px;"><input type="checkbox" class="qa-print-seko" data-company="${(e.company||'').replace(/"/g,'&quot;')}" value="${(e.name||'').replace(/"/g,'&quot;')}"> ${e.name}</label>`
                 ).join('');
                 return `<div style="margin-bottom:3px;">${compLabel}${checks}</div>`;
             }).join('');
