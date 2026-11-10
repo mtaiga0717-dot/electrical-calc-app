@@ -3065,6 +3065,7 @@
                                 <th style="min-width:180px;">回答</th>
                                 <th style="width:60px;">決議</th>
                                 <th style="width:50px;">打合<br>せ回</th>
+                                <th style="width:40px;">追加<br>項目</th>
                                 <th style="width:40px;">図面<br>反映</th>
                                 <th style="width:85px;">操作</th>
                             </tr>
@@ -15670,6 +15671,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                     summary: item.summary || '',
                     exchanges: item.exchanges || [],
                     drawing_reflect: item.drawingReflect || false,
+                    is_additional: item.isAdditional || false,
                     floor: item.floor || '',
                     room: item.room || '',
                     updated_at: new Date().toISOString()
@@ -15708,6 +15710,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                         summary: item.summary || '',
                         exchanges: item.exchanges || [],
                         drawing_reflect: item.drawingReflect || false,
+                        is_additional: item.isAdditional || false,
                         updated_at: new Date().toISOString()
                     };
                 });
@@ -15735,6 +15738,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                             summary: item.summary || '',
                             exchanges: item.exchanges || [],
                             drawing_reflect: item.drawingReflect || false,
+                            is_additional: item.isAdditional || false,
                             updated_at: new Date().toISOString()
                         };
                     });
@@ -15826,6 +15830,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                             summary: row.summary || '',
                             exchanges: row.exchanges || [],
                             drawingReflect: row.drawing_reflect || false,
+                            isAdditional: row.is_additional || false,
                             floor: row.floor || '',
                             room: row.room || ''
                         };
@@ -16168,7 +16173,8 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
                 koushu: '',
                 summary: '',
                 exchanges: [{ questionDate:'', questioner:'', question:'', answerDate:'', answerer:'', answer:'', ketsugi:'', printed:'' }],
-                drawingReflect: false
+                drawingReflect: false,
+                isAdditional: false
             };
             data.push(newItem);
             // ★ ソート → 連番に振り直し（1,2,3...）→ 重複を根本排除
@@ -16477,6 +16483,7 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
 
                     // 図面反映（rowspan）
                     if (isFirst) {
+                        html += `<td rowspan="${exCount}" style="text-align:center;"><input type="checkbox" ${item.isAdditional?'checked':''} title="追加項目" onchange="qaOnFieldChange('${item.id}','isAdditional',this.checked)"></td>`;
                         html += `<td rowspan="${exCount}" style="text-align:center;"><input type="checkbox" ${item.drawingReflect?'checked':''} onchange="qaOnFieldChange('${item.id}','drawingReflect',this.checked)"></td>`;
                     }
 
@@ -16518,7 +16525,7 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
         function qaExportCSV() {
             const data = qaMigrateData(qaLoadData());
             if (data.length === 0) { alert('データがありません'); return; }
-            let csv = 'No,図面番号,工種,内容,質疑日,質疑者,質疑事項,回答日,回答者,回答,決議,図面反映,打合せ回\n';
+            let csv = 'No,図面番号,工種,内容,質疑日,質疑者,質疑事項,回答日,回答者,回答,決議,追加項目,図面反映,打合せ回\n';
             data.forEach(d => {
                 (d.exchanges||[]).forEach((ex, ei) => {
                     csv += [
@@ -16533,6 +16540,7 @@ function qaShowFloorRoomManager(){var fr=qaLoadFloorRooms();var rows='';var floo
                         ex.answerer || '',
                         '"'+(ex.answer||'').replace(/"/g,'""')+'"',
                         ex.ketsugi || '',
+                        ei === 0 ? (d.isAdditional ? '○' : '') : '',
                         ei === 0 ? (d.drawingReflect ? '○' : '') : '',
                         ex.printed ? '第'+ex.printed+'回' : ''
                     ].join(',') + '\n';
