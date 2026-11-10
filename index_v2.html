@@ -15600,7 +15600,7 @@ ${busSize > 0 ? '<div style="margin-top:6px;padding:6px 10px;background:#e8f5e9;
         }
         function _qaFormatDrawingNos(drawingNos) {
             if (!drawingNos || !Array.isArray(drawingNos)) return "";
-            return drawingNos.filter(function(d){return d.num || d.page;}).map(_qaFormatOneDrawingNo).join(", ");
+            return drawingNos.filter(function(d){return d.num || d.page || (d.prefix && _qaIsDocPrefix(d.prefix));}).map(_qaFormatOneDrawingNo).join(", ");
         }
         function qaUpdateDrawingNo(id, index, field, value) {
             var item = _qaDataCache.find(function(d){return d.id===id;});
